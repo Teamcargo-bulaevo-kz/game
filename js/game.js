@@ -142,7 +142,14 @@ RIFLES.push(
   { id: 'm4',  name: 'M4A1', full: 'Карабин, США', org: 'NATO', type: 'auto', cal: '5,56×45 NATO · M855, 4 г', mv: 910, bc: 0.151, g: 4.0, sh: 0.065, mag: 30, rpm: 800, recoil: 0.28, sg: 1.3, scope: 'iron_m4', disp: 0.8, look: 'm4' },
   { id: 'rpg', name: 'РПГ-7В', full: 'Ручной гранатомёт', org: 'RU', type: 'rocket', cal: 'ПГ-7ВЛ · кумулятивная граната', mv: 117, bc: 0.1, g: 2600, sh: 0, mag: 1, recoil: 0.6, sg: 0, scope: 'pgo', disp: 1.2, look: 'rpg' },
 );
+RIFLES.push(
+  { id: 'rr',  name: 'Р-12 «Штурм»', full: 'Винтовка боевого робота', org: 'BOT', type: 'auto', cal: '7,62 мм · 9,5 г', mv: 820, bc: 0.2, g: 9.5, sh: 0.08, mag: 40, rpm: 600, recoil: 0.22, sg: 1.5, scope: 'holo', disp: 0.7, look: 'bot_rifle' },
+  { id: 'rmg', name: 'П-30 «Вал»', full: 'Пулемёт тяжёлого робота', org: 'BOT', type: 'auto', cal: '7,62 мм · 12 г', mv: 850, bc: 0.25, g: 12, sh: 0.08, mag: 150, rpm: 720, recoil: 0.3, sg: 1.5, scope: 'holo', disp: 1.0, look: 'bot_mg' },
+  { id: 'rrk', name: 'РК-4 «Залп»', full: 'Наплечная ракетная установка', org: 'BOT', type: 'rocket', cal: 'реактивная граната · 2,6 кг', mv: 117, bc: 0.1, g: 2600, sh: 0, mag: 4, recoil: 0.35, sg: 0, scope: 'holo_rk', disp: 1.0, look: 'bot_rk' },
+);
 Object.assign(SCOPES, {
+  holo:    { id: 'holo',    name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 20, maxW: 5, ret: 'holo' },
+  holo_rk: { id: 'holo_rk', name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 0, maxW: 0, ret: 'holo', rocket: true },
   iron_ak:  { id: 'iron_ak',  name: 'Открытый прицел 1–10',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 42 },
   iron_pkm: { id: 'iron_pkm', name: 'Открытый прицел 1–15',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 15, fov: 40 },
   iron_m4:  { id: 'iron_m4',  name: 'Диоптр 1–6',            iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 6,  fov: 42 },
@@ -155,22 +162,23 @@ const WEATHER = {
   rain:   { name: 'Дождь',    t: 10,  p: 731, h: 92, fog: 0.0008,  top: 0x5d666f, hor: 0x8f979c, sun: 0.25, hemi: 0.75, clouds: 1,    rain: 1 },
   heat:   { name: 'Жара',     t: 36,  p: 741, h: 18, fog: 0.00028, top: 0x5d8fc9, hor: 0xdcd9c6, sun: 1.2,  hemi: 0.72, clouds: 0.15, rain: 0 },
   cold:   { name: 'Мороз',    t: -14, p: 768, h: 75, fog: 0.00025, top: 0x6d95c4, hor: 0xd3dde5, sun: 0.85, hemi: 0.8,  clouds: 0.4,  rain: 0 },
+  dusk:   { name: 'Закат',    t: 15,  p: 744, h: 55, fog: 0.00034, top: 0x34507e, hor: 0xe9a674, sun: 1.0,  hemi: 0.5,  clouds: 0.55, rain: 0, sd: [-0.8, 0.13, -0.3], sc: 0xffa462, cc: 0xffc29a },
 };
 const WINDS = {
   calm: { name: 'Штиль', base: [0, 1] }, light: { name: 'Слабый', base: [1.5, 3.5] },
   moderate: { name: 'Умеренный', base: [3.5, 6.5] }, strong: { name: 'Сильный', base: [7, 11] }, random: { name: 'Случайный', base: [0, 11] },
 };
 const QUALITY = {
-  low:  { name: 'Низкая',  pr: 0.75, aa: false, grass: 3000,  terr: 150, bushes: 350 },
-  mid:  { name: 'Средняя', pr: 1.25,  aa: false, grass: 6500,  terr: 200, bushes: 550 },
-  high: { name: 'Высокая', pr: 1.6,  aa: true,  grass: 14000, terr: 256, bushes: 800 },
+  low:  { name: 'Низкая',  pr: 0.75, aa: false, grass: 3000,  terr: 150, bushes: 350, sh: 0 },
+  mid:  { name: 'Средняя', pr: 1.15, aa: false, grass: 6000,  terr: 200, bushes: 550, sh: 1024 },
+  high: { name: 'Высокая', pr: 1.6,  aa: true,  grass: 14000, terr: 256, bushes: 800, sh: 2048 },
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { gmode: 'range', teamN: 10, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 10, side: 'h', vibro: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
-if (!(S.rifle >= 0 && S.rifle < 10)) S.rifle = 0;
+if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
 const HOOK = {};
 const SHAKE = { a: 0 };
 const HM = { t: 0, kind: '' };
@@ -220,6 +228,7 @@ try {
   renderer = new THREE.WebGLRenderer({ canvas: $('gl'), antialias: Q.aa, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
 } catch (e) { showErr('WebGL недоступен в этом браузере. Откройте игру в Chrome.'); return; }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pr));
+if (Q.sh) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = Q.sh > 1024 ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; }
 renderer.setSize(innerWidth, innerHeight, false);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.05, 20000);
@@ -229,8 +238,13 @@ const camB = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.02, 200
 scene.fog = new THREE.FogExp2(0xc8d5dd, 0.0002);
 
 const hemi = new THREE.HemisphereLight(0xd6e6ff, 0x4d5c2c, 0.75); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff1d6, 1.0); sun.position.set(-0.45, 0.75, 0.55); scene.add(sun);
+const sun = new THREE.DirectionalLight(0xfff1d6, 1.0); sun.position.set(-0.45, 0.75, 0.55); scene.add(sun); scene.add(sun.target);
 const SUN_DIR = new V3(-0.45, 0.5, 0.55).normalize();
+if (Q.sh) {
+  sun.castShadow = true; sun.shadow.mapSize.set(Q.sh, Q.sh);
+  const sc = sun.shadow.camera; sc.left = -48; sc.right = 48; sc.top = 48; sc.bottom = -48; sc.near = 10; sc.far = 500;
+  sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04;
+}
 
 // небо
 const skyU = { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: SUN_DIR }, sunI: { value: 1 } };
@@ -298,7 +312,7 @@ groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
   geo.setIndex(new THREE.BufferAttribute(idx, 1));
   geo.computeVertexNormals();
   const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: groundTex }));
-  m.name = 'terrain';
+  m.name = 'terrain'; m.receiveShadow = !!Q.sh;
   scene.add(m);
 })();
 
@@ -383,6 +397,7 @@ function updateGrass(px, pz) {
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.3, h, 6), trunkM); tr.position.y = h / 2; g.add(tr);
     for (let c = 0; c < 3; c++) { const cr = new THREE.Mesh(new THREE.IcosahedronGeometry(1.8 + Math.random() * 1.6, 0), crownM); cr.position.set(gauss() * 0.9, h + gauss() * 0.8, gauss() * 0.9); g.add(cr); }
     g.position.set(x, terrainH(x, z) - 0.2, z);
+    g.traverse((c) => { c.castShadow = !!Q.sh; });
     scene.add(g);
   }
 })();
@@ -564,9 +579,11 @@ const rain = (function () {
 function applyWeatherVisuals() {
   const w = WEATHER[S.weather];
   skyU.top.value.setHex(w.top); skyU.hor.value.setHex(w.hor); skyU.sunI.value = w.sun;
+  const sd = w.sd || [-0.45, 0.5, 0.55]; SUN_DIR.set(sd[0], sd[1], sd[2]).normalize(); sun.color.setHex(w.sc || 0xfff1d6);
+  hemi.color.setHex(w.sd ? 0xc9b8d0 : 0xd6e6ff);
   scene.fog.color.setHex(w.hor); scene.fog.density = w.fog;
   sun.intensity = w.sun; hemi.intensity = w.hemi;
-  clouds.forEach((c, i) => { c.visible = i / clouds.length < w.clouds + 0.05; c.material.color.setHex(w.rain ? 0x8a9097 : w.clouds > 0.9 ? 0xc5c9cc : 0xffffff); c.material.opacity = w.clouds > 0.9 ? 0.95 : 0.8; });
+  clouds.forEach((c, i) => { c.visible = i / clouds.length < w.clouds + 0.05; c.material.color.setHex(w.cc || (w.rain ? 0x8a9097 : w.clouds > 0.9 ? 0xc5c9cc : 0xffffff)); c.material.opacity = w.clouds > 0.9 ? 0.95 : 0.8; });
   rain.l.visible = !!w.rain;
   renderer.setClearColor(w.hor);
 }
@@ -652,6 +669,23 @@ function buildIron(look) {
     box(0.004, 0.03, 0.01, BLK, -0.012, -0.016, -0.62); box(0.004, 0.03, 0.01, BLK, 0.012, -0.016, -0.62);
     box(0.028, 0.012, 0.012, BLK, 0, -0.034, -0.62);
     g.userData.muzzle = new V3(0, -0.06, -0.92);
+  } else if (look === 'bot_rifle' || look === 'bot_mg' || look === 'bot_rk') {
+    const AR = 0x5f656c, DK = 0x2c3036, JT = 0x1b1e22, mg = look === 'bot_mg', rk = look === 'bot_rk';
+    box(0.13, 0.13, 0.42, AR, 0.05, -0.12, 0.08);                         // предплечье
+    box(0.1, 0.06, 0.3, 0x8a9096, 0.05, -0.04, 0.05);
+    box(0.12, 0.12, 0.12, JT, 0.05, -0.12, -0.16);                        // кисть
+    if (rk) {
+      box(0.2, 0.18, 0.6, DK, 0.02, -0.06, -0.35);
+      for (let i = 0; i < 4; i++) cyl(0.035, 0.035, 0.05, 0x111, -0.03 + (i % 2) * 0.09, -0.02 - Math.floor(i / 2) * 0.08, -0.66);
+      g.userData.muzzle = new V3(0.02, -0.06, -0.7);
+    } else {
+      box(mg ? 0.13 : 0.1, mg ? 0.17 : 0.13, mg ? 0.75 : 0.62, DK, 0.03, -0.08, -0.38);
+      box(0.05, 0.05, 0.16, JT, 0.03, 0.0, -0.3);
+      cyl(mg ? 0.035 : 0.022, mg ? 0.035 : 0.022, 0.4, JT, 0.03, -0.06, -0.85);
+      box(0.06, 0.06, 0.07, JT, 0.03, -0.06, -1.06);
+      if (mg) box(0.16, 0.2, 0.2, AR, 0.1, -0.2, -0.32); else box(0.05, 0.18, 0.09, AR, 0.03, -0.2, -0.3);
+      g.userData.muzzle = new V3(0.03, -0.06, -1.1);
+    }
   } else if (look === 'rpg') {
     cyl(0.04, 0.04, 0.95, 0x4b5636, 0, -0.07, -0.2);
     cyl(0.05, 0.05, 0.12, 0x2a2a28, 0, -0.07, 0.28);
@@ -773,6 +807,12 @@ const STANCE = [
   { eye: 1.0,  speed: 1.7, sway: 1.6, tremor: 0.32, kick: 1.2, name: 'Сидя' },
   { eye: 0.42, speed: 0.6, sway: 0.5, tremor: 0.11, kick: 0.65, name: 'Лёжа' },
 ];
+const RSTANCE = [
+  { eye: 2.15, speed: 2.8, sway: 0.9, tremor: 0.12, kick: 0.9, name: 'Стоя' },
+  { eye: 1.6,  speed: 1.4, sway: 0.6, tremor: 0.1,  kick: 0.7, name: 'Присед' },
+  { eye: 1.15, speed: 0.5, sway: 0.4, tremor: 0.08, kick: 0.5, name: 'На колене' },
+];
+const stOf = () => (P.robot ? RSTANCE : STANCE)[P.stance];
 const AIM = { mode: 'hip', zoom: 4, binoZoom: 10, blend: 0 };     // hip | scope | bino
 const BR = { hold: false, stamina: 1, factor: 1, gasp: 0, phase: 0 };
 const REC = { k: 0, v: 0 };
@@ -796,7 +836,7 @@ function setAim(mode) {
   AIM.mode = mode;
   const sc = curScope();
   if (mode === 'scope') { const st = curTur(); AIM.zoom = st.zoom || sc.min; }
-  $('bScope').classList.toggle('on', mode === 'scope');
+  $('bScope').classList.toggle('on', mode === 'scope'); $('bScopeL').classList.toggle('on', mode === 'scope');
   $('bBino').classList.toggle('on', mode === 'bino');
   rifleHolder.visible = mode === 'hip' || (mode === 'scope' && sc.iron);
   updateAimUI();
@@ -806,7 +846,7 @@ function updateAimUI() {
   $('tur').hidden = m !== 'scope' || !!sc.rocket;
   $('tur').classList.toggle('iron', !!sc.iron);
   if (HOOK.aimUI) HOOK.aimUI(m);
-  $('bBreath').hidden = m !== 'scope';
+  $('bBreath').hidden = m !== 'scope' || !!P.robot;
   $('stamina').hidden = m !== 'scope';
   const zoomable = (m === 'scope' && sc.max > sc.min) || m === 'bino';
   $('zoom').hidden = !zoomable;
@@ -937,11 +977,12 @@ function fire() {
   const dir = new V3(0, 0, -1).applyQuaternion(q), up = new V3(0, 1, 0).applyQuaternion(q), right = new V3(1, 0, 0).applyQuaternion(q);
   const origin = camera.position.clone().addScaledVector(up, -rf.sh).addScaledVector(dir, 0.5);
   const hipK = AIM.mode === 'hip' ? (rf.type === 'sniper' ? 3 : 2.2) : 1;
-  const disp = rf.disp * hipK * (rf.type === 'auto' && P.stance === 2 ? 0.6 : 1) * 0.001;
+  const disp = rf.disp * hipK * (rf.type === 'auto' && P.stance === 2 ? 0.6 : 1) * 0.001 * (HOOK.dispMul || 1);
+  if (S.vibro && navigator.vibrate) { try { navigator.vibrate(rf.type === 'auto' ? 7 : 18); } catch (e) { /* ignore */ } }
   const d = dir.clone();
   if (rf.type === 'rocket') {
     d.applyAxisAngle(right, gauss() * disp); d.applyAxisAngle(up, gauss() * disp);
-    if (HOOK.launchRocket) HOOK.launchRocket(camera.position.clone().addScaledVector(up, -0.07).addScaledVector(dir, 0.9), d, 'h', true);
+    if (HOOK.launchRocket) HOOK.launchRocket(camera.position.clone().addScaledVector(up, -0.07).addScaledVector(dir, 0.9), d, HOOK.playerTeam || 'h', true);
     REC.v += 0.5 * rf.recoil;
     flash.material.opacity = 1;
     updateWeaponUI();
@@ -953,9 +994,9 @@ function fire() {
   const mv = mvNow(rf) + gauss() * 2.5;
   const auto = rf.type === 'auto';
   const tr = S.tracers && (!auto || STATS.shots % (rf.id === 'pkm' ? 2 : 3) === 0) ? 0xff9a3c : 0;
-  const b = spawnBullet({ team: 'h', player: true, rf, origin, dir: d, mv, tracer: tr, aim: aimedTarget(origin, dir), aimDir: dir });
+  const b = spawnBullet({ team: HOOK.playerTeam || 'h', player: true, rf, origin, dir: d, mv, tracer: tr, aim: aimedTarget(origin, dir), aimDir: dir });
   // отдача, звук, вспышка
-  const sk = STANCE[P.stance].kick * rf.recoil;
+  const sk = stOf().kick * rf.recoil;
   REC.v += 0.75 * sk * (auto ? 0.6 : 1);
   P.yaw += gauss() * (auto ? 0.0012 : 0.0025) * sk * (P.stance === 2 ? 0.4 : 1);
   sndShot(clamp(0.55 + rf.recoil * 0.25, 0.45, 1), auto);
@@ -1145,23 +1186,34 @@ function updateStats() {
 /* ---------------- дальномер ---------------- */
 const LRF = { d: null, t: 0, ang: 0, T: null, pt: null };
 const ray = new THREE.Raycaster();
-function laser() {
-  const o = camera.position.clone(), dir = new V3(0, 0, -1).applyQuaternion(camera.quaternion);
-  let best = Infinity, bestT = null;
-  ray.set(o, dir); ray.far = 4000;
-  const hits = ray.intersectObjects(targetMeshes, false);
-  if (hits.length) { best = hits[0].distance; bestT = hits[0].object.userData.T; }
+function marchTerrain(o, dir, maxD) {
   let s = 1, prev = 0;
-  while (s < Math.min(best, 4000)) {
+  while (s < maxD) {
     const x = o.x + dir.x * s, y = o.y + dir.y * s, z = o.z + dir.z * s;
     if (y < terrainH(x, z)) {
       let lo = prev, hi = s;
       for (let i = 0; i < 12; i++) { const m = (lo + hi) / 2; if (o.y + dir.y * m < terrainH(o.x + dir.x * m, o.z + dir.z * m)) hi = m; else lo = m; }
-      if (hi < best) { best = hi; bestT = null; }
-      break;
+      return hi;
     }
     prev = s; s += Math.max(0.5, s * 0.01);
   }
+  return Infinity;
+}
+function rangeAt() {
+  const o = camera.position, dir = new V3(0, 0, -1).applyQuaternion(camera.quaternion);
+  let best = HOOK.rayUnits ? HOOK.rayUnits(o, dir, 2500) : Infinity;
+  best = Math.min(best, marchTerrain(o, dir, Math.min(best, 2500)));
+  return best < 2500 ? best : null;
+}
+function laser() {
+  const o = camera.position.clone(), dir = new V3(0, 0, -1).applyQuaternion(camera.quaternion);
+  let best = Infinity, bestT = null;
+  ray.set(o, dir); ray.far = 4000;
+  const hits = HOOK.battle ? [] : ray.intersectObjects(targetMeshes, false);
+  if (hits.length) { best = hits[0].distance; bestT = hits[0].object.userData.T; }
+  if (HOOK.rayUnits) { const u = HOOK.rayUnits(o, dir, Math.min(best, 4000)); if (u < best) { best = u; bestT = null; } }
+  const tr = marchTerrain(o, dir, Math.min(best, 4000));
+  if (tr < best) { best = tr; bestT = null; }
   LRF.d = best < 4000 ? best : null; LRF.t = 6; LRF.pt = LRF.d ? o.clone().addScaledVector(dir, LRF.d) : null; LRF.ang = Math.asin(clamp(dir.y, -1, 1)) / DEG; LRF.T = bestT;
   sndBeep();
 }
@@ -1178,15 +1230,16 @@ function lookDelta(dx, dy, kind) {
 }
 function joyStart(e) {
   JOY.id = e.pointerId; JOY.ox = e.clientX; JOY.oy = e.clientY;
-  joyEl.style.left = (e.clientX - 65) + 'px'; joyEl.style.top = (e.clientY - 65) + 'px'; joyEl.style.bottom = 'auto';
+  const js = joyEl.offsetWidth || 130;
+  joyEl.style.left = (e.clientX - js / 2) + 'px'; joyEl.style.top = (e.clientY - js / 2) + 'px'; joyEl.style.bottom = 'auto';
 }
 function joyMove(e) {
-  let dx = e.clientX - JOY.ox, dy = e.clientY - JOY.oy; const l = Math.hypot(dx, dy), m = 52;
+  let dx = e.clientX - JOY.ox, dy = e.clientY - JOY.oy; const l = Math.hypot(dx, dy), m = (joyEl.offsetWidth || 130) * 0.4;
   if (l > m) { dx *= m / l; dy *= m / l; }
   knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
   input.mx = dx / m; input.my = -dy / m;
 }
-function joyEnd() { JOY.id = null; input.mx = 0; input.my = 0; knob.style.transform = ''; joyEl.style.left = ''; joyEl.style.top = ''; joyEl.style.bottom = ''; }
+function joyEnd() { JOY.id = null; input.mx = 0; input.my = 0; knob.style.transform = ''; if (window.HUD) window.HUD.apply(); else { joyEl.style.left = ''; joyEl.style.top = ''; joyEl.style.bottom = ''; } }
 
 touch.addEventListener('pointerdown', (e) => {
   audioInit();
@@ -1223,6 +1276,7 @@ function fireButton(el) {
 fireButton($('bFire')); fireButton($('bFireL'));
 function tapButton(el, fn) { el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); audioInit(); fn(); }); }
 tapButton($('bScope'), () => setAim('scope'));
+tapButton($('bScopeL'), () => setAim('scope'));
 tapButton($('bBino'), () => setAim('bino'));
 tapButton($('bCrouch'), () => setStance(1));
 tapButton($('bProne'), () => setStance(2));
@@ -1280,11 +1334,11 @@ function updatePlayer(dt) {
   const K = input.keys;
   if (K.KeyW) my += 1; if (K.KeyS) my -= 1; if (K.KeyA) mx -= 1; if (K.KeyD) mx += 1;
   const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
-  const st = STANCE[P.stance];
+  const st = stOf();
   if (HOOK.dead) { mx = 0; my = 0; }
   const wantRun = (K.ShiftLeft || K.ShiftRight || (IS_TOUCH && input.my > 0.95)) && my > 0.5 && AIM.mode === 'hip' && P.stance === 0;
   P.sprint = wantRun && Math.hypot(mx, my) > 0.3;
-  const sp = P.sprint ? 6.2 : st.speed * (AIM.mode === 'hip' ? 1 : 0.45);
+  const sp = (P.sprint ? (P.robot ? 4.4 : 6.2) : st.speed * (AIM.mode === 'hip' ? 1 : 0.45)) * (HOOK.speedMul || 1);
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   P.x += (mx * cy - my * sy) * sp * dt;
   P.z += (-mx * sy - my * cy) * sp * dt;
@@ -1295,7 +1349,7 @@ function updatePlayer(dt) {
   P.bob += dt * sp * 2.2 * P.moving;
 }
 function updateSway(dt) {
-  const st = STANCE[P.stance];
+  const st = stOf();
   if (BR.hold && BR.stamina > 0 && BR.gasp <= 0) {
     BR.factor = lerp(BR.factor, 0.1, dt * 3);
     BR.stamina -= dt / 7;
@@ -1353,6 +1407,12 @@ function updateEnv(dt) {
   grassU.uWind.value.set(w[0] * 0.035, w[1] * 0.035);
   updateGrass(P.x, P.z);
   sky.position.copy(camera.position);
+  if (Q.sh) {
+    const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), st = 96 / Q.sh * 4;
+    const cx = Math.round((camera.position.x + fx * 26) / st) * st, cz = Math.round((camera.position.z + fz * 26) / st) * st;
+    sun.target.position.set(cx, terrainH(cx, cz), cz);
+    sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 220);
+  } else sun.position.copy(SUN_DIR);
   for (const s of socks) {
     const ww = windAt(s.z, simT);
     const sp = ww[2];
@@ -1408,7 +1468,7 @@ function updateHUD(dt) {
   drawCompass(bearing);
   $('stamina').firstChild.style.transform = 'scaleX(' + BR.stamina.toFixed(3) + ')';
   $('stamina').firstChild.style.background = BR.gasp > 0 ? '#ff7a5c' : '#cfe3a8';
-  const st = [STANCE[P.stance].name];
+  const st = [stOf().name];
   if (reloadT > 0) st.push('перезарядка'); else if (cycleT > 0 && !curRifle().semi) st.push('затвор');
   if (P.sprint) st.push('бег');
   if (BR.hold && BR.gasp <= 0 && AIM.mode === 'scope') st.push('дыхание задержано');
@@ -1525,6 +1585,33 @@ function drawPGO(cx, cy, k) {
   o.stroke();
   for (let D = 200; D <= 500; D += 100) { const x = bx + (D - 200) / 300 * 16 * t; line(cx, cy, k, x, by, x, by + 0.6 * t); label(cx, cy, k, x, by + 1.8 * t, String(D / 100), 10); }
 }
+const HOLO = { t: -1, d: null };
+function drawHolo(W, H, k) {
+  const cx = W / 2, cy = H / 2;
+  const vg = o.createRadialGradient(cx, cy, Math.min(W, H) * 0.3, cx, cy, Math.max(W, H) * 0.75);
+  vg.addColorStop(0, 'rgba(255,90,40,0.03)'); vg.addColorStop(1, 'rgba(40,8,0,0.6)'); o.fillStyle = vg; o.fillRect(0, 0, W, H);
+  o.fillStyle = 'rgba(255,120,60,0.05)'; for (let y = 0; y < H; y += 4 * OVD) o.fillRect(0, y, W, OVD);
+  const col = 'rgba(255,150,80,0.95)';
+  o.strokeStyle = col; o.fillStyle = col; o.lineWidth = 1.4 * OVD; o.textAlign = 'center'; o.textBaseline = 'middle';
+  o.beginPath(); o.arc(cx, cy, 6 * k, 0, TAU); o.stroke();
+  o.beginPath(); o.arc(cx, cy, 1.4 * OVD, 0, TAU); o.fill();
+  [-1, 1].forEach((sg) => { line(cx, cy, k, sg * 8, 0, sg * 30, 0); line(cx, cy, k, 0, sg * 8, 0, sg * (sg > 0 ? 30 : 14)); for (let i = 10; i <= 30; i += 5) line(cx, cy, k, sg * i, -0.8, sg * i, 0.8); });
+  for (let i = 10; i <= 30; i += 5) line(cx, cy, k, -0.8, i, 0.8, i);
+  if (simT - HOLO.t > 0.2 || simT < HOLO.t) { HOLO.t = simT; HOLO.d = rangeAt(); }
+  const rf = curRifle();
+  o.font = '600 ' + 13 * OVD + 'px monospace';
+  if (HOLO.d) {
+    const need = rf.type === 'rocket' ? (HOOK.rocketElev ? HOOK.rocketElev(HOLO.d) : 0) : stdElev(rf, HOLO.d) + zeroAngle(rf) - zeroAngle(rf);
+    const off = (need - elevRad()) * 1000;
+    const y = cy + off * k;
+    o.beginPath(); o.moveTo(cx, y - 6 * OVD); o.lineTo(cx + 6 * OVD, y); o.lineTo(cx, y + 6 * OVD); o.lineTo(cx - 6 * OVD, y); o.closePath(); o.stroke();
+    o.fillText('Д ' + Math.round(HOLO.d) + ' м', cx + 70 * OVD, cy - 22 * OVD);
+    o.fillText('▼ ' + off.toFixed(1) + ' мрад', cx + 70 * OVD, cy - 6 * OVD);
+  } else o.fillText('Д ---', cx + 70 * OVD, cy - 22 * OVD);
+  const st = curTur();
+  o.fillText(AIM.zoom.toFixed(1).replace('.0', '') + '×   ' + (reloadT > 0 ? 'ПЕРЕЗАРЯДКА' : st.ammo + '/' + rf.mag), cx, H - 34 * OVD);
+  o.font = 11 * OVD + 'px monospace'; o.fillText('БАЛЛИСТИЧЕСКИЙ ВЫЧИСЛИТЕЛЬ · ◆ — точка попадания', cx, 70 * OVD);
+}
 function drawOverlay() {
   const W = ov.width, H = ov.height;
   o.clearRect(0, 0, W, H);
@@ -1536,6 +1623,8 @@ function drawOverlay() {
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,' + (0.45 * AIM.blend).toFixed(3) + ')'); o.fillStyle = vg; o.fillRect(0, 0, W, H);
     const st = curTur(); o.fillStyle = 'rgba(242,169,59,.95)'; o.textAlign = 'center'; o.font = '600 ' + 12 * OVD + 'px monospace';
     o.fillText('ПРИЦЕЛ ' + st.drum + ' (' + st.drum * 100 + ' м)   ' + (reloadT > 0 ? 'перезарядка' : st.ammo + '/' + curRifle().mag), W / 2, H - 30 * OVD);
+  } else if (AIM.mode === 'scope' && isc.ret === 'holo') {
+    drawHolo(W, H, k);
   } else if (AIM.mode === 'scope') {
     const R = Math.min(W, H) * 0.47;
     const cx = W / 2 + REC.k * 900 * OVD * 0, cy = H / 2 - REC.k * 2200 * OVD * 0.3;
@@ -1575,7 +1664,7 @@ function drawOverlay() {
     o.font = 11 * OVD + 'px monospace'; o.fillStyle = 'rgba(242,169,59,.95)';
     o.fillText(AIM.binoZoom + '×', cx, cy - R * 0.82);
     // мишень под перекрестием: её пробоины
-    const T = binoTarget();
+    const T = HOOK.battle ? null : binoTarget();
     if (T) {
       const pts = T.kind === 'ring' ? T.hits.reduce((s, h) => s + h.score, 0) : T.hits.length * 5;
       const last = T.hits.length ? T.hits[T.hits.length - 1] : null;
@@ -1645,11 +1734,12 @@ function renderMenu() {
   const g = $('mRifles'); g.innerHTML = '';
   RIFLES.forEach((r, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'rc' + (i === S.rifle ? ' on' : '');
-    const kind = r.type === 'auto' ? (r.id === 'pkm' ? 'пулемёт' : 'автомат') : r.type === 'rocket' ? 'гранатомёт' : 'снайперская';
-    const desc = r.type === 'rocket' ? 'V0 117 → 295 м/с · до 500 м<br>ПГО-7, кумулятивная граната' :
+    const kind = r.org === 'BOT' ? 'робот' : r.type === 'auto' ? (r.id === 'pkm' ? 'пулемёт' : 'автомат') : r.type === 'rocket' ? 'гранатомёт' : 'снайперская';
+    const desc = r.org === 'BOT' ? (r.type === 'rocket' ? '4 ракеты в пакете · до 500 м<br>цифровой прицел с вычислителем' : 'V0 ' + r.mv + ' м/с · ' + r.rpm + ' выстр/мин<br>цифровой прицел с вычислителем') :
+      r.type === 'rocket' ? 'V0 117 → 295 м/с · до 500 м<br>ПГО-7, кумулятивная граната' :
       r.type === 'auto' ? 'V0 ' + r.mv + ' м/с · ' + r.rpm + ' выстр/мин<br>открытый прицел (мушка) · ' + r.mag + ' патр.' :
       'V0 ' + r.mv + ' м/с · БК G7 ' + r.bc.toFixed(3) + '<br>' + (r.semi ? 'самозарядная' : 'продольно-скользящий затвор') + ' · ' + r.mag + ' патр.';
-    b.innerHTML = '<div class="t"><span class="n">' + r.name + '</span><span class="o ' + (r.org === 'RU' ? 'ru' : 'nato') + '">' + kind + '</span></div>' +
+    b.innerHTML = '<div class="t"><span class="n">' + r.name + '</span><span class="o ' + (r.org === 'RU' ? 'ru' : r.org === 'BOT' ? 'bot' : 'nato') + '">' + kind + '</span></div>' +
       '<div class="c">' + r.cal + '</div>' +
       '<div class="d">' + desc + '</div>';
     b.addEventListener('click', () => { S.rifle = i; save(); renderMenu(); });
@@ -1661,6 +1751,7 @@ function renderMenu() {
   chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Оборона: бой с роботами']], S.gmode, (id) => { S.gmode = id; save(); renderMenu(); });
   $('teamRow').hidden = S.gmode !== 'battle';
   chips($('mTeam'), [5, 10, 15, 20, 25].map((n) => [n, n + ' × ' + n]), S.teamN, (id) => { S.teamN = id; save(); renderMenu(); });
+  chips($('mSide'), [['h', 'За людей: оборона окопов'], ['r', 'За роботов: штурм']], S.side, (id) => { S.side = id; save(); renderMenu(); });
   $('gmodeNote').textContent = S.gmode === 'battle'
     ? 'Держите окопы против наступающих боевых роботов. Броня роботов изнашивается от попаданий в одно место; бойцы в бронежилетах хрупкие. Бинокль + кнопка «АРТ» — вызов артиллерии по точке дальномера.'
     : 'Мишени от 100 до 1500 м, разбор каждого выстрела.';
@@ -1672,8 +1763,8 @@ function renderMenu() {
     ? 'Показываются скорость ветра, таблички дистанций и разбор каждого выстрела с нужной поправкой.'
     : 'Ветер читайте по флажкам и траве, дистанцию — дальномером, попадания ищите в бинокль.';
   chips($('mQual'), Object.entries(QUALITY).map(([k, q]) => [k, q.name]), S.quality, (id) => { if (id === S.quality) return; S.quality = id; save(); location.reload(); });
-  chips($('mOpts'), [['tracers', 'Трассеры ' + (S.tracers ? 'вкл' : 'выкл')], ['bcam', 'Камера пули ' + (S.bcam ? 'вкл' : 'выкл')], ['sound', 'Звук ' + (S.sound ? 'вкл' : 'выкл')]], null, (id) => { S[id] = !S[id]; save(); renderMenu(); });
-  $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', [S.tracers, S.bcam, S.sound][i]));
+  chips($('mOpts'), [['tracers', 'Трассеры ' + (S.tracers ? 'вкл' : 'выкл')], ['bcam', 'Камера пули ' + (S.bcam ? 'вкл' : 'выкл')], ['sound', 'Звук ' + (S.sound ? 'вкл' : 'выкл')], ['vibro', 'Вибро ' + (S.vibro ? 'вкл' : 'выкл')]], null, (id) => { S[id] = !S[id]; save(); renderMenu(); });
+  $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', [S.tracers, S.bcam, S.sound, S.vibro][i]));
   $('mSens').value = S.sens; $('mSensV').textContent = (+S.sens).toFixed(2);
 }
 $('mSens').addEventListener('input', (e) => { S.sens = +e.target.value; $('mSensV').textContent = S.sens.toFixed(2); save(); });
@@ -1701,6 +1792,7 @@ $('bRestart').addEventListener('click', () => startGame(true));
 window.__back = () => { if (!$('card').hidden) $('card').hidden = true; else if ($('menu').hidden) openMenu(); else if (started) startGame(false); };
 $('bResetT').addEventListener('click', () => { targets.forEach((T) => { T.hits = []; T.score = 0; if (T.kind === 'ring') paintRing(T); else paintSteel(T); }); STATS.shots = STATS.hits = STATS.points = 0; updateStats(); });
 $('bNewWind').addEventListener('click', () => { newWind(); applyConditions(); });
+$('bHud').addEventListener('click', () => { if (window.HUD) { $('menu').hidden = true; $('hud').classList.remove('off'); window.HUD.edit(() => openMenu()); } });
 $('bFull').addEventListener('click', () => { try { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (document.exitFullscreen) document.exitFullscreen(); } catch (e) { /* ignore */ } });
 $('joy').hidden = !IS_TOUCH; $('bFireL').hidden = !IS_TOUCH;
 
@@ -1742,6 +1834,7 @@ window.SS = {
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,
   curRifle, curTur, scopeOf, selectRifle, setAim, setStance, updateWeaponUI, setRangeVisible, openMenu, renderMenu, targetSeg, paintRing, paintSteel, inPoly, SIL,
   IS_TOUCH, getSimT: () => simT, reload, rifleHolder, report, updateStats,
+  shadows: !!Q.sh, SUN_DIR, RSTANCE, rangeAt, marchTerrain, WIDX: (id) => RIFLES.findIndex((r) => r.id === id),
 };
 /* ---------------- старт ---------------- */
 applyConditions(); newWind(); applyWeatherVisuals(); applyMode();

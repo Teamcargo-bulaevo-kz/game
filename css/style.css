@@ -93,7 +93,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 #zoomKnob{position:absolute;left:5px;width:24px;height:24px;border-radius:50%;background:var(--amber);border:2px solid #20160a}
 #zoomTxt{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font:600 13px var(--f-mono);color:var(--amber);white-space:nowrap}
 
-#tur{position:fixed;left:calc(10px + var(--sl));top:calc(92px + var(--st));padding:6px;display:grid;grid-template-columns:repeat(3,44px);grid-auto-rows:auto;gap:5px;align-items:center;justify-items:center}
+#tur{position:fixed;left:calc(10px + var(--sl));bottom:calc(30px + var(--sb));top:auto;padding:6px;display:grid;grid-template-columns:repeat(3,44px);grid-auto-rows:auto;gap:5px;align-items:center;justify-items:center}
 .tb{width:44px;height:38px;border-radius:6px;background:rgba(236,240,220,.08);border:1px solid var(--edge);font-size:16px;color:var(--text)}
 .tb.small{font:600 10px var(--f-disp);letter-spacing:.06em}
 .tb:active{background:rgba(242,169,59,.3)}
@@ -177,3 +177,25 @@ section{min-width:0}
 .endbox h2{font-size:28px}
 .endbox p{margin:0;font:13px/1.6 var(--f-mono);color:var(--dim)}
 #joy{bottom:calc(40px + var(--sb))}
+
+/* раскладка кнопок */
+.lay-off{display:none!important}
+.rb span{font-size:9.5px}
+body.editing #hud{display:block!important}
+body.editing #hud .rb[hidden],body.editing #hud .rb.lay-off,body.editing #joy[hidden],body.editing #joy.lay-off{display:flex!important;opacity:.35!important}
+body.editing #joy{pointer-events:none}
+body.editing .rb{outline:1px dashed rgba(242,169,59,.6);outline-offset:3px}
+.rb.lay-sel,#joy.lay-sel{outline:2px solid var(--amber)!important;outline-offset:4px}
+#hudPick{position:fixed;inset:0;z-index:40;touch-action:none}
+#hudEd{position:fixed;left:50%;top:calc(6px + var(--st));transform:translateX(-50%);z-index:41;background:var(--panel-solid);border:1px solid var(--edge);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;max-width:calc(100vw - 20px)}
+#hudEd .hn{font:500 12px var(--f-disp);letter-spacing:.08em;color:var(--amber);text-align:center}
+#hudEd .hb{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+#hudEd button{font:500 12px var(--f-disp);letter-spacing:.05em;background:rgba(236,240,220,.07);border:1px solid var(--edge);border-radius:5px;padding:6px 9px;color:var(--text)}
+#hudEd button.ok{background:var(--amber);color:#1b1206;border-color:var(--amber)}
+.rc .o.bot{color:#ffb38a;border-color:rgba(255,179,138,.45)}
+#bbar i{font-style:normal}
+#dmg.bot{background:radial-gradient(ellipse at center,rgba(255,80,0,0) 45%,rgba(255,90,0,.55) 100%)}
+
+#feed{left:50%;right:auto;transform:translateX(-50%);top:calc(78px + var(--st));align-items:center;max-width:min(70vw,520px)}
+#feed div{text-align:center}
+#feed div{font-size:10.5px;padding:2px 7px}
