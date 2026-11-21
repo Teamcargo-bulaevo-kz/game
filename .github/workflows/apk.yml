@@ -1,0 +1,53 @@
+name: Сборка APK
+
+on:
+  push:
+    paths-ignore: ['README.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Копируем игру в assets
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r index.html css js icon.svg icon-192.png icon-512.png manifest.webmanifest android/app/src/main/assets/www/
+
+      - name: Собираем APK
+        working-directory: android
+        run: gradle assembleRelease --no-daemon -PversionCode=${{ github.run_number }}
+
+      - name: Переименовываем
+        run: cp android/app/build/outputs/apk/release/app-release.apk StepSniper.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StepSniper-apk
+          path: StepSniper.apk
+
+      - name: Публикуем релиз
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.${{ github.run_number }}
+          name: Степной снайпер 1.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: StepSniper.apk
+          body: |
+            APK для Android (7.0 и новее). Скачайте StepSniper.apk на телефон, откройте и разрешите установку из этого источника.
+            Новые версии ставятся поверх старой — настройки сохраняются.

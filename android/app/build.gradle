@@ -1,0 +1,43 @@
+plugins {
+    id 'com.android.application'
+}
+
+def vc = (project.findProperty('versionCode') ?: '1') as Integer
+
+android {
+    namespace 'kz.teamcargo.stepsniper'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'kz.teamcargo.stepsniper'
+        minSdk 24
+        targetSdk 34
+        versionCode vc
+        versionName "1.${vc}"
+    }
+
+    signingConfigs {
+        // Ключ лежит в репозитории, чтобы новые сборки ставились поверх старых без удаления игры.
+        game {
+            storeFile file('stepsniper.jks')
+            storePassword 'stepsniper'
+            keyAlias 'stepsniper'
+            keyPassword 'stepsniper'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.game
+        }
+        debug {
+            signingConfig signingConfigs.game
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

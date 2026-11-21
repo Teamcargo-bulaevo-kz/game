@@ -135,6 +135,19 @@ const RIFLES = [
   { id: 'awm',   name: 'AI AWM',       full: 'Магазинная винтовка, Великобритания', org: 'NATO', cal: '.338 Lapua Mag · 19,4 г',   mv: 830, bc: 0.381, g: 19.4, sh: 0.06,  mag: 5,  cycle: 1.15, semi: false, recoil: 1.55, sg: 2.0, scope: 'tree',   disp: 0.12, look: 'awm' },
   { id: 'm107',  name: 'Barrett M107', full: 'Крупнокалиберная самозарядная, США', org: 'NATO', cal: '12,7×99 NATO · 48,6 г',     mv: 855, bc: 0.50,  g: 48.6, sh: 0.075, mag: 10, cycle: 0.42, semi: true,  recoil: 2.1,  sg: 2.2, scope: 'mildot', disp: 0.25, look: 'm107' },
 ];
+RIFLES.forEach((r) => { r.type = 'sniper'; });
+RIFLES.push(
+  { id: 'ak',  name: 'АК-74М', full: 'Автомат Калашникова', org: 'RU', type: 'auto', cal: '5,45×39 · 7Н6, 3,4 г', mv: 900, bc: 0.168, g: 3.4, sh: 0.045, mag: 30, rpm: 650, recoil: 0.3, sg: 1.4, scope: 'iron_ak', disp: 0.9, look: 'ak' },
+  { id: 'pkm', name: 'ПКМ', full: 'Пулемёт Калашникова', org: 'RU', type: 'auto', cal: '7,62×54R · ЛПС, 9,6 г', mv: 825, bc: 0.19, g: 9.6, sh: 0.05, mag: 100, rpm: 650, recoil: 0.5, sg: 1.5, scope: 'iron_pkm', disp: 1.0, look: 'pkm' },
+  { id: 'm4',  name: 'M4A1', full: 'Карабин, США', org: 'NATO', type: 'auto', cal: '5,56×45 NATO · M855, 4 г', mv: 910, bc: 0.151, g: 4.0, sh: 0.065, mag: 30, rpm: 800, recoil: 0.28, sg: 1.3, scope: 'iron_m4', disp: 0.8, look: 'm4' },
+  { id: 'rpg', name: 'РПГ-7В', full: 'Ручной гранатомёт', org: 'RU', type: 'rocket', cal: 'ПГ-7ВЛ · кумулятивная граната', mv: 117, bc: 0.1, g: 2600, sh: 0, mag: 1, recoil: 0.6, sg: 0, scope: 'pgo', disp: 1.2, look: 'rpg' },
+);
+Object.assign(SCOPES, {
+  iron_ak:  { id: 'iron_ak',  name: 'Открытый прицел 1–10',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 42 },
+  iron_pkm: { id: 'iron_pkm', name: 'Открытый прицел 1–15',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 15, fov: 40 },
+  iron_m4:  { id: 'iron_m4',  name: 'Диоптр 1–6',            iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 6,  fov: 42 },
+  pgo:      { id: 'pgo',      name: 'ПГО-7 2,7×', rocket: true, min: 2.7, max: 2.7, unit: 'thou', click: 0.5, maxW: 0, ret: 'pgo' },
+});
 const WEATHER = {
   clear:  { name: 'Ясно',     t: 22,  p: 745, h: 40, fog: 0.00020, top: 0x4f86c6, hor: 0xc8d5dd, sun: 1.05, hemi: 0.75, clouds: 0.35, rain: 0 },
   cloudy: { name: 'Облачно',  t: 13,  p: 738, h: 68, fog: 0.00036, top: 0x8693a1, hor: 0xbcc2c7, sun: 0.45, hemi: 0.9,  clouds: 1,    rain: 0 },
@@ -154,19 +167,24 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 10, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
+if (!(S.rifle >= 0 && S.rifle < 10)) S.rifle = 0;
+const HOOK = {};
+const SHAKE = { a: 0 };
+const HM = { t: 0, kind: '' };
+let fireHeld = false;
 function save() { try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (e) { /* ignore */ } }
 const Q = QUALITY[S.quality] || QUALITY.mid;
 
 const TUR = {};   // состояние барабанов на каждую винтовку
-RIFLES.forEach((r) => { TUR[r.id] = { e: 0, w: 0, drum: 1, zoom: null, ammo: r.mag }; });
+RIFLES.forEach((r) => { TUR[r.id] = { e: 0, w: 0, drum: 1, zoom: null, ammo: r.mag, reserve: null }; });
 const curRifle = () => RIFLES[S.rifle];
-const scopeOf = (rf) => SCOPES[S.scopes[rf.id] || rf.scope];
+const scopeOf = (rf) => (rf.type === 'sniper' ? SCOPES[S.scopes[rf.id] || rf.scope] : SCOPES[rf.scope]) || SCOPES[rf.scope];
 const curScope = () => scopeOf(curRifle());
 const curTur = () => TUR[curRifle().id];
-function elevRad() { const sc = curScope(), st = curTur(); return sc.unit === 'thou' ? stdElev(curRifle(), st.drum * 100) : st.e * sc.click * UNIT[sc.unit]; }
+function elevRad() { const sc = curScope(), st = curTur(); if (sc.rocket) return 0; return sc.unit === 'thou' ? stdElev(curRifle(), st.drum * 100) : st.e * sc.click * UNIT[sc.unit]; }
 function windRad() { const sc = curScope(), st = curTur(); return st.w * sc.click * UNIT[sc.unit]; }
 
 /* ---------------- условия ---------------- */
@@ -591,19 +609,83 @@ function buildRifle(look) {
   if (C.bip) { [-1, 1].forEach((s) => { const l = box(0.012, 0.22, 0.012, 0x1a1a1a, s * 0.03, -0.15, -0.5); l.rotation.z = s * 0.15; l.rotation.x = -0.3; }); }
   return g;
 }
+function buildIron(look) {
+  const g = new THREE.Group();
+  const mats = {};
+  const M = (c) => mats[c] || (mats[c] = new THREE.MeshLambertMaterial({ color: c }));
+  const box = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(c)); m.position.set(x, y, z); g.add(m); return m; };
+  const cyl = (r1, r2, l, c, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, l, 12), M(c)); m.rotation.x = Math.PI / 2; m.position.set(x, y, z); g.add(m); return m; };
+  const BLK = 0x1a1b1b, DARK = 0x262422;
+  if (look === 'ak' || look === 'pkm') {
+    const pk = look === 'pkm', L = pk ? 1.0 : 0.85;
+    box(0.05, 0.065, 0.36, BLK, 0, -0.075, -0.3);                        // ствольная коробка
+    box(0.046, 0.012, 0.34, 0x222322, 0, -0.04, -0.3);                   // крышка
+    box(0.056, 0.055, 0.2, pk ? BLK : 0x3a2a22, 0, -0.06, -0.55);        // цевьё
+    box(0.03, 0.024, 0.22, BLK, 0, -0.024, -0.56);                       // газовая трубка
+    cyl(0.009, 0.009, L - 0.42, BLK, 0, -0.045, -0.42 - (L - 0.42) / 2);  // ствол
+    box(0.034, 0.12, 0.05, DARK, 0, -0.14, -0.14).rotation.x = 0.25;     // рукоять
+    box(0.05, 0.09, 0.22, pk ? 0x2a2a28 : 0x3a2a22, 0, -0.1, 0.0);       // приклад
+    // целик: планка с прорезью
+    box(0.026, 0.014, 0.03, BLK, 0, -0.016, -0.24);
+    box(0.0075, 0.009, 0.006, BLK, -0.0052, -0.0045, -0.24); box(0.0075, 0.009, 0.006, BLK, 0.0052, -0.0045, -0.24);
+    // мушка с намушником
+    const fz = -L + 0.03;
+    box(0.026, 0.03, 0.03, BLK, 0, -0.03, fz);
+    box(0.0028, 0.018, 0.003, 0x111111, 0, -0.009, fz);
+    box(0.004, 0.026, 0.008, BLK, -0.011, -0.012, fz); box(0.004, 0.026, 0.008, BLK, 0.011, -0.012, fz);
+    if (pk) { box(0.09, 0.11, 0.12, 0x3d4a2c, 0.02, -0.14, -0.26); [-1, 1].forEach((sd) => { const l = box(0.01, 0.2, 0.01, BLK, sd * 0.02, -0.07, -0.78); l.rotation.x = -1.3; }); }
+    else { const mg = box(0.034, 0.17, 0.07, 0x5a3424, 0, -0.15, -0.3); mg.rotation.x = 0.35; }
+    g.userData.muzzle = new V3(0, -0.045, -L - 0.02);
+  } else if (look === 'm4') {
+    box(0.05, 0.07, 0.34, 0x2b2c2a, 0, -0.085, -0.28);
+    box(0.03, 0.012, 0.36, BLK, 0, -0.044, -0.34);                       // планка
+    box(0.06, 0.06, 0.26, 0x2b2c2a, 0, -0.055, -0.52);
+    cyl(0.009, 0.009, 0.25, BLK, 0, -0.06, -0.78);
+    box(0.034, 0.11, 0.045, BLK, 0, -0.12, -0.1).rotation.x = 0.3;
+    box(0.045, 0.08, 0.2, 0x2b2c2a, 0, -0.11, 0.0);
+    box(0.03, 0.16, 0.06, 0x3a3a36, 0, -0.15, -0.28).rotation.x = 0.1;
+    // диоптр
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0045, 0.0018, 6, 18), M(BLK)); ring.position.set(0, 0, -0.2); g.add(ring);
+    box(0.016, 0.03, 0.01, BLK, 0, -0.021, -0.2);
+    // треугольная мушка
+    box(0.003, 0.03, 0.004, 0x111111, 0, -0.015, -0.62);
+    box(0.004, 0.03, 0.01, BLK, -0.012, -0.016, -0.62); box(0.004, 0.03, 0.01, BLK, 0.012, -0.016, -0.62);
+    box(0.028, 0.012, 0.012, BLK, 0, -0.034, -0.62);
+    g.userData.muzzle = new V3(0, -0.06, -0.92);
+  } else if (look === 'rpg') {
+    cyl(0.04, 0.04, 0.95, 0x4b5636, 0, -0.07, -0.2);
+    cyl(0.05, 0.05, 0.12, 0x2a2a28, 0, -0.07, 0.28);
+    cyl(0.045, 0.085, 0.2, 0x55633b, 0, -0.07, -0.78);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.18, 12), M(0x55633b)); cone.rotation.x = -Math.PI / 2; cone.position.set(0, -0.07, -0.97); g.add(cone);
+    box(0.03, 0.1, 0.04, BLK, 0, -0.14, -0.05);
+    box(0.03, 0.05, 0.14, BLK, -0.05, -0.03, -0.1);
+    g.userData.muzzle = new V3(0, -0.07, -0.7);
+  }
+  return g;
+}
+const HIP_S = new V3(0.16, -0.17, -0.32), HIP_I = new V3(0.15, -0.12, -0.16), HIP_R = new V3(0.17, -0.03, 0.05), ADS = new V3(0, 0, -0.1);
 const rifleModels = {};
 function showRifleModel() {
   while (rifleHolder.children.length) rifleHolder.remove(rifleHolder.children[0]);
   const rf = curRifle();
-  if (!rifleModels[rf.look]) { const m = buildRifle(rf.look); m.scale.setScalar(0.62); m.rotation.y = 0.05; rifleModels[rf.look] = m; }
-  rifleHolder.add(rifleModels[rf.look]);
-  flash.position.set(0, -0.02, -(0.25 + 1.1) * 0.62); flash.scale.set(0.25, 0.25, 1);
+  if (!rifleModels[rf.look]) {
+    let m;
+    if (rf.type === 'sniper') { m = buildRifle(rf.look); m.scale.setScalar(0.62); m.rotation.y = 0.05; m.userData.muzzle = new V3(0, -0.02, -(0.25 + 1.1) * 0.62); }
+    else m = buildIron(rf.look);
+    rifleModels[rf.look] = m;
+  }
+  const mdl = rifleModels[rf.look];
+  rifleHolder.add(mdl);
+  flash.position.copy(mdl.userData.muzzle); flash.scale.set(0.25, 0.25, 1);
   rifleHolder.add(flash);
 }
 
 /* ---------------- эффекты: трассеры, пыль, искры ---------------- */
 const effects = [];
+function trimEffects() { while (effects.length > 320) { const e = effects.shift(); scene.remove(e.o); e.o.material.dispose(); } }
+function addEffect(e) { scene.add(e.o); effects.push(e); trimEffects(); return e; }
 function spawnPuff(p, color, size, life, n, rise, spread) {
+  trimEffects();
   for (let i = 0; i < n; i++) {
     const m = new THREE.SpriteMaterial({ map: puffTex, color, transparent: true, depthWrite: false, opacity: 0.95 });
     const s = new THREE.Sprite(m);
@@ -624,7 +706,8 @@ function updateEffects(dt) {
     if (k >= 1) { scene.remove(e.o); e.o.material.dispose(); effects.splice(i, 1); continue; }
     const s = lerp(e.s0, e.s1, 1 - Math.pow(1 - k, 2)); e.o.scale.set(s, s, 1);
     e.o.material.opacity = e.a0 * (1 - k) * (1 - k * 0.3);
-    e.o.position.addScaledVector(e.v, dt); e.v.multiplyScalar(1 - dt * 1.2);
+    e.o.position.addScaledVector(e.v, dt);
+    if (e.g) { e.v.y -= 9.8 * dt; if (e.o.position.y < e.floor) { e.v.set(0, 0, 0); e.o.position.y = e.floor; } } else e.v.multiplyScalar(1 - dt * 1.2);
   }
 }
 
@@ -653,13 +736,23 @@ function tone(t0, f, dur, gain, type, f2) {
   const g = AC.createGain(); g.gain.setValueAtTime(gain, t0); g.gain.exponentialRampToValueAtTime(0.0005, t0 + dur);
   o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.05);
 }
-function sndShot(power) {
+let sndBudget = 0;
+function sndShot(power, auto) {
   if (!AC || !S.sound) return; const t = AC.currentTime;
   noiseHit(t, 0.06, 'highpass', 1500, 0.9 * power);
-  noiseHit(t, 0.55 + power * 0.3, 'lowpass', 900, 1.0 * power);
-  tone(t, 90, 0.35, 0.8 * power, 'sine', 35);
-  noiseHit(t + 0.25, 1.4, 'lowpass', 300, 0.25 * power); // эхо степи
+  noiseHit(t, auto ? 0.3 : 0.55 + power * 0.3, 'lowpass', 900, 1.0 * power);
+  tone(t, 90, auto ? 0.18 : 0.35, 0.8 * power, 'sine', 35);
+  if (!auto || Math.random() < 0.3) noiseHit(t + 0.25, 1.4, 'lowpass', 300, 0.25 * power); // эхо степи
 }
+// выстрел где-то на поле: громкость и задержка по расстоянию
+function sndShotFar(dist, heavy, robot) {
+  if (!AC || !S.sound || sndBudget > 14) return; sndBudget++;
+  const v = clamp(30 / (dist + 30), 0.03, 0.8), t = AC.currentTime + dist / 343;
+  noiseHit(t, 0.05, 'highpass', 1200, 0.6 * v * (dist < 80 ? 1 : 0.4));
+  noiseHit(t, 0.25 + Math.min(0.6, dist / 600), 'lowpass', clamp(1600 - dist, 250, 1400), (heavy ? 1.1 : 0.8) * v);
+  if (robot) tone(t, heavy ? 420 : 640, 0.08, 0.12 * v, 'square', heavy ? 200 : 300);
+}
+function sndCrack(v) { if (!AC || !S.sound) return; const t = AC.currentTime; noiseHit(t, 0.03, 'highpass', 3000, 0.9 * v); noiseHit(t + 0.01, 0.06, 'bandpass', 1800, 0.5 * v, 2); }
 function sndBolt(delay) {
   if (!AC || !S.sound) return; const t = AC.currentTime + delay;
   noiseHit(t, 0.05, 'bandpass', 2600, 0.35, 3); noiseHit(t + 0.22, 0.06, 'bandpass', 1900, 0.4, 3); noiseHit(t + 0.42, 0.05, 'bandpass', 3000, 0.35, 3);
@@ -680,7 +773,7 @@ const STANCE = [
   { eye: 1.0,  speed: 1.7, sway: 1.6, tremor: 0.32, kick: 1.2, name: 'Сидя' },
   { eye: 0.42, speed: 0.6, sway: 0.5, tremor: 0.11, kick: 0.65, name: 'Лёжа' },
 ];
-const AIM = { mode: 'hip', zoom: 4, binoZoom: 10 };     // hip | scope | bino
+const AIM = { mode: 'hip', zoom: 4, binoZoom: 10, blend: 0 };     // hip | scope | bino
 const BR = { hold: false, stamina: 1, factor: 1, gasp: 0, phase: 0 };
 const REC = { k: 0, v: 0 };
 const SW = { x: 0, y: 0 };
@@ -705,12 +798,14 @@ function setAim(mode) {
   if (mode === 'scope') { const st = curTur(); AIM.zoom = st.zoom || sc.min; }
   $('bScope').classList.toggle('on', mode === 'scope');
   $('bBino').classList.toggle('on', mode === 'bino');
-  rifleHolder.visible = mode === 'hip';
+  rifleHolder.visible = mode === 'hip' || (mode === 'scope' && sc.iron);
   updateAimUI();
 }
 function updateAimUI() {
   const m = AIM.mode, sc = curScope();
-  $('tur').hidden = m !== 'scope';
+  $('tur').hidden = m !== 'scope' || !!sc.rocket;
+  $('tur').classList.toggle('iron', !!sc.iron);
+  if (HOOK.aimUI) HOOK.aimUI(m);
   $('bBreath').hidden = m !== 'scope';
   $('stamina').hidden = m !== 'scope';
   const zoomable = (m === 'scope' && sc.max > sc.min) || m === 'bino';
@@ -738,7 +833,10 @@ function updateZoomUI() {
 function fmt(v, d) { return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d); }
 function updateTurUI() {
   const sc = curScope(), st = curTur();
-  if (sc.unit === 'thou') {
+  if (sc.iron) {
+    $('turE').textContent = 'ПРИЦЕЛ ' + st.drum;
+    $('turW').textContent = (st.drum * 100) + ' м';
+  } else if (sc.unit === 'thou') {
     $('turE').textContent = 'ПРИЦЕЛ ' + st.drum;
     $('turW').textContent = 'БОК ' + fmt(st.w * sc.click, 1);
   } else {
@@ -753,10 +851,12 @@ function turretStep(t) {
   if (t === '0') { st.e = 0; st.w = 0; st.drum = 1; }
   else if (t === 'e+' || t === 'e-') {
     const d = t === 'e+' ? 1 : -1;
-    if (sc.unit === 'thou') st.drum = clamp(st.drum + d, 1, 10);
+    if (sc.rocket) return;
+    if (sc.unit === 'thou') st.drum = clamp(st.drum + d, 1, sc.drumMax || 10);
     else st.e = clamp(st.e + d, -Math.round(2 / sc.click), Math.round(sc.maxE / sc.click));
   } else {
     const d = t === 'w+' ? 1 : -1;
+    if (!sc.maxW) return;
     st.w = clamp(st.w + d, -Math.round(sc.maxW / sc.click), Math.round(sc.maxW / sc.click));
   }
   sndClick(); updateTurUI();
@@ -766,9 +866,10 @@ function updateWeaponUI() {
   const rf = curRifle(), st = curTur();
   $('wName').textContent = rf.name;
   $('wCal').textContent = rf.cal + ' · ' + scopeOf(rf).name;
-  $('wAmmo').textContent = reloadT > 0 ? '···' : st.ammo + '/' + rf.mag;
+  $('wAmmo').textContent = reloadT > 0 ? '···' : rf.type === 'rocket' ? st.ammo + ' + ' + (st.reserve == null ? '∞' : st.reserve) : st.ammo + '/' + rf.mag;
 }
 function selectRifle(i) {
+  if (HOOK.dead) return;
   if (i === S.rifle && rifleModels[curRifle().look]) return;
   S.rifle = (i + RIFLES.length) % RIFLES.length; save();
   cycleT = 0.6; reloadT = 0;
@@ -777,8 +878,9 @@ function selectRifle(i) {
 }
 function reload() {
   const rf = curRifle(), st = curTur();
-  if (reloadT > 0 || st.ammo === rf.mag) return;
-  reloadT = rf.semi ? 2.6 : 3.2;
+  if (reloadT > 0 || st.ammo === rf.mag || HOOK.dead) return;
+  if (st.reserve === 0) return;
+  reloadT = rf.type === 'rocket' ? 3.6 : rf.id === 'pkm' ? 5.5 : rf.type === 'auto' ? 2.4 : rf.semi ? 2.6 : 3.2;
   if (AC && S.sound) { const t = AC.currentTime; noiseHit(t + 0.3, 0.07, 'bandpass', 1500, 0.4, 2); noiseHit(t + reloadT - 0.6, 0.08, 'bandpass', 2000, 0.45, 2); }
   updateWeaponUI();
 }
@@ -799,55 +901,76 @@ function aimedTarget(origin, dir) {
   }
   return best;
 }
+const tracerMats = {};
+function spawnBullet(o) {
+  if (bullets.length > 260) return null;
+  const d = o.dir;
+  const b = {
+    rf: o.rf, team: o.team || 'h', player: !!o.player, owner: o.owner || null,
+    p: o.origin.clone(), v: d.clone().multiplyScalar(o.mv), t: 0, right: o.rico ? new V3() : new V3(-d.z, 0, d.x).normalize(),
+    last: o.origin.clone(), cur: o.origin.clone(), alive: true, aim: o.aim || null, aimPass: null, paper: new Set(), reported: !o.player,
+    origin: o.origin.clone(), trail: [], acc: 0, aimDir: (o.aimDir || d).clone(), dt: o.dt || 0.001, rico: !!o.rico,
+  };
+  if (o.tracer) {
+    const key = o.tracer;
+    b.spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: key, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, sizeAttenuation: false }));
+    b.spr.scale.set(0.018, 0.018, 1); scene.add(b.spr);
+    const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(16 * 3), 3));
+    b.line = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: key, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.85, depthWrite: false }));
+    b.line.frustumCulled = false; scene.add(b.line);
+  }
+  bullets.push(b);
+  return b;
+}
 function fire() {
   audioInit();
   if (AIM.mode === 'bino') { laser(); return; }
+  if (HOOK.dead) return;
   const rf = curRifle(), st = curTur();
   if (reloadT > 0) return;
-  if (st.ammo <= 0) { reload(); return; }
-  if (cycleT > 0) { if (rf.semi) return; sndClick(); return; }
-  st.ammo--; cycleT = rf.cycle;
+  if (st.ammo <= 0) { if (rf.type !== 'auto' || !fireHeld || cycleT <= 0) reload(); return; }
+  if (cycleT > 0) { if (rf.type === 'sniper' && !rf.semi) sndClick(); return; }
+  if (P.sprint) return;
+  st.ammo--; cycleT = rf.type === 'auto' ? 60 / rf.rpm : rf.type === 'rocket' ? 0.6 : rf.cycle;
   STATS.shots++;
   const q = camera.quaternion;
   const dir = new V3(0, 0, -1).applyQuaternion(q), up = new V3(0, 1, 0).applyQuaternion(q), right = new V3(1, 0, 0).applyQuaternion(q);
   const origin = camera.position.clone().addScaledVector(up, -rf.sh).addScaledVector(dir, 0.5);
+  const hipK = AIM.mode === 'hip' ? (rf.type === 'sniper' ? 3 : 2.2) : 1;
+  const disp = rf.disp * hipK * (rf.type === 'auto' && P.stance === 2 ? 0.6 : 1) * 0.001;
   const d = dir.clone();
-  const el = zeroAngle(rf) + elevRad() + gauss() * rf.disp * 0.001;
-  const wd = windRad() + gauss() * rf.disp * 0.001;
+  if (rf.type === 'rocket') {
+    d.applyAxisAngle(right, gauss() * disp); d.applyAxisAngle(up, gauss() * disp);
+    if (HOOK.launchRocket) HOOK.launchRocket(camera.position.clone().addScaledVector(up, -0.07).addScaledVector(dir, 0.9), d, 'h', true);
+    REC.v += 0.5 * rf.recoil;
+    flash.material.opacity = 1;
+    updateWeaponUI();
+    return;
+  }
+  const el = zeroAngle(rf) + elevRad() + gauss() * disp;
+  const wd = windRad() + gauss() * disp;
   d.applyAxisAngle(right, el); d.applyAxisAngle(up, -wd);
   const mv = mvNow(rf) + gauss() * 2.5;
-  const hr = new V3(-d.z, 0, d.x).normalize();
-  const b = {
-    rf, p: origin.clone(), v: d.multiplyScalar(mv), t: 0, right: hr, last: origin.clone(), cur: origin.clone(), alive: true,
-    aim: aimedTarget(origin, dir), aimPass: null, paper: new Set(), reported: false, origin: origin.clone(), trail: [], acc: 0,
-    aimDir: dir.clone(), mv,
-  };
-  // трассер
-  if (S.tracers) {
-    b.spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff9a3c, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, sizeAttenuation: false }));
-    b.spr.scale.set(0.018, 0.018, 1); scene.add(b.spr);
-    const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(16 * 3), 3));
-    b.line = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: 0xff7a2a, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.85, depthWrite: false }));
-    b.line.frustumCulled = false; scene.add(b.line);
-  }
-  bullets.push(b);
+  const auto = rf.type === 'auto';
+  const tr = S.tracers && (!auto || STATS.shots % (rf.id === 'pkm' ? 2 : 3) === 0) ? 0xff9a3c : 0;
+  const b = spawnBullet({ team: 'h', player: true, rf, origin, dir: d, mv, tracer: tr, aim: aimedTarget(origin, dir), aimDir: dir });
   // отдача, звук, вспышка
   const sk = STANCE[P.stance].kick * rf.recoil;
-  REC.v += 0.75 * sk;
-  P.yaw += gauss() * 0.0025 * sk * (P.stance === 2 ? 0.4 : 1);
-  sndShot(clamp(0.55 + rf.recoil * 0.25, 0.5, 1));
-  if (!rf.semi) sndBolt(0.45);
+  REC.v += 0.75 * sk * (auto ? 0.6 : 1);
+  P.yaw += gauss() * (auto ? 0.0012 : 0.0025) * sk * (P.stance === 2 ? 0.4 : 1);
+  sndShot(clamp(0.55 + rf.recoil * 0.25, 0.45, 1), auto);
+  if (rf.type === 'sniper' && !rf.semi) sndBolt(0.45);
   flash.material.opacity = 1;
-  if (P.stance === 2) { const mp = camera.position.clone().addScaledVector(dir, 1.2); mp.y = terrainH(mp.x, mp.z) + 0.05; spawnPuff(mp, 0xa89a7c, 0.9 * rf.recoil, 1.2, 4, 0.4, 0.3); }
-  if (S.bcam && b.aim && b.aim.D >= 250 && !BCAM.b) { BCAM.b = b; BCAM.hold = 0; }
+  if (P.stance === 2 && (!auto || STATS.shots % 4 === 0)) { const mp = camera.position.clone().addScaledVector(dir, 1.2); mp.y = terrainH(mp.x, mp.z) + 0.05; spawnPuff(mp, 0xa89a7c, 0.9 * rf.recoil, 1.2, auto ? 2 : 4, 0.4, 0.3); }
+  if (b && S.bcam && rf.type === 'sniper' && b.aim && b.aim.D >= 250 && !BCAM.b) { BCAM.b = b; BCAM.hold = 0; }
   updateWeaponUI();
 }
 function updateBullets(dt) {
-  const DT = 0.001;
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     if (b.alive) {
       b.acc += dt;
+      const DT = b.dt;
       while (b.acc >= DT && b.alive) { b.acc -= DT; stepBullet(b, DT); }
       if (b.alive && (b.t > 8 || b.cur.y < -100)) killBullet(b, null);
     }
@@ -857,7 +980,7 @@ function updateBullets(dt) {
       const arr = b.line.geometry.attributes.position.array;
       for (let k = 0; k < 16; k++) { const j = Math.min(k, b.trail.length / 3 - 1) * 3; arr[k * 3] = b.trail[j]; arr[k * 3 + 1] = b.trail[j + 1]; arr[k * 3 + 2] = b.trail[j + 2]; }
       b.line.geometry.attributes.position.needsUpdate = true;
-      const sz = AIM.mode === 'hip' ? 0.012 : 0.02;
+      const sz = (AIM.mode === 'hip' ? 0.012 : 0.02) * (b.player ? 1 : 0.8);
       b.spr.scale.set(sz, sz, 1);
       if (!b.alive) { b.fade = (b.fade || 1) - dt * 4; b.spr.material.opacity = Math.max(0, b.fade); b.line.material.opacity = Math.max(0, b.fade) * 0.85; }
     }
@@ -886,7 +1009,7 @@ function stepBullet(b, dt) {
   b.last.copy(b.cur);
 }
 function collide(b, p0, p1) {
-  for (const T of targets) {
+  if (!HOOK.battle) for (const T of targets) {
     const d0 = (p0.x - T.c.x) * T.n.x + (p0.z - T.c.z) * T.n.z;
     const d1 = (p1.x - T.c.x) * T.n.x + (p1.z - T.c.z) * T.n.z;
     if (d0 > 0 && d1 <= 0) {
@@ -902,13 +1025,42 @@ function collide(b, p0, p1) {
       }
     }
   }
+  let best = HOOK.collide ? HOOK.collide(b, p0, p1) : null;
   const g1 = terrainH(p1.x, p1.z);
   if (p1.y <= g1) {
     const g0 = terrainH(p0.x, p0.z);
     const e0 = p0.y - g0, e1 = p1.y - g1, f = e0 > 0 ? e0 / (e0 - e1) : 0;
-    const pt = new V3(lerp(p0.x, p1.x, f), lerp(p0.y, p1.y, f), lerp(p0.z, p1.z, f));
-    killBullet(b, pt);
+    if (!best || f < best.t) best = { t: f, fn: () => groundHit(b, new V3(lerp(p0.x, p1.x, f), lerp(p0.y, p1.y, f), lerp(p0.z, p1.z, f))) };
   }
+  if (best) best.fn();
+}
+// рикошет от земли при пологом угле встречи
+function groundHit(b, pt) {
+  const v = b.v, sp = v.length();
+  const sinI = -v.y / sp;
+  if (!b.rico && sp > 250 && sinI < 0.13 && Math.random() < 0.55) {
+    b.rico = true; b.right.set(0, 0, 0);
+    const k = 0.5 + Math.random() * 0.15;
+    v.set(v.x * k, Math.abs(v.y) * (0.25 + Math.random() * 0.4) + sp * 0.02 * Math.random(), v.z * k);
+    v.applyAxisAngle(new V3(0, 1, 0), gauss() * 0.12);
+    pt.y += 0.03; b.p.copy(pt); b.cur.copy(pt); b.last.copy(pt);
+    spawnPuff(pt, 0x9b8a68, 0.35 + b.rf.g * 0.01, 1.0, b.player ? 3 : 1, 0.4, 0.1);
+    return;
+  }
+  killBullet(b, pt);
+}
+function targetSeg(p0, p1) {
+  if (HOOK.battle) return null;
+  for (const T of targets) {
+    const d0 = (p0.x - T.c.x) * T.n.x + (p0.z - T.c.z) * T.n.z, d1 = (p1.x - T.c.x) * T.n.x + (p1.z - T.c.z) * T.n.z;
+    if (d0 > 0 && d1 <= 0) {
+      const f = d0 / (d0 - d1), pt = new V3().lerpVectors(p0, p1, f);
+      const a = (pt.x - T.c.x) * T.u.x + (pt.z - T.c.z) * T.u.z, bb = pt.y - T.c.y;
+      const inside = T.kind === 'ring' ? Math.abs(a) <= T.S && Math.abs(bb) <= T.S : (Math.abs(a) < 0.3 && bb + 0.735 > 0 && bb + 0.735 < 1.5 && inPoly(a, bb + 0.735, SIL));
+      if (inside) return { T, a, b: bb, pt, f };
+    }
+  }
+  return null;
 }
 function energy(b) { const v = b.v.length(); return 0.5 * b.rf.g / 1000 * v * v; }
 function hitRing(b, T, a, bb, pt) {
@@ -933,18 +1085,21 @@ function hitSteel(b, T, a, ly, pt) {
   if (!b.reported) { b.reported = true; STATS.hits++; STATS.points += 5; report({ kind: 'steel', T, a, b: ly - 0.735, t: b.t, v: b.v.length(), E: energy(b) }); }
   if (BCAM.b === b) BCAM.hold = 0.9;
 }
-function killBullet(b, pt) {
+function killBullet(b, pt, quiet) {
   b.alive = false;
   if (pt) {
     b.cur.copy(pt);
     const dist = pt.distanceTo(camera.position);
-    const sz = 0.7 + clamp(dist / 1000, 0, 1.6) + b.rf.g * 0.012;
-    spawnPuff(pt, 0x9b8a68, sz, 1.8, 6, 0.6, 0.25);
-    sndImpact('ground', dist / 343, dist);
+    if (!quiet) {
+      const sz = 0.7 + clamp(dist / 1000, 0, 1.6) + Math.min(b.rf.g, 50) * 0.012;
+      spawnPuff(pt, 0x9b8a68, sz, 1.8, b.player ? 6 : 2, 0.6, 0.25);
+      if (b.player || dist < 120) sndImpact('ground', dist / 343, dist);
+    }
   }
   if (!b.reported) {
     b.reported = true;
-    if (b.aim && b.aimPass) report({ kind: 'miss', T: b.aim, a: b.aimPass.a, b: b.aimPass.b, t: b.aimPass.t, v: b.aimPass.v });
+    if (HOOK.battle) { /* в бою разбор выстрела не показываем */ }
+    else if (b.aim && b.aimPass) report({ kind: 'miss', T: b.aim, a: b.aimPass.a, b: b.aimPass.b, t: b.aimPass.t, v: b.aimPass.v });
     else if (b.aim && pt) {
       const short = b.aim.c.distanceTo(b.origin) - pt.distanceTo(b.origin);
       report({ kind: 'short', T: b.aim, short });
@@ -988,7 +1143,7 @@ function updateStats() {
 }
 
 /* ---------------- дальномер ---------------- */
-const LRF = { d: null, t: 0, ang: 0, T: null };
+const LRF = { d: null, t: 0, ang: 0, T: null, pt: null };
 const ray = new THREE.Raycaster();
 function laser() {
   const o = camera.position.clone(), dir = new V3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -1007,7 +1162,7 @@ function laser() {
     }
     prev = s; s += Math.max(0.5, s * 0.01);
   }
-  LRF.d = best < 4000 ? best : null; LRF.t = 6; LRF.ang = Math.asin(clamp(dir.y, -1, 1)) / DEG; LRF.T = bestT;
+  LRF.d = best < 4000 ? best : null; LRF.t = 6; LRF.pt = LRF.d ? o.clone().addScaledVector(dir, LRF.d) : null; LRF.ang = Math.asin(clamp(dir.y, -1, 1)) / DEG; LRF.T = bestT;
   sndBeep();
 }
 
@@ -1036,7 +1191,7 @@ function joyEnd() { JOY.id = null; input.mx = 0; input.my = 0; knob.style.transf
 touch.addEventListener('pointerdown', (e) => {
   audioInit();
   if (e.pointerType === 'mouse') {
-    if (document.pointerLockElement === touch) { if (e.button === 0) fire(); else if (e.button === 2) setAim('scope'); return; }
+    if (document.pointerLockElement === touch) { if (e.button === 0) { fireHeld = true; fire(); } else if (e.button === 2) setAim('scope'); return; }
     try { const r = touch.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* нет захвата курсора */ }
     MDRAG.id = e.pointerId; MDRAG.x = e.clientX; MDRAG.y = e.clientY;
     return;
@@ -1054,14 +1209,15 @@ const endPtr = (e) => { if (e.pointerId === JOY.id) joyEnd(); if (e.pointerId ==
 touch.addEventListener('pointerup', endPtr); touch.addEventListener('pointercancel', endPtr);
 document.addEventListener('mousemove', (e) => { if (document.pointerLockElement === touch) lookDelta(e.movementX, e.movementY, 'mouse'); });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
+document.addEventListener('mouseup', (e) => { if (e.button === 0) fireHeld = false; });
 touch.addEventListener('wheel', (e) => { if (AIM.mode !== 'hip') { setZoomFrac(zoomFrac() - Math.sign(e.deltaY) * 0.06); } e.preventDefault(); }, { passive: false });
 
 // кнопка огня: нажатие — выстрел, далее палец можно тянуть для доводки (как в мобильных шутерах)
 function fireButton(el) {
   let id = null, x = 0, y = 0;
-  el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); id = e.pointerId; x = e.clientX; y = e.clientY; try { el.setPointerCapture(id); } catch (err) { /* ignore */ } fire(); });
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); id = e.pointerId; x = e.clientX; y = e.clientY; try { el.setPointerCapture(id); } catch (err) { /* ignore */ } fireHeld = true; fire(); });
   el.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; lookDelta(e.clientX - x, e.clientY - y, e.pointerType === 'mouse' ? 'mouse' : 'touch'); x = e.clientX; y = e.clientY; });
-  const up = (e) => { if (e.pointerId === id) id = null; };
+  const up = (e) => { if (e.pointerId === id) { id = null; fireHeld = false; } };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
 }
 fireButton($('bFire')); fireButton($('bFireL'));
@@ -1071,7 +1227,7 @@ tapButton($('bBino'), () => setAim('bino'));
 tapButton($('bCrouch'), () => setStance(1));
 tapButton($('bProne'), () => setStance(2));
 tapButton($('bReload'), reload);
-tapButton($('weapon'), () => selectRifle(S.rifle + 1));
+tapButton($('weapon'), () => { if (HOOK.nextWeapon) HOOK.nextWeapon(); else selectRifle(S.rifle + 1); });
 const bBreath = $('bBreath');
 bBreath.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); BR.hold = true; bBreath.classList.add('on'); try { bBreath.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } });
 const brUp = () => { BR.hold = false; bBreath.classList.remove('on'); };
@@ -1098,7 +1254,7 @@ $('cardClose').addEventListener('click', () => { $('card').hidden = true; });
 window.addEventListener('keydown', (e) => {
   if (!$('menu').hidden) { if (e.code === 'Enter') startGame(); return; }
   const k = e.code; input.keys[k] = true;
-  if (k === 'Space') { e.preventDefault(); fire(); }
+  if (k === 'Space') { e.preventDefault(); if (!e.repeat) { fireHeld = true; fire(); } }
   else if (k === 'KeyQ') setAim('scope');
   else if (k === 'KeyB') setAim('bino');
   else if (k === 'KeyC') setStance(1);
@@ -1113,9 +1269,10 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'KeyX') turretStep('0');
   else if (k === 'Tab') { e.preventDefault(); if ($('card').hidden) openCard(); else $('card').hidden = true; }
   else if (k === 'KeyM' || k === 'Escape') openMenu();
-  else if (/^Digit[1-6]$/.test(k)) selectRifle(+k.slice(5) - 1);
+  else if (/^Digit[0-9]$/.test(k)) selectRifle((+k.slice(5) + 9) % 10);
+  else if (k === 'KeyG' && HOOK.callArt) HOOK.callArt();
 });
-window.addEventListener('keyup', (e) => { input.keys[e.code] = false; if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') BR.hold = false; });
+window.addEventListener('keyup', (e) => { input.keys[e.code] = false; if (e.code === 'Space') fireHeld = false; if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') BR.hold = false; });
 
 /* ---------------- обновление игрока, качание, отдача ---------------- */
 function updatePlayer(dt) {
@@ -1124,11 +1281,15 @@ function updatePlayer(dt) {
   if (K.KeyW) my += 1; if (K.KeyS) my -= 1; if (K.KeyA) mx -= 1; if (K.KeyD) mx += 1;
   const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
   const st = STANCE[P.stance];
-  const sp = st.speed * (AIM.mode === 'hip' ? 1 : 0.45);
+  if (HOOK.dead) { mx = 0; my = 0; }
+  const wantRun = (K.ShiftLeft || K.ShiftRight || (IS_TOUCH && input.my > 0.95)) && my > 0.5 && AIM.mode === 'hip' && P.stance === 0;
+  P.sprint = wantRun && Math.hypot(mx, my) > 0.3;
+  const sp = P.sprint ? 6.2 : st.speed * (AIM.mode === 'hip' ? 1 : 0.45);
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   P.x += (mx * cy - my * sy) * sp * dt;
   P.z += (-mx * sy - my * cy) * sp * dt;
   P.x = clamp(P.x, -160, 160); P.z = clamp(P.z, -320, 90);
+  if (HOOK.move) HOOK.move();
   P.moving = lerp(P.moving, Math.min(1, Math.hypot(mx, my)), dt * 6);
   P.eye = lerp(P.eye, st.eye, dt * 5);
   P.bob += dt * sp * 2.2 * P.moving;
@@ -1157,19 +1318,31 @@ function updateSway(dt) {
   REC.v += (-120 * REC.k - 19 * REC.v) * dt;
   REC.k += REC.v * dt;
   cycleT = Math.max(0, cycleT - dt);
-  if (reloadT > 0) { reloadT -= dt; if (reloadT <= 0) { reloadT = 0; curTur().ammo = curRifle().mag; updateWeaponUI(); } }
+  if (reloadT > 0) { reloadT -= dt; if (reloadT <= 0) { reloadT = 0; const st = curTur(); st.ammo = curRifle().mag; if (st.reserve != null) st.reserve = Math.max(0, st.reserve - 1); updateWeaponUI(); } }
 }
-function applyCamera() {
+function applyCamera(dt) {
   const gy = terrainH(P.x, P.z);
-  const bob = AIM.mode === 'hip' ? Math.sin(P.bob * 2) * 0.035 * P.moving : 0;
-  camera.position.set(P.x, gy + P.eye + bob, P.z);
-  camera.rotation.y = P.yaw - SW.x * 0.001;
-  camera.rotation.x = P.pitch + SW.y * 0.001 + REC.k;
-  camera.rotation.z = 0;
-  const fov = fovFor(AIM.mode);
+  const run = P.sprint ? 2.2 : 1;
+  const bob = AIM.mode === 'hip' ? Math.sin(P.bob * 2) * 0.035 * P.moving * run : 0;
+  const sc = curScope(), rf = curRifle();
+  const ironT = AIM.mode === 'scope' && sc.iron ? 1 : 0;
+  AIM.blend += (ironT - AIM.blend) * Math.min(1, dt * 11);
+  SHAKE.a *= Math.exp(-dt * 3.5);
+  const shx = (vnoise(simT * 23, 3.1) - 0.5) * SHAKE.a, shy = (vnoise(simT * 23, 8.7) - 0.5) * SHAKE.a;
+  camera.position.set(P.x, gy + P.eye + bob + (HOOK.camDY || 0), P.z);
+  camera.rotation.y = P.yaw - SW.x * 0.001 + shx;
+  camera.rotation.x = P.pitch + SW.y * 0.001 + REC.k + shy;
+  camera.rotation.z = HOOK.camRoll || 0;
+  let fov = fovFor(AIM.mode);
+  if (sc.iron && (AIM.mode === 'scope' || AIM.blend > 0.01)) fov = lerp(65, sc.fov, AIM.blend);
   if (Math.abs(camera.fov - fov) > 1e-4) { camera.fov = fov; camera.updateProjectionMatrix(); }
-  rifleHolder.position.set(0.16 + Math.sin(P.bob) * 0.01 * P.moving, -0.17 + Math.abs(Math.cos(P.bob)) * 0.01 * P.moving, -0.32 + REC.k * 0.6);
-  rifleHolder.rotation.x = REC.k * 2;
+  const hip = rf.type === 'sniper' ? HIP_S : rf.type === 'rocket' ? HIP_R : HIP_I;
+  const k = AIM.blend, mv = P.moving * (1 - k) * run;
+  rifleHolder.position.set(
+    lerp(hip.x, ADS.x, k) + Math.sin(P.bob) * 0.012 * mv,
+    lerp(hip.y, ADS.y, k) + Math.abs(Math.cos(P.bob)) * 0.012 * mv - (P.sprint ? 0.06 : 0),
+    lerp(hip.z, ADS.z, k) + REC.k * (k > 0.5 ? 0.25 : 0.6));
+  rifleHolder.rotation.set(REC.k * (k > 0.5 ? 0.6 : 2) + (P.sprint ? -0.5 : 0), P.sprint ? 0.6 : 0, 0);
 }
 
 /* ---------------- окружение ---------------- */
@@ -1237,6 +1410,7 @@ function updateHUD(dt) {
   $('stamina').firstChild.style.background = BR.gasp > 0 ? '#ff7a5c' : '#cfe3a8';
   const st = [STANCE[P.stance].name];
   if (reloadT > 0) st.push('перезарядка'); else if (cycleT > 0 && !curRifle().semi) st.push('затвор');
+  if (P.sprint) st.push('бег');
   if (BR.hold && BR.gasp <= 0 && AIM.mode === 'scope') st.push('дыхание задержано');
   if (BR.gasp > 0) st.push('отдышка');
   $('state').textContent = st.join(' · ');
@@ -1333,11 +1507,36 @@ function drawReticle(type, cx, cy, k, R) {
     [1100, 1200, 1300].forEach((D) => { const off = (stdElev(rf, D) - base) * 1000; chev(off, 0.55); });
   }
 }
+function drawPGO(cx, cy, k) {
+  const t = UNIT.thou / 0.001;
+  o.strokeStyle = 'rgba(12,12,12,.95)'; o.fillStyle = 'rgba(12,12,12,.95)'; o.lineWidth = 1.3 * OVD; o.textAlign = 'center'; o.textBaseline = 'middle';
+  const el = HOOK.rocketElev || (() => 0);
+  line(cx, cy, k, 0, -6 * t, 0, el(500) * 1000 + 3 * t);
+  for (let D = 100; D <= 500; D += 100) {
+    const y = el(D) * 1000;
+    o.beginPath(); o.moveTo(cx - 1.4 * t * k, cy + (y + 1.4 * t) * k); o.lineTo(cx, cy + y * k); o.lineTo(cx + 1.4 * t * k, cy + (y + 1.4 * t) * k); o.stroke();
+    if (D > 100) label(cx, cy, k, -3.2 * t, y + 0.6 * t, String(D / 100), 11);
+    if (D % 200 === 0 || D === 300 || D === 500) for (let i = -3; i <= 3; i++) if (i) line(cx, cy, k, i * 10 * t, y, i * 10 * t, y + (i % 2 ? 0.8 : 1.5) * t);
+  }
+  // дальномерная шкала под цель высотой 2,4 м (боевой робот)
+  const bx = -28 * t, by = 22 * t; line(cx, cy, k, bx, by, bx + 16 * t, by);
+  o.beginPath();
+  for (let D = 200; D <= 500; D += 20) { const x = bx + (D - 200) / 300 * 16 * t, h = 2.4 / D * 1000; const X = cx + x * k, Y = cy + (by - h) * k; if (D === 200) o.moveTo(X, Y); else o.lineTo(X, Y); }
+  o.stroke();
+  for (let D = 200; D <= 500; D += 100) { const x = bx + (D - 200) / 300 * 16 * t; line(cx, cy, k, x, by, x, by + 0.6 * t); label(cx, cy, k, x, by + 1.8 * t, String(D / 100), 10); }
+}
 function drawOverlay() {
   const W = ov.width, H = ov.height;
   o.clearRect(0, 0, W, H);
   const k = mrPx();
-  if (AIM.mode === 'scope') {
+  const isc = curScope();
+  if (AIM.mode === 'scope' && isc.iron) {
+    // открытый прицел: только лёгкое затемнение краёв
+    const vg = o.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.7);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,' + (0.45 * AIM.blend).toFixed(3) + ')'); o.fillStyle = vg; o.fillRect(0, 0, W, H);
+    const st = curTur(); o.fillStyle = 'rgba(242,169,59,.95)'; o.textAlign = 'center'; o.font = '600 ' + 12 * OVD + 'px monospace';
+    o.fillText('ПРИЦЕЛ ' + st.drum + ' (' + st.drum * 100 + ' м)   ' + (reloadT > 0 ? 'перезарядка' : st.ammo + '/' + curRifle().mag), W / 2, H - 30 * OVD);
+  } else if (AIM.mode === 'scope') {
     const R = Math.min(W, H) * 0.47;
     const cx = W / 2 + REC.k * 900 * OVD * 0, cy = H / 2 - REC.k * 2200 * OVD * 0.3;
     o.fillStyle = '#000'; o.fillRect(0, 0, W, H);
@@ -1345,12 +1544,12 @@ function drawOverlay() {
     const vg = o.createRadialGradient(cx, cy, R * 0.78, cx, cy, R);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.85)'); o.fillStyle = vg; o.beginPath(); o.arc(cx, cy, R, 0, TAU); o.fill();
     o.save(); o.beginPath(); o.arc(cx, cy, R, 0, TAU); o.clip();
-    drawReticle(curScope().ret, W / 2, H / 2, k, R);
+    if (isc.ret === 'pgo') drawPGO(W / 2, H / 2, k); else drawReticle(isc.ret, W / 2, H / 2, k, R);
     o.restore();
     // подписи под окуляром
     const sc = curScope(), st = curTur();
     o.fillStyle = 'rgba(242,169,59,.95)'; o.textAlign = 'center'; o.font = '600 ' + 12 * OVD + 'px monospace'; o.shadowColor = 'rgba(0,0,0,.9)'; o.shadowBlur = 4 * OVD;
-    const ev = sc.unit === 'thou' ? 'ПРИЦЕЛ ' + st.drum : '▲' + fmt(st.e * sc.click, sc.unit === 'moa' ? 2 : 1);
+    const ev = sc.rocket ? 'ПГО-7' : sc.unit === 'thou' ? 'ПРИЦЕЛ ' + st.drum : '▲' + fmt(st.e * sc.click, sc.unit === 'moa' ? 2 : 1);
     const am = reloadT > 0 ? 'перезарядка' : st.ammo + '/' + curRifle().mag;
     o.fillText(am + '   ' + AIM.zoom.toFixed(1).replace('.0', '') + '×   ' + ev + '   ◀▶' + fmt(st.w * sc.click, 1) + ' ' + UNAME[sc.unit], W / 2, cy + R * 0.86); o.shadowBlur = 0;
   } else if (AIM.mode === 'bino') {
@@ -1389,6 +1588,13 @@ function drawOverlay() {
     o.fillStyle = 'rgba(255,255,255,.85)'; o.beginPath(); o.arc(W / 2, H / 2, 2 * OVD, 0, TAU); o.fill();
     o.strokeStyle = 'rgba(0,0,0,.5)'; o.lineWidth = 1 * OVD; o.stroke();
   }
+  if (HM.t > 0) {
+    const a = Math.min(1, HM.t * 3), r1 = 7 * OVD, r2 = 15 * OVD, cx = W / 2, cy = H / 2;
+    o.strokeStyle = HM.kind === 'kill' ? 'rgba(255,70,50,' + a + ')' : HM.kind === 'ric' ? 'rgba(255,210,90,' + a + ')' : 'rgba(255,255,255,' + a + ')';
+    o.lineWidth = (HM.kind === 'kill' ? 3 : 2) * OVD;
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sy]) => { o.beginPath(); o.moveTo(cx + sx * r1, cy + sy * r1); o.lineTo(cx + sx * r2, cy + sy * r2); o.stroke(); });
+  }
+  if (HOOK.drawOverlay) HOOK.drawOverlay(o, W, H, OVD);
 }
 let binoCache = { t: 0, T: null };
 function binoTarget() {
@@ -1439,14 +1645,26 @@ function renderMenu() {
   const g = $('mRifles'); g.innerHTML = '';
   RIFLES.forEach((r, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'rc' + (i === S.rifle ? ' on' : '');
-    b.innerHTML = '<div class="t"><span class="n">' + r.name + '</span><span class="o ' + (r.org === 'RU' ? 'ru' : 'nato') + '">' + (r.org === 'RU' ? 'РОССИЯ' : 'НАТО') + '</span></div>' +
+    const kind = r.type === 'auto' ? (r.id === 'pkm' ? 'пулемёт' : 'автомат') : r.type === 'rocket' ? 'гранатомёт' : 'снайперская';
+    const desc = r.type === 'rocket' ? 'V0 117 → 295 м/с · до 500 м<br>ПГО-7, кумулятивная граната' :
+      r.type === 'auto' ? 'V0 ' + r.mv + ' м/с · ' + r.rpm + ' выстр/мин<br>открытый прицел (мушка) · ' + r.mag + ' патр.' :
+      'V0 ' + r.mv + ' м/с · БК G7 ' + r.bc.toFixed(3) + '<br>' + (r.semi ? 'самозарядная' : 'продольно-скользящий затвор') + ' · ' + r.mag + ' патр.';
+    b.innerHTML = '<div class="t"><span class="n">' + r.name + '</span><span class="o ' + (r.org === 'RU' ? 'ru' : 'nato') + '">' + kind + '</span></div>' +
       '<div class="c">' + r.cal + '</div>' +
-      '<div class="d">V0 ' + r.mv + ' м/с · БК G7 ' + r.bc.toFixed(3) + '<br>' + (r.semi ? 'самозарядная' : 'продольно-скользящий затвор') + ' · ' + r.mag + ' патр.</div>';
+      '<div class="d">' + desc + '</div>';
     b.addEventListener('click', () => { S.rifle = i; save(); renderMenu(); });
     g.appendChild(b);
   });
   const rf = curRifle();
-  chips($('mScopes'), Object.values(SCOPES).map((s) => [s.id, s.name]), scopeOf(rf).id, (id) => { S.scopes[rf.id] = id; const st = TUR[rf.id]; st.e = 0; st.w = 0; st.drum = 1; st.zoom = null; save(); renderMenu(); });
+  if (rf.type === 'sniper') chips($('mScopes'), Object.values(SCOPES).filter((s) => !s.iron && !s.rocket).map((s) => [s.id, s.name]), scopeOf(rf).id, (id) => { S.scopes[rf.id] = id; const st = TUR[rf.id]; st.e = 0; st.w = 0; st.drum = 1; st.zoom = null; save(); renderMenu(); });
+  else chips($('mScopes'), [[scopeOf(rf).id, scopeOf(rf).name + ' — штатный']], scopeOf(rf).id, () => {});
+  chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Оборона: бой с роботами']], S.gmode, (id) => { S.gmode = id; save(); renderMenu(); });
+  $('teamRow').hidden = S.gmode !== 'battle';
+  chips($('mTeam'), [5, 10, 15, 20, 25].map((n) => [n, n + ' × ' + n]), S.teamN, (id) => { S.teamN = id; save(); renderMenu(); });
+  $('gmodeNote').textContent = S.gmode === 'battle'
+    ? 'Держите окопы против наступающих боевых роботов. Броня роботов изнашивается от попаданий в одно место; бойцы в бронежилетах хрупкие. Бинокль + кнопка «АРТ» — вызов артиллерии по точке дальномера.'
+    : 'Мишени от 100 до 1500 м, разбор каждого выстрела.';
+  $('bRestart').hidden = !(started && S.gmode === 'battle');
   chips($('mWeather'), Object.entries(WEATHER).map(([k, w]) => [k, w.name + ' ' + (w.t > 0 ? '+' : '') + w.t + '°']), S.weather, (id) => { S.weather = id; save(); applyConditions(); applyWeatherVisuals(); renderMenu(); });
   chips($('mWind'), Object.entries(WINDS).map(([k, w]) => [k, w.name]), S.wind, (id) => { S.wind = id; save(); newWind(); renderMenu(); });
   chips($('mMode'), [['train', 'Тренировка'], ['real', 'Реализм']], S.mode, (id) => { S.mode = id; save(); applyMode(); renderMenu(); });
@@ -1459,22 +1677,28 @@ function renderMenu() {
   $('mSens').value = S.sens; $('mSensV').textContent = (+S.sens).toFixed(2);
 }
 $('mSens').addEventListener('input', (e) => { S.sens = +e.target.value; $('mSensV').textContent = S.sens.toFixed(2); save(); });
-function applyMode() { signs.forEach((s) => { s.visible = S.mode === 'train'; }); if (S.mode !== 'train') $('toast').classList.remove('show'); }
+function applyMode() { signs.forEach((s) => { s.visible = S.mode === 'train' && !HOOK.battle; }); if (S.mode !== 'train') $('toast').classList.remove('show'); }
 function openMenu() {
+  fireHeld = false;
   try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ }
-  renderMenu(); $('menu').hidden = false; $('hud').classList.add('off'); $('bStart').textContent = started ? 'Продолжить' : 'В бой';
+  renderMenu(); $('menu').hidden = false; $('hud').classList.add('off'); $('bStart').textContent = started && !(HOOK.battle && HOOK.over) && (S.gmode === 'battle') === !!HOOK.battle ? 'Продолжить' : 'В бой';
 }
 let started = false;
-function startGame() {
+function setRangeVisible(v) { targets.forEach((T) => { T.g.visible = v; }); signs.forEach((sg) => { sg.visible = v && S.mode === 'train'; }); }
+function startGame(fresh) {
   audioInit();
   $('menu').hidden = true; $('hud').classList.remove('off');
   started = true;
+  if (S.gmode === 'battle') { if (HOOK.startBattle && (fresh === true || !HOOK.battle || HOOK.over)) HOOK.startBattle(); }
+  else { if (HOOK.battle && HOOK.stopBattle) HOOK.stopBattle(); setRangeVisible(true); }
   showRifleModel(); updateWeaponUI(); setAim('hip'); updateStats();
   if (IS_TOUCH) {
     try { const el = document.documentElement; const r = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : null; if (r && r.then) r.then(() => { try { const s = screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'); if (s && s.catch) s.catch(() => {}); } catch (e) { /* ignore */ } }).catch(() => {}); } catch (e) { /* ignore */ }
   }
 }
-$('bStart').addEventListener('click', startGame);
+$('bStart').addEventListener('click', () => startGame(false));
+$('bRestart').addEventListener('click', () => startGame(true));
+window.__back = () => { if (!$('card').hidden) $('card').hidden = true; else if ($('menu').hidden) openMenu(); else if (started) startGame(false); };
 $('bResetT').addEventListener('click', () => { targets.forEach((T) => { T.hits = []; T.score = 0; if (T.kind === 'ring') paintRing(T); else paintSteel(T); }); STATS.shots = STATS.hits = STATS.points = 0; updateStats(); });
 $('bNewWind').addEventListener('click', () => { newWind(); applyConditions(); });
 $('bFull').addEventListener('click', () => { try { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {}); else if (document.exitFullscreen) document.exitFullscreen(); } catch (e) { /* ignore */ } });
@@ -1487,9 +1711,13 @@ function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000)); lastT = now;
   const ts = BCAM.b ? 0.3 : 1, sdt = dt * ts;
   simT += sdt;
+  sndBudget = Math.max(0, sndBudget - dt * 30);
   if (started && $('menu').hidden) updatePlayer(dt);
+  if (fireHeld && curRifle().type === 'auto' && started && $('menu').hidden) fire();
+  if (HM.t > 0) HM.t -= dt;
+  if (HOOK.update) HOOK.update(dt, sdt);
   updateSway(dt);
-  applyCamera();
+  applyCamera(dt);
   updateBullets(sdt);
   updateEffects(sdt);
   updateEnv(dt);
@@ -1508,6 +1736,13 @@ function loop(now) {
   drawOverlay();
 }
 
+window.SS = {
+  THREE, V3, scene, camera, terrainH, S, P, AIM, STANCE, HOOK, SHAKE, HM, LRF, COND, RIFLES, TUR, STATS, UNIT, BR,
+  clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, addEffect,
+  glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,
+  curRifle, curTur, scopeOf, selectRifle, setAim, setStance, updateWeaponUI, setRangeVisible, openMenu, renderMenu, targetSeg, paintRing, paintSteel, inPoly, SIL,
+  IS_TOUCH, getSimT: () => simT, reload, rifleHolder, report, updateStats,
+};
 /* ---------------- старт ---------------- */
 applyConditions(); newWind(); applyWeatherVisuals(); applyMode();
 resize();
