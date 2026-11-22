@@ -8,27 +8,10 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.JavascriptInterface;
-import android.speech.tts.TextToSpeech;
-import java.util.Locale;
 
 /** Обёртка: игра из assets/www в полноэкранном WebView. */
 public class MainActivity extends Activity {
     private WebView web;
-    private TextToSpeech tts;
-    private volatile boolean ttsOk = false;
-
-    /** Голоса бойцов и командира: системный синтез речи на русском. */
-    public class TtsBridge {
-        @JavascriptInterface public boolean ok() { return ttsOk; }
-        @JavascriptInterface public void speak(String text, float pitch, float rate, float vol, boolean flush) {
-            if (!ttsOk || tts == null) return;
-            tts.setPitch(pitch); tts.setSpeechRate(rate);
-            Bundle b = new Bundle(); b.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, Math.max(0f, Math.min(1f, vol)));
-            tts.speak(text, flush ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, b, "v" + System.nanoTime());
-        }
-        @JavascriptInterface public void stop() { if (tts != null) tts.stop(); }
-    }
 
     @Override
     protected void onCreate(Bundle state) {
@@ -46,12 +29,6 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient());
         web.setWebViewClient(new WebViewClient());
         web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
-            @Override public void onInit(int st) {
-                if (st == TextToSpeech.SUCCESS) { int r = tts.setLanguage(new Locale("ru", "RU")); ttsOk = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED; }
-            }
-        });
-        web.addJavascriptInterface(new TtsBridge(), "AndroidTTS");
         setContentView(web);
         hideUi();
         if (state != null) web.restoreState(state);
@@ -86,10 +63,7 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onPause() { if (tts != null) tts.stop(); web.onPause(); super.onPause(); }
-
-    @Override
-    protected void onDestroy() { if (tts != null) tts.shutdown(); super.onDestroy(); }
+    protected void onPause() { web.onPause(); super.onPause(); }
 
     @Override
     protected void onResume() { super.onResume(); web.onResume(); hideUi(); }

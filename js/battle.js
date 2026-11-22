@@ -338,7 +338,7 @@ defPart('h_svd', merge([BX(0.045, 0.07, 0.4, 0, 0, -0.2, HC.metal), BX(0.04, 0.1
   CY(0.022, 0.022, 0.3, -0.03, 0.08, -0.15, 0x141414, Math.PI / 2), BX(0.035, 0.14, 0.06, 0, -0.1, -0.22, 0x2a2a2a, 0.2)]));
 defPart('h_rpg', merge([CY(0.04, 0.04, 1.0, 0, 0, -0.1, 0x4b5636, Math.PI / 2), CY(0.045, 0.085, 0.2, 0, 0, -0.7, 0x55633b, Math.PI / 2), CY(0.01, 0.045, 0.18, 0, 0, -0.89, 0x55633b, Math.PI / 2), BX(0.03, 0.1, 0.04, 0, -0.07, -0.05, 0x1a1a1a)]));
 defPart('h_medbag', merge([BX(0.22, 0.2, 0.12, 0, 0, 0, 0xd8d4c8), BX(0.06, 0.14, 0.01, 0, 0, -0.065, 0xb3261e), BX(0.14, 0.05, 0.01, 0, 0, -0.066, 0xb3261e)]));
-const RC = { ar: 0x5a6068, dk: 0x30353c, lt: 0x868c93, jt: 0x16181c, ac: 0x9a2a1c };
+const RC = { ar: 0x7d858e, dk: 0x474d55, lt: 0xa6adb4, jt: 0x24272c, ac: 0xb03020 };
 defPart('r_pelvis', merge([BX(0.48, 0.24, 0.32, 0, 0, 0, RC.dk), BX(0.18, 0.24, 0.06, -0.14, -0.09, -0.18, RC.ar), BX(0.18, 0.24, 0.06, 0.14, -0.09, -0.18, RC.ar), BX(0.4, 0.08, 0.28, 0, 0.14, 0, RC.jt)]));
 defPart('r_torso', merge([BX(0.5, 0.36, 0.34, 0, 0.18, 0, RC.jt), BX(0.7, 0.42, 0.44, 0, 0.5, 0, RC.ar), BX(0.6, 0.32, 0.09, 0, 0.5, -0.25, RC.lt, 0.12), BX(0.44, 0.44, 0.24, 0, 0.42, 0.32, RC.dk),
   BX(0.07, 0.3, 0.05, -0.12, 0.42, 0.45, RC.jt), BX(0.07, 0.3, 0.05, 0.12, 0.42, 0.45, RC.jt), BX(0.28, 0.1, 0.28, 0, 0.74, 0, RC.jt), BX(0.04, 0.24, 0.02, -0.18, 0.5, -0.3, RC.ac), BX(0.04, 0.24, 0.02, 0.18, 0.5, -0.3, RC.ac),
@@ -546,10 +546,11 @@ function throwSmoke(u, at) {
 function boom(dist, power) {
   const AC = SS.getAC(); if (!AC) return;
   const t = AC.currentTime + dist / 343, v = clamp(60 * power / (dist + 40), 0.05, 1.2);
-  SS.noiseHit(t, 1.6 + power * 0.4, 'lowpass', 180 + 200 / (1 + dist / 100), v);
-  SS.tone(t, 55, 1.0, v * 0.9, 'sine', 28);
-  if (dist < 150) SS.noiseHit(t, 0.12, 'highpass', 1200, v * 0.7);
-  SS.noiseHit(t + 0.4, 2.2, 'lowpass', 140, v * 0.3);
+  SS.noiseHit(t, 1.6 + power * 0.4, 'lowpass', 180 + 200 / (1 + dist / 100), v, 0, 0.9);
+  SS.tone(t, 52, 1.1, v * 0.95, 'sine', 24);
+  if (dist < 180) { SS.noiseHit(t, 0.12, 'highpass', 1200, v * 0.75); SS.noiseHit(t + 0.02, 0.5, 'bandpass', 2400, v * 0.25, 1.5); }
+  if (dist < 120) for (let i = 0; i < 5; i++) SS.noiseHit(t + 0.35 + Math.random() * 0.9, 0.06, 'bandpass', 700 + Math.random() * 900, v * 0.18, 2);
+  SS.noiseHit(t + 0.4, 2.6, 'lowpass', 120, v * 0.32, 0, 0.7);
 }
 function thud(dist, heavy) { const AC = SS.getAC(); if (!AC || dist > 250) return; const v = clamp(25 / (dist + 20), 0.03, 0.6) * (heavy ? 1 : 0.5); const t = AC.currentTime + dist / 343; SS.noiseHit(t, 0.35, 'lowpass', 220, v); if (heavy) SS.tone(t, 70, 0.3, v * 0.7, 'triangle', 40); }
 function whistle(dist) { const AC = SS.getAC(); if (!AC) return; SS.tone(AC.currentTime, 1700, 1.5, clamp(25 / (dist + 25), 0.02, 0.25), 'sine', 450); }
@@ -1168,7 +1169,7 @@ const defTeam = () => (B.scen === 'att' ? 'r' : 'h');
 /* ================= командир: квадраты, приказы ================= */
 const GCOL = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ';
 function grid(p) { const c = clamp(Math.floor((p.x + 1000) / 100), 0, GCOL.length - 1), r = Math.floor((-p.z + 600) / 100) + 1; return GCOL[c] + '-' + r; }
-const vSay = (text, u, o) => { const d = u ? u.pos.distanceTo(PL.pos) : 0; if (u && d > 45) return; SS.say(text, Object.assign({ pitch: u ? 0.8 + (u.id % 5) * 0.1 : 0.85, rate: 1.25, vol: u ? Math.max(0.25, 1 - d / 50) : 1 }, o || {})); };
+const vSay = () => {};  // голоса ИИ отключены по просьбе игрока
 function cmdSay(text) {
   vSay(text.replace(/кв\. ([А-Я])-(\d+)/g, 'квадрат $1 $2').replace(/\(.*?\)/g, ''), null, { force: true, rate: 1.22 });
   feed((B.side === 'r' ? 'Штаб: ' : 'Командир: ') + text, 'cmd');

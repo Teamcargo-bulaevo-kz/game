@@ -218,7 +218,7 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, voices: true, mortars: true, foe: 'bot', dmgE: 5, dmgF: 5, sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, mortars: true, foe: 'bot', dmgE: 5, dmgF: 5, sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
 if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
@@ -961,7 +961,7 @@ function syncPS(cam) {
 }
 
 /* ---------------- звук (синтез WebAudio) ---------------- */
-let AC = null, noiseBuf = null, windGain = null, rainGain = null, rumbleGain = null, OUT = null, MASTER = null, voices = 0;
+let AC = null, noiseBuf = null, windGain = null, rainGain = null, rumbleGain = null, OUT = null, MASTER = null, REV = null, REVIN = null, voices = 0;
 const MAXV = IS_TOUCH ? 18 : 32;
 function audioInit() {
   if (!S.sound) return;
@@ -975,6 +975,11 @@ function audioInit() {
       noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       const mk = (type, f, q) => { const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = AC.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(OUT); src.start(); return g; };
+      // эхо открытой степи: свёртка со сгенерированным откликом
+      REV = AC.createConvolver(); { const n = Math.floor(AC.sampleRate * 2.4), ir = AC.createBuffer(2, n, AC.sampleRate);
+        for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let lp = 0; for (let i = 0; i < n; i++) { const t = i / n; lp += (Math.random() * 2 - 1 - lp) * (0.35 - 0.3 * t); d[i] = lp * Math.pow(1 - t, 2.6) * (i < AC.sampleRate * 0.04 ? i / (AC.sampleRate * 0.04) : 1); } }
+        REV.buffer = ir; }
+      REVIN = AC.createGain(); REVIN.gain.value = 0.55; REVIN.connect(REV); REV.connect(OUT);
       windGain = mk('bandpass', 420, 0.6); rainGain = mk('highpass', 2500, 0.5); rumbleGain = mk('lowpass', 75, 0.7);
       document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) AC.suspend(); else AC.resume(); });
     } else if (AC.state === 'suspended') AC.resume();
@@ -982,26 +987,31 @@ function audioInit() {
 }
 // ограничение голосов: тихие звуки отбрасываются первыми, чтобы не было заиканий
 function voiceOk(gain) { if (voices >= MAXV || (voices > MAXV * 0.6 && gain < 0.12)) return false; voices++; return true; }
-function noiseHit(t0, dur, type, f, gain, q) {
+function noiseHit(t0, dur, type, f, gain, q, rev) {
   if (!voiceOk(gain)) return;
   const src = AC.createBufferSource(); src.buffer = noiseBuf;
   const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q;
   const g = AC.createGain(); g.gain.setValueAtTime(gain, t0); g.gain.exponentialRampToValueAtTime(0.0005, t0 + dur);
-  src.connect(fl); fl.connect(g); g.connect(OUT); src.onended = () => { voices--; }; src.start(t0, Math.random()); src.stop(t0 + dur + 0.05);
+  src.connect(fl); fl.connect(g); g.connect(OUT); if (rev && REVIN) { const sg = AC.createGain(); sg.gain.value = rev; g.connect(sg); sg.connect(REVIN); } src.onended = () => { voices--; }; src.start(t0, Math.random()); src.stop(t0 + dur + 0.05);
 }
-function tone(t0, f, dur, gain, type, f2) {
+function tone(t0, f, dur, gain, type, f2, rev) {
   if (!voiceOk(gain)) return;
   const o = AC.createOscillator(); o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
   const g = AC.createGain(); g.gain.setValueAtTime(gain, t0); g.gain.exponentialRampToValueAtTime(0.0005, t0 + dur);
-  o.connect(g); g.connect(OUT); o.onended = () => { voices--; }; o.start(t0); o.stop(t0 + dur + 0.05);
+  o.connect(g); g.connect(OUT); if (rev && REVIN) { const sg = AC.createGain(); sg.gain.value = rev; g.connect(sg); sg.connect(REVIN); } o.onended = () => { voices--; }; o.start(t0); o.stop(t0 + dur + 0.05);
 }
 let sndBudget = 0;
 function sndShot(power, auto) {
-  if (!AC || !S.sound) return; const t = AC.currentTime;
-  noiseHit(t, 0.06, 'highpass', 1500, 0.9 * power);
-  noiseHit(t, auto ? 0.3 : 0.55 + power * 0.3, 'lowpass', 900, 1.0 * power);
-  tone(t, 90, auto ? 0.18 : 0.35, 0.8 * power, 'sine', 35);
-  if (!auto || Math.random() < 0.3) noiseHit(t + 0.25, 1.4, 'lowpass', 300, 0.25 * power); // эхо степи
+  if (!AC || !S.sound) return; const t = AC.currentTime, rf = curRifle();
+  const sil = !!rf.silent, big = rf.g > 30;
+  // хлопок дульной волны, «тело» выстрела, низкий удар, механика затвора, эхо
+  noiseHit(t, 0.045, 'highpass', 2200, (sil ? 0.25 : 1.0) * power, 0, 0.5);
+  noiseHit(t, auto ? 0.22 : 0.42 + power * 0.25, 'lowpass', big ? 700 : 1100, (sil ? 0.3 : 1.05) * power, 0, 0.9);
+  tone(t, big ? 48 : 70, auto ? 0.16 : 0.3, (sil ? 0.2 : 0.85) * power, 'sine', 30);
+  noiseHit(t + 0.004, 0.03, 'bandpass', 3400, 0.22, 4);
+  if (!sil && (!auto || Math.random() < 0.35)) { noiseHit(t + 0.32, 1.6, 'lowpass', 380, 0.22 * power, 0, 0.6); noiseHit(t + 0.9, 1.4, 'lowpass', 260, 0.1 * power); }
+  // гильза звякает о землю
+  if (rf.type !== 'rocket' && Math.random() < (auto ? 0.4 : 0.9)) { const tc = t + 0.38 + Math.random() * 0.2; tone(tc, 3800 + Math.random() * 900, 0.06, 0.05, 'triangle', 3000); tone(tc + 0.09, 4300, 0.04, 0.03, 'triangle'); }
 }
 // выстрел где-то на поле: громкость и задержка по расстоянию
 function sndShotFar(dist, heavy, robot) {
@@ -1010,10 +1020,10 @@ function sndShotFar(dist, heavy, robot) {
   if (v < 0.05 && Math.random() < 0.6) return;
   sndBudget++;
   noiseHit(t, 0.05, 'highpass', 1200, 0.6 * v * (dist < 80 ? 1 : 0.4));
-  noiseHit(t, 0.25 + Math.min(0.6, dist / 600), 'lowpass', clamp(1600 - dist, 250, 1400), (heavy ? 1.1 : 0.8) * v);
+  noiseHit(t, 0.25 + Math.min(0.6, dist / 600), 'lowpass', clamp(1600 - dist, 250, 1400), (heavy ? 1.1 : 0.8) * v, 0, dist > 150 ? 0.8 : 0.35);
   if (robot) tone(t, heavy ? 420 : 640, 0.08, 0.12 * v, 'square', heavy ? 200 : 300);
 }
-function sndCrack(v) { if (!AC || !S.sound) return; const t = AC.currentTime; noiseHit(t, 0.03, 'highpass', 3000, 0.9 * v); noiseHit(t + 0.01, 0.06, 'bandpass', 1800, 0.5 * v, 2); }
+function sndCrack(v) { if (!AC || !S.sound) return; const t = AC.currentTime; noiseHit(t, 0.03, 'highpass', 3000, 0.9 * v); noiseHit(t + 0.01, 0.06, 'bandpass', 1800, 0.5 * v, 2); tone(t, 2600 + Math.random() * 1400, 0.16, 0.08 * v, 'sine', 700 + Math.random() * 300); }
 function sndBolt(delay) {
   if (!AC || !S.sound) return; const t = AC.currentTime + delay;
   noiseHit(t, 0.05, 'bandpass', 2600, 0.35, 3); noiseHit(t + 0.22, 0.06, 'bandpass', 1900, 0.4, 3); noiseHit(t + 0.42, 0.05, 'bandpass', 3000, 0.35, 3);
@@ -1025,24 +1035,7 @@ function sndImpact(kind, delay, dist) {
   else if (kind === 'paper') noiseHit(t, 0.08, 'bandpass', 800, 0.4 * v, 1);
   else noiseHit(t, 0.18, 'lowpass', 500, 0.6 * v);
 }
-// голоса: системный синтез речи (в APK — Android TTS, в браузере — speechSynthesis)
-const VOICE = { t: 0, ruV: null };
-function say(text, o) {
-  if (!S.voices || !S.sound || !text) return;
-  o = o || {}; const now = performance.now();
-  if (!o.force && now - VOICE.t < 2200) return; VOICE.t = now;
-  const pitch = o.pitch || 1, rate = o.rate || 1.15, vol = o.vol == null ? 1 : clamp(o.vol, 0, 1);
-  try {
-    if (window.AndroidTTS && window.AndroidTTS.ok()) { window.AndroidTTS.speak(text, pitch, rate, vol, !!o.flush); return; }
-    if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
-      const u = new SpeechSynthesisUtterance(text); u.lang = 'ru-RU'; u.pitch = pitch; u.rate = rate; u.volume = vol;
-      if (!VOICE.ruV) VOICE.ruV = speechSynthesis.getVoices().find((v) => /^ru/i.test(v.lang)) || null;
-      if (VOICE.ruV) u.voice = VOICE.ruV;
-      if (o.flush) speechSynthesis.cancel();
-      speechSynthesis.speak(u);
-    }
-  } catch (e) { /* нет синтеза речи */ }
-}
+function say() { /* голоса ИИ отключены */ }
 function sndBeep() { if (!AC || !S.sound) return; tone(AC.currentTime, 2400, 0.08, 0.12, 'square'); }
 
 /* ---------------- лазерный целеуказатель на оружии игрока ---------------- */
@@ -1700,7 +1693,12 @@ function updatePlayer(dt) {
   if (HOOK.move) HOOK.move();
   P.moving = lerp(P.moving, Math.min(1, Math.hypot(mx, my)), dt * 6);
   P.eye = lerp(P.eye, st.eye, Math.min(1, dt * (st.eye < P.eye ? 16 : 9)));
-  P.bob += dt * sp * 2.2 * P.moving;
+  const pb = P.bob; P.bob += dt * sp * 2.2 * P.moving;
+  if (AC && S.sound && P.moving > 0.3 && P.jy <= 0 && Math.floor(pb / Math.PI) !== Math.floor(P.bob / Math.PI)) {
+    const t = AC.currentTime, k = P.sprint ? 1.4 : P.stance ? 0.5 : 1;
+    if (P.robot) { noiseHit(t, 0.09, 'lowpass', 260, 0.35 * k); tone(t + 0.01, 1900 + Math.random() * 400, 0.05, 0.05 * k, 'triangle'); tone(t, 900, 0.06, 0.04 * k, 'square', 600); }
+    else { noiseHit(t, 0.09, 'bandpass', 900 + Math.random() * 500, 0.16 * k, 1.2); noiseHit(t + 0.03, 0.12, 'highpass', 3000, 0.05 * k); }
+  }
 }
 function updateSway(dt) {
   const st = stOf();
@@ -1759,7 +1757,23 @@ function applyCamera(dt) {
 }
 
 /* ---------------- окружение ---------------- */
+const AMB = { t: 3 };
+function ambience(dt) {
+  if (!AC || !S.sound || !started) return;
+  AMB.t -= dt; if (AMB.t > 0) return;
+  const W = WEATHER[S.weather] || {}, t = AC.currentTime;
+  if (!W.night && !W.rain) {
+    AMB.t = 3 + Math.random() * 7;
+    const f0 = 2600 + Math.random() * 1800, n = 2 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) tone(t + i * (0.09 + Math.random() * 0.05), f0 * (1 + (Math.random() - 0.5) * 0.15), 0.07, 0.025, 'sine', f0 * (0.75 + Math.random() * 0.5));
+    if (Math.random() < 0.25) { const f = 1100 + Math.random() * 300; tone(t + 0.6, f, 0.35, 0.02, 'sine', f * 1.6); tone(t + 1.0, f * 1.5, 0.3, 0.015, 'sine', f); }
+  } else if (W.night) {
+    AMB.t = 0.8 + Math.random() * 2.2;
+    for (let i = 0; i < 3; i++) tone(t + i * 0.07, 4300 + Math.random() * 500, 0.035, 0.012, 'sine');
+  } else AMB.t = 5;
+}
 function updateEnv(dt) {
+  ambience(dt);
   const w = windAt(P.z, simT);
   grassU.uTime.value = simT;
   grassU.uNear.value = lerp(grassU.uNear.value, P.stance === 2 ? 6 : P.stance === 1 ? 3.2 : 2.4, dt * 3);
@@ -2218,7 +2232,7 @@ function renderMenu() {
     : 'Ветер читайте по флажкам и траве, дистанцию — дальномером, попадания ищите в бинокль.';
   chips($('mQual'), Object.entries(QUALITY).map(([k, q]) => [k, q.name]), S.quality, (id) => { if (id === S.quality) return; S.quality = id; save(); location.reload(); });
   $('bVision').hidden = false;
-  const OPT = [['tracers', 'Трассеры'], ['bcam', 'Камера пули'], ['sound', 'Звук'], ['vibro', 'Вибро'], ['assist', 'Помощник прицеливания'], ['labels', 'Подписи кнопок'], ['shake', 'Тряска камеры'], ['dynres', 'Авто-разрешение'], ['cap30', 'Экономия: 30 к/с'], ['fps', 'Показывать FPS'], ['gyroInv', 'Инверсия гироскопа'], ['voices', 'Голоса и крики'], ['mortars', 'Миномёты и артобстрел ИИ']];
+  const OPT = [['tracers', 'Трассеры'], ['bcam', 'Камера пули'], ['sound', 'Звук'], ['vibro', 'Вибро'], ['assist', 'Помощник прицеливания'], ['labels', 'Подписи кнопок'], ['shake', 'Тряска камеры'], ['dynres', 'Авто-разрешение'], ['cap30', 'Экономия: 30 к/с'], ['fps', 'Показывать FPS'], ['gyroInv', 'Инверсия гироскопа'], ['mortars', 'Миномёты и артобстрел ИИ']];
   chips($('mOpts'), OPT.map(([k, n]) => [k, n + ' ' + (S[k] !== false && S[k] ? 'вкл' : 'выкл')]), null, (id) => { S[id] = !(S[id] !== false && S[id]); save(); applyUiPrefs(); renderMenu(); });
   $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', !!(S[OPT[i][0]] !== false && S[OPT[i][0]])));
   chips($('mGyro'), [['off', 'Гироскоп выкл'], ['scope', 'Гироскоп в прицеле'], ['always', 'Гироскоп всегда']], S.gyro || 'off', (id) => { S.gyro = id; save(); renderMenu(); });
@@ -2301,12 +2315,14 @@ function loop(now) {
   renderer.render(scene, cam);
   drawOverlay();
   // динамическое разрешение: держим плавность
-  if (S.dynres !== false && started) {
+  const aimed = AIM.mode !== 'hip';
+  if (aimed && DR.pr < DR.base) { DR.pr = DR.base; renderer.setPixelRatio(DR.pr); renderer.setSize(innerWidth, innerHeight, false); DR.acc = 0; DR.n = 0; DR.t = 0; }
+  if (S.dynres !== false && started && !aimed) {
     DR.acc += dt; DR.n++; DR.t += dt;
     if (DR.t > 1.5) {
       const avg = DR.acc / DR.n; DR.acc = 0; DR.n = 0; DR.t = 0;
       let pr = DR.pr;
-      if (avg > 1 / 26) pr = Math.max(DR.base * 0.5, pr * 0.86); else if (avg < 1 / 48) pr = Math.min(DR.base, pr * 1.08);
+      if (avg > 1 / 26) pr = Math.max(DR.base * 0.7, pr * 0.9); else if (avg < 1 / 48) pr = Math.min(DR.base, pr * 1.08);
       if (Math.abs(pr - DR.pr) > 0.02) { DR.pr = pr; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false); }
     }
   }
