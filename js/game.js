@@ -218,7 +218,7 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, foe: 'bot', dmgE: 5, dmgF: 5, sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, voices: true, mortars: true, foe: 'bot', dmgE: 5, dmgF: 5, sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
 if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
@@ -1024,6 +1024,24 @@ function sndImpact(kind, delay, dist) {
   if (kind === 'steel') { tone(t, 1250, 1.1, 0.5 * v, 'triangle'); tone(t, 1870, 0.7, 0.25 * v, 'sine'); }
   else if (kind === 'paper') noiseHit(t, 0.08, 'bandpass', 800, 0.4 * v, 1);
   else noiseHit(t, 0.18, 'lowpass', 500, 0.6 * v);
+}
+// голоса: системный синтез речи (в APK — Android TTS, в браузере — speechSynthesis)
+const VOICE = { t: 0, ruV: null };
+function say(text, o) {
+  if (!S.voices || !S.sound || !text) return;
+  o = o || {}; const now = performance.now();
+  if (!o.force && now - VOICE.t < 2200) return; VOICE.t = now;
+  const pitch = o.pitch || 1, rate = o.rate || 1.15, vol = o.vol == null ? 1 : clamp(o.vol, 0, 1);
+  try {
+    if (window.AndroidTTS && window.AndroidTTS.ok()) { window.AndroidTTS.speak(text, pitch, rate, vol, !!o.flush); return; }
+    if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
+      const u = new SpeechSynthesisUtterance(text); u.lang = 'ru-RU'; u.pitch = pitch; u.rate = rate; u.volume = vol;
+      if (!VOICE.ruV) VOICE.ruV = speechSynthesis.getVoices().find((v) => /^ru/i.test(v.lang)) || null;
+      if (VOICE.ruV) u.voice = VOICE.ruV;
+      if (o.flush) speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }
+  } catch (e) { /* нет синтеза речи */ }
 }
 function sndBeep() { if (!AC || !S.sound) return; tone(AC.currentTime, 2400, 0.08, 0.12, 'square'); }
 
@@ -2181,11 +2199,12 @@ function renderMenu() {
   const pvp = S.foe === 'man';
   chips($('mSide'), pvp ? [['h', 'Играть за зелёных'], ['r', 'Играть за серых']] : [['h', 'Играть за людей'], ['r', 'Играть за роботов']], S.side, (id) => { S.side = id; save(); renderMenu(); });
   chips($('mScen'), [['def', pvp ? 'Зелёные обороняют высоту' : 'Люди обороняют высоту'], ['att', pvp ? 'Зелёные штурмуют (десант за 500 м)' : 'Люди штурмуют (десант за 500 м)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
-  const roles = S.side === 'r' && S.foe !== 'man' ? [['assault', 'Штурмовик'], ['heavy', 'Тяжёлый пулемётчик'], ['rocket', 'Ракетчик'], ['scout', 'Разведчик-снайпер']] : [['rifle', 'Стрелок'], ['mg', 'Пулемётчик'], ['sniper', 'Снайпер'], ['rpg', 'Гранатомётчик'], ['medic', 'Санитар'], ['mortar', 'Миномётчик'], ['lead', 'Командир тройки']];
+  const roles = S.side === 'r' && S.foe !== 'man' ? [['assault', 'Штурмовик'], ['heavy', 'Тяжёлый пулемётчик'], ['rocket', 'Ракетчик'], ['scout', 'Разведчик-снайпер']] : [['rifle', 'Стрелок'], ['mg', 'Пулемётчик'], ['sniper', 'Снайпер'], ['rpg', 'Гранатомётчик'], ['medic', 'Санитар'], ['mortar', 'Миномётчик'], ['lead', 'Командир тройки'], ['captain', 'Капитан взвода']];
   if (!roles.some((r) => r[0] === S.role)) S.role = roles[0][0];
   chips($('mRole'), roles, S.role, (id) => { S.role = id; save(); renderMenu(); });
   $('mRoleNote').textContent = HOOK.roleInfo ? HOOK.roleInfo(S.side, S.role) : '';
   $('mNH').value = S.nH || 18; $('mNR').value = S.nR || 6;
+
   if ($('mNH').previousSibling) $('mNH').previousSibling.textContent = pvp ? 'Зелёных ' : 'Людей '; if ($('mNR').previousSibling) $('mNR').previousSibling.textContent = pvp ? 'Серых ' : 'Роботов ';
   $('gmodeNote').textContent = S.gmode === 'battle'
     ? 'Высота с траншеями, лагерь, «Корды» и миномёты. Оборона: тревога, люди бегут из лагеря по позициям, роботы подходят из-за холмов в 2 км под дымом. Штурм: артподготовка, дымовая стена и десант людей в 500 м. Выберите сторону, численность (до 50) и роль со своей задачей.'
@@ -2199,11 +2218,15 @@ function renderMenu() {
     : 'Ветер читайте по флажкам и траве, дистанцию — дальномером, попадания ищите в бинокль.';
   chips($('mQual'), Object.entries(QUALITY).map(([k, q]) => [k, q.name]), S.quality, (id) => { if (id === S.quality) return; S.quality = id; save(); location.reload(); });
   $('bVision').hidden = false;
-  const OPT = [['tracers', 'Трассеры'], ['bcam', 'Камера пули'], ['sound', 'Звук'], ['vibro', 'Вибро'], ['assist', 'Помощник прицеливания'], ['labels', 'Подписи кнопок'], ['shake', 'Тряска камеры'], ['dynres', 'Авто-разрешение'], ['cap30', 'Экономия: 30 к/с'], ['fps', 'Показывать FPS'], ['gyroInv', 'Инверсия гироскопа']];
+  const OPT = [['tracers', 'Трассеры'], ['bcam', 'Камера пули'], ['sound', 'Звук'], ['vibro', 'Вибро'], ['assist', 'Помощник прицеливания'], ['labels', 'Подписи кнопок'], ['shake', 'Тряска камеры'], ['dynres', 'Авто-разрешение'], ['cap30', 'Экономия: 30 к/с'], ['fps', 'Показывать FPS'], ['gyroInv', 'Инверсия гироскопа'], ['voices', 'Голоса и крики'], ['mortars', 'Миномёты и артобстрел ИИ']];
   chips($('mOpts'), OPT.map(([k, n]) => [k, n + ' ' + (S[k] !== false && S[k] ? 'вкл' : 'выкл')]), null, (id) => { S[id] = !(S[id] !== false && S[id]); save(); applyUiPrefs(); renderMenu(); });
   $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', !!(S[OPT[i][0]] !== false && S[OPT[i][0]])));
   chips($('mGyro'), [['off', 'Гироскоп выкл'], ['scope', 'Гироскоп в прицеле'], ['always', 'Гироскоп всегда']], S.gyro || 'off', (id) => { S.gyro = id; save(); renderMenu(); });
   [['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0], ['mDmgE', 'dmgE', 0], ['mDmgF', 'dmgF', 0]].forEach(([el, k, d]) => { $(el).value = S[k]; $(el + 'V').textContent = (+S[k]).toFixed(d); });
+  { const bat = S.gmode === 'battle';
+    ['secRifles', 'secMode', 'bResetT', 'bNewWind'].forEach((id) => { const e = $(id); if (e) e.hidden = bat; });
+    $('secScopesH').textContent = bat ? 'Прицел на автомат (АК, РПК, M4)' : 'Прицел';
+    if (bat) { const cur = S.scopes.ak || 'iron'; chips($('mScopes'), [['iron', 'Мушка (открытый)']].concat(AUTO_SC.map((k) => [k, SCOPES[k].name])), cur, (id) => { ['ak', 'm4', 'rpk'].forEach((w) => { S.scopes[w] = id === 'iron' ? null : id; }); save(); renderMenu(); }); } }
   $('mSens').value = S.sens; $('mSensV').textContent = (+S.sens).toFixed(2);
 }
 ['mNH', 'mNR'].forEach((id) => $(id).addEventListener('change', (e) => { const v = Math.max(1, Math.min(50, Math.round(+e.target.value || 1))); e.target.value = v; S[id === 'mNH' ? 'nH' : 'nR'] = v; save(); }));
@@ -2292,6 +2315,7 @@ function loop(now) {
 window.SS = {
   THREE, V3, scene, camera, terrainH, S, P, AIM, STANCE, HOOK, SHAKE, HM, LRF, COND, RIFLES, TUR, STATS, UNIT, BR,
   clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
+  say,
   setRumble: (v) => { if (AC && rumbleGain) rumbleGain.gain.setTargetAtTime(S.sound ? v : 0, AC.currentTime, 1.5); },
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,
   curRifle, curTur, scopeOf, selectRifle, setAim, setStance, updateWeaponUI, setRangeVisible, openMenu, renderMenu, targetSeg, paintRing, paintSteel, inPoly, SIL,

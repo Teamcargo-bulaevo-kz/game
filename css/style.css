@@ -252,3 +252,19 @@ body.aiming #hp{opacity:.6}
 #obj{max-width:46vw}
 
 #wList{background:rgba(10,14,8,.95)}
+
+/* больше обзора: прозрачные надписи и задачи */
+#obj{background:rgba(10,14,8,.22);border-color:transparent;font-size:10.5px;padding:2px 8px}
+#bbar{background:rgba(10,14,8,.26);border-color:transparent}
+body.battle #feed div{background:rgba(14,18,11,.26);border-color:transparent;text-shadow:0 1px 2px rgba(0,0,0,.9)}
+body.battle #stats,body.battle #bCard{display:none}
+#compass{opacity:.7}
+#minimap:not(.big){opacity:.82}
+#sqPanel .cap{display:none}
+body.captain #sqPanel .cap{display:block}
+#sqPanel{display:grid;grid-template-columns:1fr 1fr;gap:4px;max-height:88vh;overflow:auto;width:min(92vw,440px)}
+#sqPanel[hidden]{display:none}
+#sqPanel .sqh{grid-column:1/-1;margin:2px 0}
+#sqPanel button{padding:7px 8px;font-size:12px;margin:0}
+body.captain #sqPanel button.cap{display:block}
+body.captain #sqPanel .sqh.cap{display:block}

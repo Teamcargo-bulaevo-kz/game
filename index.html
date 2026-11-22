@@ -81,6 +81,10 @@
     <button type="button" data-c="cover">Прикрыть / подавить</button>
     <button type="button" data-c="advance">Вперёд перебежками</button>
     <button type="button" data-c="back">Отход</button>
+    <div class="sqh cap">Весь взвод (капитан)</div>
+    <button type="button" class="cap" data-c="p_adv">Взвод — вперёд!</button>
+    <button type="button" class="cap" data-c="p_hold">Взвод — держать рубеж</button>
+    <button type="button" class="cap" data-c="p_back">Взвод — отход</button>
   </div>
   <button class="rb sm" id="bReload" type="button"><svg viewBox="0 0 32 32"><path d="M25 11a10 10 0 1 0 1 9"/><path d="M26 4v7h-7"/></svg><span>ПЕРЕЗ.</span></button>
 </div>
@@ -117,14 +121,14 @@
       <h3 style="margin-top:10px">Численность (до 50 с каждой стороны)</h3><div class="nums"><label>Людей <input id="mNH" type="number" min="1" max="50" inputmode="numeric"></label><label>Роботов <input id="mNR" type="number" min="1" max="50" inputmode="numeric"></label></div>
       <h3 style="margin-top:10px">Ваша роль</h3><div id="mRole" class="chips"></div><p class="note" id="mRoleNote"></p></div>
     </section>
-    <section><h3>Оружие</h3><div id="mRifles" class="rgrid"></div></section>
-    <section><h3>Прицел</h3><div id="mScopes" class="chips"></div></section>
+    <section id="secRifles"><h3>Оружие</h3><div id="mRifles" class="rgrid"></div></section>
+    <section id="secScopes"><h3 id="secScopesH">Прицел</h3><div id="mScopes" class="chips"></div></section>
     <div class="cols">
       <section><h3>Погода</h3><div id="mWeather" class="chips"></div></section>
       <section><h3>Ветер</h3><div id="mWind" class="chips"></div></section>
     </div>
     <div class="cols">
-      <section><h3>Режим</h3><div id="mMode" class="chips"></div><p class="note" id="modeNote"></p></section>
+      <section id="secMode"><h3>Режим</h3><div id="mMode" class="chips"></div><p class="note" id="modeNote"></p></section>
       <section><h3>Графика</h3><div id="mQual" class="chips"></div><p class="note">Для Redmi Note 8 оптимально «Средняя».</p></section>
     </div>
     <section><h3>Управление и звук</h3>
