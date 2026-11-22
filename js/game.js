@@ -35,7 +35,33 @@ function fbm(x, z) {
   for (let i = 0; i < 4; i++) { s += a * vnoise(x * f, z * f); f *= 2.03; a *= 0.5; }
   return s / 0.9375;
 }
-function terrainH(x, z) {
+let MAPM = 'range';
+// лесные массивы и лесополосы карты боя (круги: x, z, r)
+const FORESTS = [];
+(function () {
+  [[-430, -1120, 170], [-290, -520, 105], [390, -1320, 190], [540, -470, 120], [-120, -1720, 150], [160, 380, 130], [-260, 300, 90], [640, -900, 110], [-650, -820, 120]].forEach((f) => FORESTS.push({ x: f[0], z: f[1], r: f[2] }));
+  for (let x = -700; x <= 650; x += 22) if (Math.abs(x - 40) > 60) FORESTS.push({ x, z: -1540 + Math.sin(x / 90) * 6, r: 13, belt: true });   // дальняя лесополоса
+  for (let x = -640; x <= -160; x += 22) FORESTS.push({ x, z: -330 + Math.sin(x / 70) * 5, r: 12, belt: true });                     // ближняя лесополоса (запад)
+})();
+const riverZ = (x) => -760 + 70 * Math.sin(x / 310) + 25 * Math.sin(x / 97);
+const gullyX = (z) => 230 + 90 * Math.sin(z / 240);
+function battleH(x, z) {
+  let h = 5 + (fbm(x * 0.003 + 5, z * 0.003 - 2) - 0.5) * 10 + (fbm(x * 0.02 + 1, z * 0.02 + 9) - 0.5) * 1.4;
+  // главная высота — холм с плато, траншеи на северном склоне
+  const r = Math.hypot(x * 0.85, z - 40);
+  h += 34 * (1 - smooth(95, 370, r)) + 4 * (1 - smooth(0, 140, r));
+  // балка: от дальних холмов к восточному склону высоты
+  const gm = smooth(-1900, -1700, z) * (1 - smooth(-430, -250, z));
+  h -= 7 * (1 - smooth(5, 36, Math.abs(x - gullyX(z)))) * gm;
+  // дальние холмы, откуда выходят роботы
+  h += 26 * smooth(1500, 2300, -z) * fbm(x * 0.002, z * 0.002 + 3);
+  // река
+  const d = Math.abs(z - riverZ(x));
+  h = lerp(-2.7, h, smooth(8, 42, d));
+  return h;
+}
+function terrainH(x, z) { return MAPM === 'battle' ? battleH(x, z) : rangeH(x, z); }
+function rangeH(x, z) {
   const ax = Math.abs(x);
   const corr = smooth(45, 260, ax);           // 0 — коридор стрельбища, 1 — вне его
   const big = (fbm(x * 0.0035 + 11, z * 0.0035 - 7) - 0.5) * 22;
@@ -147,7 +173,9 @@ RIFLES.push(
   { id: 'rmg', name: 'П-30 «Вал»', full: 'Пулемёт тяжёлого робота', org: 'BOT', type: 'auto', cal: '7,62 мм · 12 г', mv: 850, bc: 0.25, g: 12, sh: 0.08, mag: 150, rpm: 720, recoil: 0.3, sg: 1.5, scope: 'holo', disp: 1.0, look: 'bot_mg' },
   { id: 'rrk', name: 'РК-4 «Залп»', full: 'Наплечная ракетная установка', org: 'BOT', type: 'rocket', cal: 'реактивная граната · 2,6 кг', mv: 117, bc: 0.1, g: 2600, sh: 0, mag: 4, recoil: 0.35, sg: 0, scope: 'holo_rk', disp: 1.0, look: 'bot_rk' },
 );
+RIFLES.push({ id: 'kord', name: '«Корд» 12,7', full: 'Станковый крупнокалиберный пулемёт', org: 'RU', type: 'auto', mounted: true, cal: '12,7×108 · Б-32, 48 г', mv: 820, bc: 0.33, g: 48, sh: 0.1, mag: 150, rpm: 650, recoil: 0.18, sg: 1.8, scope: 'iron_kord', disp: 0.55, look: 'kord' });
 Object.assign(SCOPES, {
+  iron_kord: { id: 'iron_kord', name: 'Прицел «Корда» 1–20', iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 20, fov: 34 },
   holo:    { id: 'holo',    name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 20, maxW: 5, ret: 'holo' },
   holo_rk: { id: 'holo_rk', name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 0, maxW: 0, ret: 'holo', rocket: true },
   iron_ak:  { id: 'iron_ak',  name: 'Открытый прицел 1–10',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 42 },
@@ -162,6 +190,7 @@ const WEATHER = {
   rain:   { name: 'Дождь',    t: 10,  p: 731, h: 92, fog: 0.0008,  top: 0x5d666f, hor: 0x8f979c, sun: 0.25, hemi: 0.75, clouds: 1,    rain: 1 },
   heat:   { name: 'Жара',     t: 36,  p: 741, h: 18, fog: 0.00028, top: 0x5d8fc9, hor: 0xdcd9c6, sun: 1.2,  hemi: 0.72, clouds: 0.15, rain: 0 },
   cold:   { name: 'Мороз',    t: -14, p: 768, h: 75, fog: 0.00025, top: 0x6d95c4, hor: 0xd3dde5, sun: 0.85, hemi: 0.8,  clouds: 0.4,  rain: 0 },
+  night:  { name: 'Ночь',     t: 7,   p: 746, h: 70, fog: 0.0011,  top: 0x02050c, hor: 0x111a26, sun: 0.16, hemi: 0.16, clouds: 0.25, rain: 0, sd: [0.35, 0.55, -0.5], sc: 0x9fb4d8, cc: 0x2a3340, night: 1 },
   dusk:   { name: 'Закат',    t: 15,  p: 744, h: 55, fog: 0.00034, top: 0x34507e, hor: 0xe9a674, sun: 1.0,  hemi: 0.5,  clouds: 0.55, rain: 0, sd: [-0.8, 0.13, -0.3], sc: 0xffa462, cc: 0xffc29a },
 };
 const WINDS = {
@@ -175,7 +204,7 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { gmode: 'range', teamN: 10, side: 'h', vibro: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 6, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
 if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
@@ -185,6 +214,7 @@ const HM = { t: 0, kind: '' };
 let fireHeld = false;
 function save() { try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (e) { /* ignore */ } }
 const Q = QUALITY[S.quality] || QUALITY.mid;
+MAPM = S.gmode === 'battle' ? 'battle' : 'range';
 
 const TUR = {};   // состояние барабанов на каждую винтовку
 RIFLES.forEach((r) => { TUR[r.id] = { e: 0, w: 0, drum: 1, zoom: null, ammo: r.mag, reserve: null }; });
@@ -247,13 +277,16 @@ if (Q.sh) {
 }
 
 // небо
-const skyU = { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: SUN_DIR }, sunI: { value: 1 } };
+const skyU = { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: SUN_DIR }, sunI: { value: 1 }, night: { value: 0 } };
 const sky = new THREE.Mesh(new THREE.SphereGeometry(9000, 32, 16), new THREE.ShaderMaterial({
   uniforms: skyU, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
   vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }',
-  fragmentShader: 'uniform vec3 top; uniform vec3 hor; uniform vec3 sunDir; uniform float sunI; varying vec3 vD;' +
+  fragmentShader: 'uniform vec3 top; uniform vec3 hor; uniform vec3 sunDir; uniform float sunI; uniform float night; varying vec3 vD;' +
+    'float hs(vec3 p){ p = fract(p * 0.3183 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }' +
     'void main(){ float h = max(vD.y, 0.0); vec3 c = mix(hor, top, pow(h, 0.5)); if (vD.y < 0.0) c = hor * 0.92;' +
-    ' float s = max(dot(normalize(vD), sunDir), 0.0); c += vec3(1.0,0.95,0.85) * (pow(s, 900.0) * 3.0 + pow(s, 10.0) * 0.22) * sunI;' +
+    ' float s = max(dot(normalize(vD), sunDir), 0.0);' +
+    ' if (night > 0.5) { c += vec3(0.9,0.93,1.0) * (pow(s, 2000.0) * 2.5 + pow(s, 60.0) * 0.08); vec3 q = floor(normalize(vD) * 420.0); float st = step(0.996, hs(q)) * smoothstep(0.02, 0.25, vD.y); c += vec3(st * 0.8); }' +
+    ' else c += vec3(1.0,0.95,0.85) * (pow(s, 900.0) * 3.0 + pow(s, 10.0) * 0.22) * sunI;' +
     ' gl_FragColor = vec4(c, 1.0); }',
 }));
 sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
@@ -279,7 +312,61 @@ const groundTex = canvasTex(128, 128, (c) => {
 groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
 
 /* ---------------- земля ---------------- */
-(function buildTerrain() {
+const BRG = { x0: -760, x1: 760, z0: -2350, z1: 600 };   // область детальной сетки карты боя
+function colorAt(x, z, h, out) {
+  const lush = fbm(x * 0.002 + 3, z * 0.002), dry = smooth(0.55, 0.8, fbm(x * 0.012 + 40, z * 0.012));
+  let r = lerp(0.27, 0.42, lush), g = lerp(0.43, 0.56, lush), b = lerp(0.15, 0.2, lush);
+  r = lerp(r, 0.62, dry * 0.55); g = lerp(g, 0.6, dry * 0.55); b = lerp(b, 0.33, dry * 0.55);
+  if (MAPM === 'battle') {
+    const d = Math.abs(z - riverZ(x)); const mud = 1 - smooth(10, 30, d);
+    r = lerp(r, 0.36, mud); g = lerp(g, 0.33, mud); b = lerp(b, 0.24, mud);
+    for (const f of FORESTS) { const k = 1 - smooth(f.r * 0.6, f.r * 1.05, Math.hypot(x - f.x, z - f.z)); if (k > 0) { r = lerp(r, 0.2, k * 0.6); g = lerp(g, 0.3, k * 0.6); b = lerp(b, 0.12, k * 0.6); } }
+    const top = smooth(25, 36, h); r = lerp(r, 0.5, top * 0.35); g = lerp(g, 0.52, top * 0.35); b = lerp(b, 0.28, top * 0.35);
+  } else {
+    const ridge = smooth(10, 60, h - clamp(-z, 0, 1800) * 0.006);
+    r = lerp(r, 0.42, ridge * 0.4); g = lerp(g, 0.48, ridge * 0.4); b = lerp(b, 0.3, ridge * 0.4);
+  }
+  out[0] = r; out[1] = g; out[2] = b;
+}
+function gridMesh(xs, zs, skip) {
+  const nx = xs.length, nz = zs.length;
+  const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2), c3 = [0, 0, 0];
+  let k = 0;
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const x = xs[i], z = zs[j], h = terrainH(x, z);
+    pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z; uv[k * 2] = x / 5; uv[k * 2 + 1] = z / 5;
+    colorAt(x, z, h, c3); col[k * 3] = c3[0]; col[k * 3 + 1] = c3[1]; col[k * 3 + 2] = c3[2]; k++;
+  }
+  const idx = [];
+  for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    if (skip && skip((xs[i] + xs[i + 1]) / 2, (zs[j] + zs[j + 1]) / 2)) continue;
+    const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
+    idx.push(a, c, b, b, c, d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1));
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: groundTex }));
+  m.receiveShadow = !!Q.sh; scene.add(m);
+  return m;
+}
+if (MAPM === 'battle') {
+  const step = Q.terr >= 256 ? 7 : Q.terr >= 200 ? 9 : 12;
+  const xs = [], zs = [];
+  for (let x = BRG.x0; x <= BRG.x1 + 0.1; x += step) xs.push(x);
+  for (let z = BRG.z0; z <= BRG.z1 + 0.1; z += step) zs.push(z);
+  gridMesh(xs, zs, null);
+  const N = 120, wx = [], wz = [];
+  for (let i = 0; i <= N; i++) { const u = i / N * 2 - 1; wx.push(Math.sign(u) * Math.pow(Math.abs(u), 1.7) * 6000); wz.push(Math.sign(u) * Math.pow(Math.abs(u), 1.7) * 6000 - 800); }
+  gridMesh(wx, wz, (x, z) => x > BRG.x0 + 40 && x < BRG.x1 - 40 && z > BRG.z0 + 40 && z < BRG.z1 - 40);
+  // река
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(3200, 420), new THREE.MeshLambertMaterial({ color: 0x3e5d6a, transparent: true, opacity: 0.88 }));
+  water.rotation.x = -Math.PI / 2; water.position.set(0, -1.25, -760); scene.add(water);
+}
+if (MAPM === 'range') (function buildTerrain() {
   const N = Q.terr, EXT = 6000, P = 1.9, n1 = N + 1;
   const pos = new Float32Array(n1 * n1 * 3), col = new Float32Array(n1 * n1 * 3), uv = new Float32Array(n1 * n1 * 2);
   const warp = (u) => Math.sign(u) * Math.pow(Math.abs(u), P) * EXT;
@@ -318,7 +405,7 @@ groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
 
 /* ---------------- трава вокруг игрока ---------------- */
 const GRASS_PATCH = 70;
-const grassU = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2() }, uNear: { value: 2.6 } };
+const grassU = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2() }, uNear: { value: 2.6 }, uMow: { value: MAPM === 'range' ? 1 : 0 } };
 const grass = (function () {
   const blades = 4, pos = [], col = [];
   for (let b = 0; b < blades; b++) {
@@ -334,8 +421,8 @@ const grass = (function () {
   geo.computeVertexNormals();
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uTime = grassU.uTime; sh.uniforms.uWind = grassU.uWind; sh.uniforms.uNear = grassU.uNear;
-    sh.vertexShader = 'uniform float uTime;\nuniform vec2 uWind;\nuniform float uNear;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+    sh.uniforms.uTime = grassU.uTime; sh.uniforms.uWind = grassU.uWind; sh.uniforms.uNear = grassU.uNear; sh.uniforms.uMow = grassU.uMow;
+    sh.vertexShader = 'uniform float uTime;\nuniform vec2 uWind;\nuniform float uNear;\nuniform float uMow;\n' + sh.vertexShader.replace('#include <begin_vertex>',
       'vec3 transformed = vec3(position);\n' +
       '#ifdef USE_INSTANCING\n vec3 wp = (instanceMatrix * vec4(0.0,0.0,0.0,1.0)).xyz;\n#else\n vec3 wp = vec3(0.0);\n#endif\n' +
       'float bend = position.y * position.y;\n' +
@@ -345,7 +432,7 @@ const grass = (function () {
       'transformed.y *= smoothstep(0.6, uNear, dc);\n' +
       'float mwx = 1.0 - smoothstep(13.0, 18.0, abs(wp.x));\n' +
       'float mwz = smoothstep(-36.0, -26.0, wp.z) * (1.0 - smoothstep(9.0, 13.0, wp.z));\n' +
-      'transformed.y *= 1.0 - 0.75 * mwx * mwz;\n');
+      'transformed.y *= 1.0 - 0.75 * mwx * mwz * uMow;\n');
   };
   const N = Q.grass;
   const mesh = new THREE.InstancedMesh(geo, mat, N);
@@ -364,13 +451,40 @@ function updateGrass(px, pz) {
     const x = o[i * 3] + P * Math.round((px - o[i * 3]) / P);
     const z = o[i * 3 + 1] + P * Math.round((pz - o[i * 3 + 1]) / P);
     const s = o[i * 3 + 2];
-    _m4.makeScale(s, s, s); _m4.setPosition(x, terrainH(x, z) - 0.02, z);
+    const gy = terrainH(x, z);
+    const sc = gy < -1.1 ? 0 : s;
+    _m4.makeScale(sc, sc, sc); _m4.setPosition(x, gy - 0.02, z);
     grass.mesh.setMatrixAt(i, _m4);
   }
   grass.mesh.instanceMatrix.needsUpdate = true;
 }
 
 /* ---------------- кусты и деревья ---------------- */
+if (MAPM === 'battle') (function buildForests() {
+  const trunkG = new THREE.CylinderGeometry(0.16, 0.28, 1, 6); trunkG.translate(0, 0.5, 0);
+  const pineG = new THREE.ConeGeometry(1, 1, 7); pineG.translate(0, 0.5, 0);
+  const leafG = new THREE.IcosahedronGeometry(1, 0);
+  const cnt = FORESTS.reduce((s, f) => s + Math.min(140, Math.round(f.r * f.r / 160) + (f.belt ? 3 : 0)), 0);
+  const trunks = new THREE.InstancedMesh(trunkG, new THREE.MeshLambertMaterial({ color: 0x4a3a28 }), cnt);
+  const pines = new THREE.InstancedMesh(pineG, new THREE.MeshPhongMaterial({ color: 0x2f4a22, flatShading: true, shininess: 0 }), cnt);
+  const leaves = new THREE.InstancedMesh(leafG, new THREE.MeshPhongMaterial({ color: 0x3d5a26, flatShading: true, shininess: 0 }), cnt);
+  const col = new THREE.Color(); let nt = 0, np = 0, nl = 0;
+  for (const f of FORESTS) {
+    const n = Math.min(140, Math.round(f.r * f.r / 160) + (f.belt ? 3 : 0));
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU, rr = Math.sqrt(Math.random()) * f.r;
+      const x = f.x + Math.cos(a) * rr, z = f.z + Math.sin(a) * rr, gy = terrainH(x, z);
+      if (gy < -0.8) continue;
+      const h = 7 + Math.random() * 9, pine = Math.random() < 0.45;
+      _m4.makeScale(1, h * (pine ? 0.45 : 0.6), 1); _m4.setPosition(x, gy - 0.2, z); trunks.setMatrixAt(nt++, _m4);
+      col.setRGB(0.75 + Math.random() * 0.35, 0.8 + Math.random() * 0.35, 0.75 + Math.random() * 0.3);
+      if (pine) { const w = 2 + Math.random() * 1.6; _m4.makeScale(w, h * 0.8, w); _m4.setPosition(x, gy + h * 0.25, z); pines.setMatrixAt(np, _m4); pines.setColorAt(np++, col); }
+      else { const w = 2.6 + Math.random() * 2.2; _m4.makeScale(w, w * 0.85, w); _m4.setPosition(x, gy + h * 0.62, z); leaves.setMatrixAt(nl, _m4); leaves.setColorAt(nl++, col); }
+    }
+  }
+  trunks.count = nt; pines.count = np; leaves.count = nl;
+  [trunks, pines, leaves].forEach((m) => { m.castShadow = !!Q.sh; scene.add(m); });
+})();
 (function buildVegetation() {
   const geo = new THREE.IcosahedronGeometry(1, 1);
   const mesh = new THREE.InstancedMesh(geo, new THREE.MeshPhongMaterial({ color: 0x3b5422, flatShading: true, shininess: 0 }), Q.bushes);
@@ -378,8 +492,9 @@ function updateGrass(px, pz) {
   let n = 0, guard = 0;
   while (n < Q.bushes && guard++ < 20000) {
     const x = (Math.random() * 2 - 1) * 1600, z = -2600 + Math.random() * 3300;
-    if (Math.abs(x) < 50 && z < 40 && z > -1750) continue;
-    if (Math.hypot(x, z) < 35) continue;
+    if (MAPM === 'range' && Math.abs(x) < 50 && z < 40 && z > -1750) continue;
+    if (MAPM === 'range' && Math.hypot(x, z) < 35) continue;
+    if (MAPM === 'battle' && (Math.hypot(x * 0.85, z - 40) < 260 || terrainH(x, z) < -0.5)) continue;
     const s = 0.6 + Math.random() * 1.8;
     _m4.makeScale(s * 1.2, s * 0.65, s); _m4.setPosition(x, terrainH(x, z) + s * 0.25, z);
     mesh.setMatrixAt(n, _m4);
@@ -391,7 +506,7 @@ function updateGrass(px, pz) {
   scene.add(mesh);
   // одиночные деревья (вяз/тополь) по краям поля
   const trunkM = new THREE.MeshLambertMaterial({ color: 0x4a3a28 }), crownM = new THREE.MeshPhongMaterial({ color: 0x35501f, flatShading: true, shininess: 0 });
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < (MAPM === 'range' ? 16 : 0); i++) {
     const side = i % 2 ? 1 : -1, x = side * (90 + Math.random() * 600), z = 80 - Math.random() * 2200;
     const g = new THREE.Group(), h = 5 + Math.random() * 6;
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.3, h, 6), trunkM); tr.position.y = h / 2; g.add(tr);
@@ -414,7 +529,7 @@ for (let i = 0; i < 26; i++) {
 }
 
 /* ---------------- стрельбище: огневой рубеж ---------------- */
-(function buildFiringLine() {
+if (MAPM === 'range') (function buildFiringLine() {
   const mat = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.03, 2.2), new THREE.MeshLambertMaterial({ color: 0x3f4a2e }));
   mat.position.set(0, terrainH(0, 0) + 0.02, 0.3); scene.add(mat);
   const bagM = new THREE.MeshLambertMaterial({ color: 0x9a8a66 });
@@ -578,7 +693,7 @@ const rain = (function () {
 /* ---------------- погода: применение к сцене ---------------- */
 function applyWeatherVisuals() {
   const w = WEATHER[S.weather];
-  skyU.top.value.setHex(w.top); skyU.hor.value.setHex(w.hor); skyU.sunI.value = w.sun;
+  skyU.top.value.setHex(w.top); skyU.hor.value.setHex(w.hor); skyU.sunI.value = w.sun; skyU.night.value = w.night ? 1 : 0;
   const sd = w.sd || [-0.45, 0.5, 0.55]; SUN_DIR.set(sd[0], sd[1], sd[2]).normalize(); sun.color.setHex(w.sc || 0xfff1d6);
   hemi.color.setHex(w.sd ? 0xc9b8d0 : 0xd6e6ff);
   scene.fog.color.setHex(w.hor); scene.fog.density = w.fog;
@@ -588,6 +703,15 @@ function applyWeatherVisuals() {
   renderer.setClearColor(w.hor);
 }
 
+/* ---------------- приборы ночного видения ---------------- */
+const VIS = { mode: 'off' };
+function setVision(m) {
+  VIS.mode = m; HOOK.vision = m;
+  const f = m === 'nvg' ? 'brightness(3.4) contrast(1.15) grayscale(1) sepia(1) hue-rotate(58deg) saturate(3.2)' : m === 'thermal' ? 'grayscale(1) brightness(1.5) contrast(1.9)' : '';
+  $('gl').style.filter = f;
+  const b = $('bVision'); if (b) { b.classList.toggle('on', m !== 'off'); b.querySelector('span').textContent = m === 'nvg' ? 'ПНВ' : m === 'thermal' ? 'ТЕПЛО' : 'ОПТИКА'; }
+  if (HOOK.onVision) HOOK.onVision(m);
+}
 /* ---------------- модель винтовки в руках ---------------- */
 const rifleHolder = new THREE.Group();
 camera.add(rifleHolder);
@@ -686,6 +810,18 @@ function buildIron(look) {
       if (mg) box(0.16, 0.2, 0.2, AR, 0.1, -0.2, -0.32); else box(0.05, 0.18, 0.09, AR, 0.03, -0.2, -0.3);
       g.userData.muzzle = new V3(0.03, -0.06, -1.1);
     }
+  } else if (look === 'kord') {
+    box(0.11, 0.14, 0.62, BLK, 0, -0.14, -0.42);
+    box(0.09, 0.025, 0.55, 0x222322, 0, -0.06, -0.45);
+    cyl(0.028, 0.03, 1.05, 0x141414, 0, -0.08, -1.2);
+    box(0.07, 0.07, 0.12, 0x141414, 0, -0.08, -1.75);
+    box(0.2, 0.22, 0.24, 0x3d4a2c, 0.17, -0.18, -0.4);
+    box(0.36, 0.04, 0.04, 0x1a1a1a, 0, -0.12, 0.02);
+    box(0.03, 0.12, 0.03, 0x1a1a1a, -0.16, -0.18, 0.04); box(0.03, 0.12, 0.03, 0x1a1a1a, 0.16, -0.18, 0.04);
+    box(0.03, 0.02, 0.03, BLK, 0, -0.018, -0.12);
+    box(0.0075, 0.012, 0.006, BLK, -0.006, -0.004, -0.12); box(0.0075, 0.012, 0.006, BLK, 0.006, -0.004, -0.12);
+    box(0.003, 0.03, 0.004, 0x111111, 0, -0.016, -1.6); box(0.005, 0.034, 0.01, BLK, -0.013, -0.018, -1.6); box(0.005, 0.034, 0.01, BLK, 0.013, -0.018, -1.6);
+    g.userData.muzzle = new V3(0, -0.08, -1.82);
   } else if (look === 'rpg') {
     cyl(0.04, 0.04, 0.95, 0x4b5636, 0, -0.07, -0.2);
     cyl(0.05, 0.05, 0.12, 0x2a2a28, 0, -0.07, 0.28);
@@ -801,7 +937,12 @@ function sndImpact(kind, delay, dist) {
 function sndBeep() { if (!AC || !S.sound) return; tone(AC.currentTime, 2400, 0.08, 0.12, 'square'); }
 
 /* ---------------- игрок ---------------- */
-const P = { x: 0, z: 0.6, yaw: 0, pitch: 0.01, stance: 0, eye: 1.62, moving: 0, bob: 0 };
+const P = { x: 0, z: 0.6, yaw: 0, pitch: 0.01, stance: 0, eye: 1.62, moving: 0, bob: 0, jy: 0, vy: 0, runLock: false };
+function jump() {
+  if (HOOK.dead || P.jy > 0.01 || P.stance === 2) return;
+  if (P.stance === 1) { setStance(1); return; }
+  P.vy = P.robot ? 6.2 : 4.4; P.jy = 0.001;
+}
 const STANCE = [
   { eye: 1.62, speed: 3.4, sway: 3.0, tremor: 0.55, kick: 1.6, name: 'Стоя' },
   { eye: 1.0,  speed: 1.7, sway: 1.6, tremor: 0.32, kick: 1.2, name: 'Сидя' },
@@ -850,7 +991,7 @@ function updateAimUI() {
   $('stamina').hidden = m !== 'scope';
   const zoomable = (m === 'scope' && sc.max > sc.min) || m === 'bino';
   $('zoom').hidden = !zoomable;
-  if (IS_TOUCH) { $('joy').hidden = m !== 'hip'; $('bFireL').hidden = m !== 'hip'; }
+  if (IS_TOUCH) $('joy').hidden = m !== 'hip';
   $('weapon').hidden = m === 'scope';
   $('bFire').querySelector('span').textContent = m === 'bino' ? 'ЛАЗЕР' : 'ОГОНЬ';
   updateZoomUI(); updateTurUI();
@@ -972,6 +1113,7 @@ function fire() {
   if (cycleT > 0) { if (rf.type === 'sniper' && !rf.semi) sndClick(); return; }
   if (P.sprint) return;
   st.ammo--; cycleT = rf.type === 'auto' ? 60 / rf.rpm : rf.type === 'rocket' ? 0.6 : rf.cycle;
+  if (HOOK.fired) HOOK.fired();
   STATS.shots++;
   const q = camera.quaternion;
   const dir = new V3(0, 0, -1).applyQuaternion(q), up = new V3(0, 1, 0).applyQuaternion(q), right = new V3(1, 0, 0).applyQuaternion(q);
@@ -1225,7 +1367,7 @@ const JOY = { id: null, ox: 0, oy: 0 };
 const LOOK = { id: null, x: 0, y: 0 };
 const MDRAG = { id: null, x: 0, y: 0 };
 function lookDelta(dx, dy, kind) {
-  const k = (kind === 'mouse' ? 0.0022 : 0.0046) * S.sens * (camera.fov / 65) * (AIM.mode === 'hip' ? 1 : 0.85);
+  const k = (kind === 'mouse' ? 0.0022 : 0.0046) * S.sens * (camera.fov / 65) * (AIM.mode === 'hip' ? 1 : 0.85) * (HOOK.lookScale ? HOOK.lookScale() : 1);
   P.yaw -= dx * k; P.pitch = clamp(P.pitch - dy * k, -1.4, 1.4);
 }
 function joyStart(e) {
@@ -1281,6 +1423,12 @@ tapButton($('bBino'), () => setAim('bino'));
 tapButton($('bCrouch'), () => setStance(1));
 tapButton($('bProne'), () => setStance(2));
 tapButton($('bReload'), reload);
+tapButton($('bJump'), jump);
+tapButton($('bRun'), () => { P.runLock = !P.runLock; $('bRun').classList.toggle('on', P.runLock); });
+tapButton($('bVision'), () => setVision(VIS.mode === 'off' ? 'nvg' : VIS.mode === 'nvg' ? 'thermal' : 'off'));
+tapButton($('bSquad'), () => { if (HOOK.squadMenu) HOOK.squadMenu(); });
+tapButton($('bMed'), () => { if (HOOK.medkit) HOOK.medkit(); });
+tapButton($('bUse'), () => { if (HOOK.use) HOOK.use(); });
 tapButton($('weapon'), () => { if (HOOK.nextWeapon) HOOK.nextWeapon(); else selectRifle(S.rifle + 1); });
 const bBreath = $('bBreath');
 bBreath.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); BR.hold = true; bBreath.classList.add('on'); try { bBreath.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } });
@@ -1310,6 +1458,11 @@ window.addEventListener('keydown', (e) => {
   const k = e.code; input.keys[k] = true;
   if (k === 'Space') { e.preventDefault(); if (!e.repeat) { fireHeld = true; fire(); } }
   else if (k === 'KeyQ') setAim('scope');
+  else if (k === 'KeyE') jump();
+  else if (k === 'KeyN') setVision(VIS.mode === 'off' ? 'nvg' : VIS.mode === 'nvg' ? 'thermal' : 'off');
+  else if (k === 'KeyH' && HOOK.medkit) HOOK.medkit();
+  else if (k === 'KeyT' && HOOK.squadMenu) HOOK.squadMenu();
+  else if (k === 'KeyU' && HOOK.use) HOOK.use();
   else if (k === 'KeyB') setAim('bino');
   else if (k === 'KeyC') setStance(1);
   else if (k === 'KeyZ') setStance(2);
@@ -1323,7 +1476,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'KeyX') turretStep('0');
   else if (k === 'Tab') { e.preventDefault(); if ($('card').hidden) openCard(); else $('card').hidden = true; }
   else if (k === 'KeyM' || k === 'Escape') openMenu();
-  else if (/^Digit[0-9]$/.test(k)) selectRifle((+k.slice(5) + 9) % 10);
+  else if (/^Digit[0-9]$/.test(k) && !HOOK.battle) { const i = (+k.slice(5) + 9) % 10; if (!RIFLES[i].mounted) selectRifle(i); }
   else if (k === 'KeyG' && HOOK.callArt) HOOK.callArt();
 });
 window.addEventListener('keyup', (e) => { input.keys[e.code] = false; if (e.code === 'Space') fireHeld = false; if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') BR.hold = false; });
@@ -1336,13 +1489,14 @@ function updatePlayer(dt) {
   const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
   const st = stOf();
   if (HOOK.dead) { mx = 0; my = 0; }
-  const wantRun = (K.ShiftLeft || K.ShiftRight || (IS_TOUCH && input.my > 0.95)) && my > 0.5 && AIM.mode === 'hip' && P.stance === 0;
+  const wantRun = (K.ShiftLeft || K.ShiftRight || P.runLock || (IS_TOUCH && input.my > 0.95)) && my > 0.5 && AIM.mode === 'hip' && P.stance === 0;
   P.sprint = wantRun && Math.hypot(mx, my) > 0.3;
   const sp = (P.sprint ? (P.robot ? 4.4 : 6.2) : st.speed * (AIM.mode === 'hip' ? 1 : 0.45)) * (HOOK.speedMul || 1);
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   P.x += (mx * cy - my * sy) * sp * dt;
   P.z += (-mx * sy - my * cy) * sp * dt;
-  P.x = clamp(P.x, -160, 160); P.z = clamp(P.z, -320, 90);
+  if (HOOK.battle) { P.x = clamp(P.x, -700, 700); P.z = clamp(P.z, -2300, 560); } else { P.x = clamp(P.x, -160, 160); P.z = clamp(P.z, -320, 90); }
+  if (P.jy > 0 || P.vy > 0) { P.vy -= 9.8 * dt; P.jy += P.vy * dt; if (P.jy <= 0) { P.jy = 0; P.vy = 0; if (HOOK.land) HOOK.land(); } }
   if (HOOK.move) HOOK.move();
   P.moving = lerp(P.moving, Math.min(1, Math.hypot(mx, my)), dt * 6);
   P.eye = lerp(P.eye, st.eye, dt * 5);
@@ -1362,7 +1516,7 @@ function updateSway(dt) {
   }
   const rate = (BR.gasp > 0 ? 2.2 : 1) * (1 + P.moving * 0.8);
   BR.phase += dt * TAU / 4.2 * rate;
-  const amp = st.sway * (1 + P.moving * 2.5) * BR.factor;
+  const amp = st.sway * (1 + P.moving * 2.5) * BR.factor * (curRifle().mounted ? 0.15 : 1);
   const tr = st.tremor * (0.45 + 0.55 * BR.factor) * (1 + P.moving);
   const tt = simT;
   const heart = Math.pow(Math.max(0, Math.sin(tt * TAU * 1.25)), 12) * 0.25 * st.tremor;
@@ -1383,7 +1537,7 @@ function applyCamera(dt) {
   AIM.blend += (ironT - AIM.blend) * Math.min(1, dt * 11);
   SHAKE.a *= Math.exp(-dt * 3.5);
   const shx = (vnoise(simT * 23, 3.1) - 0.5) * SHAKE.a, shy = (vnoise(simT * 23, 8.7) - 0.5) * SHAKE.a;
-  camera.position.set(P.x, gy + P.eye + bob + (HOOK.camDY || 0), P.z);
+  camera.position.set(P.x, gy + P.eye + bob + P.jy + (HOOK.camDY || 0) + (HOOK.climbY ? HOOK.climbY(P.x, P.z) : 0), P.z);
   camera.rotation.y = P.yaw - SW.x * 0.001 + shx;
   camera.rotation.x = P.pitch + SW.y * 0.001 + REC.k + shy;
   camera.rotation.z = HOOK.camRoll || 0;
@@ -1733,6 +1887,7 @@ function chips(el, items, cur, onPick) {
 function renderMenu() {
   const g = $('mRifles'); g.innerHTML = '';
   RIFLES.forEach((r, i) => {
+    if (r.mounted) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'rc' + (i === S.rifle ? ' on' : '');
     const kind = r.org === 'BOT' ? 'робот' : r.type === 'auto' ? (r.id === 'pkm' ? 'пулемёт' : 'автомат') : r.type === 'rocket' ? 'гранатомёт' : 'снайперская';
     const desc = r.org === 'BOT' ? (r.type === 'rocket' ? '4 ракеты в пакете · до 500 м<br>цифровой прицел с вычислителем' : 'V0 ' + r.mv + ' м/с · ' + r.rpm + ' выстр/мин<br>цифровой прицел с вычислителем') :
@@ -1748,12 +1903,12 @@ function renderMenu() {
   const rf = curRifle();
   if (rf.type === 'sniper') chips($('mScopes'), Object.values(SCOPES).filter((s) => !s.iron && !s.rocket).map((s) => [s.id, s.name]), scopeOf(rf).id, (id) => { S.scopes[rf.id] = id; const st = TUR[rf.id]; st.e = 0; st.w = 0; st.drum = 1; st.zoom = null; save(); renderMenu(); });
   else chips($('mScopes'), [[scopeOf(rf).id, scopeOf(rf).name + ' — штатный']], scopeOf(rf).id, () => {});
-  chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Оборона: бой с роботами']], S.gmode, (id) => { S.gmode = id; save(); renderMenu(); });
+  chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Бой: высота против роботов']], S.gmode, (id) => { if (id === S.gmode) return; S.gmode = id; S.autostart = true; save(); location.reload(); });
   $('teamRow').hidden = S.gmode !== 'battle';
-  chips($('mTeam'), [5, 10, 15, 20, 25].map((n) => [n, n + ' × ' + n]), S.teamN, (id) => { S.teamN = id; save(); renderMenu(); });
+  chips($('mTeam'), [4, 6, 8, 10, 12].map((n) => [n, n + ' роботов · ' + n * 3 + ' людей']), S.teamN, (id) => { S.teamN = id; save(); renderMenu(); });
   chips($('mSide'), [['h', 'За людей: оборона окопов'], ['r', 'За роботов: штурм']], S.side, (id) => { S.side = id; save(); renderMenu(); });
   $('gmodeNote').textContent = S.gmode === 'battle'
-    ? 'Держите окопы против наступающих боевых роботов. Броня роботов изнашивается от попаданий в одно место; бойцы в бронежилетах хрупкие. Бинокль + кнопка «АРТ» — вызов артиллерии по точке дальномера.'
+    ? 'Взвод людей (втрое больше) держит траншеи на высоте; штурмовые группы роботов выходят из-за холмов в 2 км и подбираются через лес, балку, брод и дым. Вы — рядовой в тройке: команды тройке, аптечка, «Корд», бинокль + «АРТ». Ночью — ПНВ и тепловизор.'
     : 'Мишени от 100 до 1500 м, разбор каждого выстрела.';
   $('bRestart').hidden = !(started && S.gmode === 'battle');
   chips($('mWeather'), Object.entries(WEATHER).map(([k, w]) => [k, w.name + ' ' + (w.t > 0 ? '+' : '') + w.t + '°']), S.weather, (id) => { S.weather = id; save(); applyConditions(); applyWeatherVisuals(); renderMenu(); });
@@ -1763,8 +1918,9 @@ function renderMenu() {
     ? 'Показываются скорость ветра, таблички дистанций и разбор каждого выстрела с нужной поправкой.'
     : 'Ветер читайте по флажкам и траве, дистанцию — дальномером, попадания ищите в бинокль.';
   chips($('mQual'), Object.entries(QUALITY).map(([k, q]) => [k, q.name]), S.quality, (id) => { if (id === S.quality) return; S.quality = id; save(); location.reload(); });
-  chips($('mOpts'), [['tracers', 'Трассеры ' + (S.tracers ? 'вкл' : 'выкл')], ['bcam', 'Камера пули ' + (S.bcam ? 'вкл' : 'выкл')], ['sound', 'Звук ' + (S.sound ? 'вкл' : 'выкл')], ['vibro', 'Вибро ' + (S.vibro ? 'вкл' : 'выкл')]], null, (id) => { S[id] = !S[id]; save(); renderMenu(); });
-  $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', [S.tracers, S.bcam, S.sound, S.vibro][i]));
+  $('bVision').hidden = false;
+  chips($('mOpts'), [['tracers', 'Трассеры ' + (S.tracers ? 'вкл' : 'выкл')], ['bcam', 'Камера пули ' + (S.bcam ? 'вкл' : 'выкл')], ['sound', 'Звук ' + (S.sound ? 'вкл' : 'выкл')], ['vibro', 'Вибро ' + (S.vibro ? 'вкл' : 'выкл')], ['assist', 'Помощник прицеливания ' + (S.assist ? 'вкл' : 'выкл')]], null, (id) => { S[id] = !S[id]; save(); renderMenu(); });
+  $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', [S.tracers, S.bcam, S.sound, S.vibro, S.assist][i]));
   $('mSens').value = S.sens; $('mSensV').textContent = (+S.sens).toFixed(2);
 }
 $('mSens').addEventListener('input', (e) => { S.sens = +e.target.value; $('mSensV').textContent = S.sens.toFixed(2); save(); });
@@ -1835,6 +1991,7 @@ window.SS = {
   curRifle, curTur, scopeOf, selectRifle, setAim, setStance, updateWeaponUI, setRangeVisible, openMenu, renderMenu, targetSeg, paintRing, paintSteel, inPoly, SIL,
   IS_TOUCH, getSimT: () => simT, reload, rifleHolder, report, updateStats,
   shadows: !!Q.sh, SUN_DIR, RSTANCE, rangeAt, marchTerrain, WIDX: (id) => RIFLES.findIndex((r) => r.id === id),
+  MAPM, FORESTS, riverZ, gullyX, VIS, setVision, sun, hemi, WEATHER, jump, input, SW, REC, Q, elevRad,
 };
 /* ---------------- старт ---------------- */
 applyConditions(); newWind(); applyWeatherVisuals(); applyMode();
@@ -1845,5 +2002,6 @@ showRifleModel(); updateWeaponUI(); updateAimUI(); updateStats();
 $('hud').classList.add('off');
 renderMenu();
 requestAnimationFrame(loop);
+if (S.autostart) { S.autostart = false; save(); setTimeout(() => startGame(true), 60); }
 window.__game = { camera, fire, setAim, setStance, P, targets, STATS, COND, WIND, laser, AIM, turretStep, startGame, openCard, LRF };
 })();

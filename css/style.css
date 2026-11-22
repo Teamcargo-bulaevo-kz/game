@@ -199,3 +199,8 @@ body.editing .rb{outline:1px dashed rgba(242,169,59,.6);outline-offset:3px}
 #feed{left:50%;right:auto;transform:translateX(-50%);top:calc(78px + var(--st));align-items:center;max-width:min(70vw,520px)}
 #feed div{text-align:center}
 #feed div{font-size:10.5px;padding:2px 7px}
+
+#sqPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:220px;background:var(--panel-solid)}
+#sqPanel .sqh{font:500 12px var(--f-disp);letter-spacing:.14em;text-transform:uppercase;color:var(--amber);text-align:center;margin-bottom:2px}
+#sqPanel button{font:500 14px var(--f-body);background:rgba(236,240,220,.07);border:1px solid var(--edge);border-radius:6px;padding:10px 12px;color:var(--text);text-align:left}
+#sqPanel button:active{background:rgba(242,169,59,.3)}
