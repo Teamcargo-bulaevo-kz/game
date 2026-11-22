@@ -218,7 +218,7 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, foe: 'bot', sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, foe: 'bot', dmgE: 5, dmgF: 5, sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
 if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
@@ -2204,12 +2204,12 @@ function renderMenu() {
   chips($('mOpts'), OPT.map(([k, n]) => [k, n + ' ' + (S[k] !== false && S[k] ? 'вкл' : 'выкл')]), null, (id) => { S[id] = !(S[id] !== false && S[id]); save(); applyUiPrefs(); renderMenu(); });
   $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', !!(S[OPT[i][0]] !== false && S[OPT[i][0]])));
   chips($('mGyro'), [['off', 'Гироскоп выкл'], ['scope', 'Гироскоп в прицеле'], ['always', 'Гироскоп всегда']], S.gyro || 'off', (id) => { S.gyro = id; save(); renderMenu(); });
-  [['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0]].forEach(([el, k, d]) => { $(el).value = S[k]; $(el + 'V').textContent = (+S[k]).toFixed(d); });
+  [['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0], ['mDmgE', 'dmgE', 0], ['mDmgF', 'dmgF', 0]].forEach(([el, k, d]) => { $(el).value = S[k]; $(el + 'V').textContent = (+S[k]).toFixed(d); });
   $('mSens').value = S.sens; $('mSensV').textContent = (+S.sens).toFixed(2);
 }
 ['mNH', 'mNR'].forEach((id) => $(id).addEventListener('change', (e) => { const v = Math.max(1, Math.min(50, Math.round(+e.target.value || 1))); e.target.value = v; S[id === 'mNH' ? 'nH' : 'nR'] = v; save(); }));
 $('mSens').addEventListener('input', (e) => { S.sens = +e.target.value; $('mSensV').textContent = S.sens.toFixed(2); save(); });
-[['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0]].forEach(([el, k, d]) => $(el).addEventListener('input', (e) => { S[k] = +e.target.value; $(el + 'V').textContent = S[k].toFixed(d); save(); if (k === 'vol' && MASTER) MASTER.gain.value = S.vol; }));
+[['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0], ['mDmgE', 'dmgE', 0], ['mDmgF', 'dmgF', 0]].forEach(([el, k, d]) => $(el).addEventListener('input', (e) => { S[k] = +e.target.value; $(el + 'V').textContent = S[k].toFixed(d); save(); if (k === 'vol' && MASTER) MASTER.gain.value = S.vol; }));
 function applyUiPrefs() { document.body.classList.toggle('nolabels', S.labels === false); }
 applyUiPrefs();
 function applyMode() { signs.forEach((s) => { s.visible = S.mode === 'train' && !HOOK.battle; }); if (S.mode !== 'train') $('toast').classList.remove('show'); }

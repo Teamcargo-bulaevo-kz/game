@@ -618,8 +618,10 @@ function killRobot(u, by, dir, blast) {
   else feed((isFriend('r') ? 'Потерян ' : 'Уничтожен ') + clsName(u.cls) + (isFriend('r') ? '' : ' робот'), isFriend('r') ? 'bad' : '');
   if (isFriend('r')) B.lost++;
 }
+const dmgK = (team) => clamp(+(team === B.side ? S.dmgF : S.dmgE) || 5, 1, 10) / 5;
 function partDamage(u, zone, dmg, wear, by, dir) {
   if (!u.alive) return;
+  { const k = dmgK(u.team); dmg *= k; wear *= k; }
   const Z = u.Z[zone]; if (!Z || u.gone.has(zone)) return;
   Z.hp -= dmg; Z.int = Math.max(0, Z.int - wear);
   if (Z.hp > 0) return;
@@ -670,6 +672,7 @@ function humanDamage(zone, E) {
   return 16 + E / 130;
 }
 function hurtHuman(u, dmg, by, dir, blast) {
+  dmg *= dmgK(u.team);
   if (!u.alive) return;
   u.hp -= dmg; u.supp += 2.5; u.hitT = B.t; u.cause = blast ? "blast" : "bullet";
   if (u.hp <= 0) downHuman(u, by, dir, blast);
@@ -679,6 +682,7 @@ function hurtHuman(u, dmg, by, dir, blast) {
 /* ================= игрок как цель ================= */
 const PZ_DEF = { head: [2600, 70], torso: [4300, 240], armL: [2500, 80], armR: [2500, 80], legs: [3000, 140] };
 function hurtPlayer(dmg, from) {
+  dmg *= dmgK(PL.team);
   if (!PL.alive || !B.active) return;
   PL.hp -= dmg; PL.lastHit = B.t;
   if (S.vibro && navigator.vibrate) { try { navigator.vibrate(dmg > 30 ? 70 : 35); } catch (e) { /* ignore */ } }
@@ -691,10 +695,11 @@ function hurtPlayer(dmg, from) {
 function hurtPlayerRobot(zone, E, from, dmgOverride) {
   if (!PL.alive || !B.active) return;
   const Z = PL.Z[zone];
-  if (dmgOverride != null) { Z.hp -= dmgOverride; Z.int = Math.max(0, Z.int - 0.2); B.dmgA = Math.min(1, B.dmgA + dmgOverride / 80); }
+  const kD = dmgK(PL.team);
+  if (dmgOverride != null) { dmgOverride *= kD; Z.hp -= dmgOverride; Z.int = Math.max(0, Z.int - 0.2); B.dmgA = Math.min(1, B.dmgA + dmgOverride / 80); }
   else {
     const thr = Z.armor * Z.int;
-    if (E > thr) { Z.hp -= (E - thr * 0.5) / 28; Z.int = Math.max(0, Z.int - 0.12); B.dmgA = Math.min(1, B.dmgA + 0.35); }
+    if (E > thr) { Z.hp -= (E - thr * 0.5) / 28 * kD; Z.int = Math.max(0, Z.int - 0.12); B.dmgA = Math.min(1, B.dmgA + 0.35); }
     else { Z.int = Math.max(0, Z.int - 0.045 * E / 1000); Z.hp -= E / 600; B.dmgA = Math.min(1, B.dmgA + 0.06); const AC = SS.getAC(); if (AC) SS.tone(AC.currentTime, rnd(2000, 3000), 0.1, 0.12, 'triangle', 1200); }
   }
   PL.lastHit = B.t; SHAKE.a += 0.01;
