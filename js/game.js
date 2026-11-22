@@ -171,10 +171,20 @@ RIFLES.push(
 RIFLES.push(
   { id: 'rr',  name: 'Р-12 «Штурм»', full: 'Винтовка боевого робота', org: 'BOT', type: 'auto', cal: '7,62 мм · 9,5 г', mv: 820, bc: 0.2, g: 9.5, sh: 0.08, mag: 40, rpm: 600, recoil: 0.22, sg: 1.5, scope: 'holo', disp: 0.7, look: 'bot_rifle' },
   { id: 'rmg', name: 'П-30 «Вал»', full: 'Пулемёт тяжёлого робота', org: 'BOT', type: 'auto', cal: '7,62 мм · 12 г', mv: 850, bc: 0.25, g: 12, sh: 0.08, mag: 150, rpm: 720, recoil: 0.3, sg: 1.5, scope: 'holo', disp: 1.0, look: 'bot_mg' },
+  { id: 'rsn', name: 'Р-50 «Жало»', full: 'Снайперская винтовка робота-разведчика', org: 'BOT', type: 'sniper', semi: true, cal: '8,6 мм · 14 г', mv: 1000, bc: 0.36, g: 14, sh: 0.08, mag: 8, cycle: 0.6, recoil: 0.6, sg: 2, scope: 'holo', disp: 0.15, look: 'bot_rifle' },
   { id: 'rrk', name: 'РК-4 «Залп»', full: 'Наплечная ракетная установка', org: 'BOT', type: 'rocket', cal: 'реактивная граната · 2,6 кг', mv: 117, bc: 0.1, g: 2600, sh: 0, mag: 4, recoil: 0.35, sg: 0, scope: 'holo_rk', disp: 1.0, look: 'bot_rk' },
 );
+RIFLES.push(
+  { id: 'vss',  name: 'ВСС «Винторез»', full: 'Бесшумная снайперская винтовка', org: 'RU', type: 'sniper', silent: true, cal: '9×39 · СП-5, 16 г', mv: 290, bc: 0.19, g: 16.2, sh: 0.06, mag: 10, cycle: 0.25, semi: true, recoil: 0.45, sg: 1.5, scope: 'pso', disp: 0.45, look: 'vss' },
+  { id: 'ksvk', name: 'КСВК', full: 'Крупнокалиберная снайперская винтовка', org: 'RU', type: 'sniper', cal: '12,7×108 · 7Н34, 59 г', mv: 840, bc: 0.36, g: 59, sh: 0.075, mag: 5, cycle: 1.4, semi: false, recoil: 2.3, sg: 2.0, scope: 'posp', disp: 0.3, look: 'ksvk' },
+  { id: 'rpk', name: 'РПК-16', full: 'Ручной пулемёт', org: 'RU', type: 'auto', cal: '5,45×39 · 7Н24, барабан 95', mv: 930, bc: 0.17, g: 3.6, sh: 0.05, mag: 95, rpm: 700, recoil: 0.3, sg: 1.4, scope: 'iron_ak', disp: 0.8, look: 'rpk' },
+);
+RIFLES.push({ id: 'm82', name: 'Миномёт 82 мм', full: 'Батальонный миномёт', org: 'RU', type: 'mortar', mounted: true, cal: 'осколочная мина 3,1 кг', mv: 211, bc: 1, g: 3100, sh: 0, mag: 1, cycle: 3, recoil: 0, sg: 0, scope: 'iron_ak', disp: 0, look: 'm82' });
 RIFLES.push({ id: 'kord', name: '«Корд» 12,7', full: 'Станковый крупнокалиберный пулемёт', org: 'RU', type: 'auto', mounted: true, cal: '12,7×108 · Б-32, 48 г', mv: 820, bc: 0.33, g: 48, sh: 0.1, mag: 150, rpm: 650, recoil: 0.18, sg: 1.8, scope: 'iron_kord', disp: 0.55, look: 'kord' });
 Object.assign(SCOPES, {
+  reddot: { id: 'reddot', name: 'Коллиматор', iron: true, dot: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 46 },
+  posp:   { id: 'posp',   name: 'ПОСП 8×42', min: 8, max: 8, unit: 'thou', click: 0.5, maxW: 10, ret: 'pso' },
+  thermo: { id: 'thermo', name: 'Тепловизор 3–12×', min: 3, max: 12, unit: 'mrad', click: 0.1, maxE: 25, maxW: 10, ret: 'mildot', thermal: true },
   iron_kord: { id: 'iron_kord', name: 'Прицел «Корда» 1–20', iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 20, fov: 34 },
   holo:    { id: 'holo',    name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 20, maxW: 5, ret: 'holo' },
   holo_rk: { id: 'holo_rk', name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 0, maxW: 0, ret: 'holo', rocket: true },
@@ -191,6 +201,7 @@ const WEATHER = {
   heat:   { name: 'Жара',     t: 36,  p: 741, h: 18, fog: 0.00028, top: 0x5d8fc9, hor: 0xdcd9c6, sun: 1.2,  hemi: 0.72, clouds: 0.15, rain: 0 },
   cold:   { name: 'Мороз',    t: -14, p: 768, h: 75, fog: 0.00025, top: 0x6d95c4, hor: 0xd3dde5, sun: 0.85, hemi: 0.8,  clouds: 0.4,  rain: 0 },
   night:  { name: 'Ночь',     t: 7,   p: 746, h: 70, fog: 0.0011,  top: 0x02050c, hor: 0x111a26, sun: 0.16, hemi: 0.16, clouds: 0.25, rain: 0, sd: [0.35, 0.55, -0.5], sc: 0x9fb4d8, cc: 0x2a3340, night: 1 },
+  dark:   { name: 'Кромешная ночь', t: 4, p: 748, h: 85, fog: 0.0019, top: 0x000000, hor: 0x020304, sun: 0.025, hemi: 0.04, clouds: 0.7, rain: 0, sd: [0.3, 0.45, -0.5], sc: 0x5a6a90, cc: 0x07080a, night: 1, dark: 1 },
   dusk:   { name: 'Закат',    t: 15,  p: 744, h: 55, fog: 0.00034, top: 0x34507e, hor: 0xe9a674, sun: 1.0,  hemi: 0.5,  clouds: 0.55, rain: 0, sd: [-0.8, 0.13, -0.3], sc: 0xffa462, cc: 0xffc29a },
 };
 const WINDS = {
@@ -204,7 +215,7 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { gmode: 'range', teamN: 6, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
 if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
@@ -219,7 +230,8 @@ MAPM = S.gmode === 'battle' ? 'battle' : 'range';
 const TUR = {};   // состояние барабанов на каждую винтовку
 RIFLES.forEach((r) => { TUR[r.id] = { e: 0, w: 0, drum: 1, zoom: null, ammo: r.mag, reserve: null }; });
 const curRifle = () => RIFLES[S.rifle];
-const scopeOf = (rf) => (rf.type === 'sniper' ? SCOPES[S.scopes[rf.id] || rf.scope] : SCOPES[rf.scope]) || SCOPES[rf.scope];
+const AUTO_SC = ['reddot', 'pso'];
+const scopeOf = (rf) => (rf.type === 'sniper' ? SCOPES[S.scopes[rf.id] || rf.scope] : rf.type === 'auto' && !rf.mounted && rf.org !== 'BOT' && AUTO_SC.indexOf(S.scopes[rf.id]) >= 0 ? SCOPES[S.scopes[rf.id]] : SCOPES[rf.scope]) || SCOPES[rf.scope];
 const curScope = () => scopeOf(curRifle());
 const curTur = () => TUR[curRifle().id];
 function elevRad() { const sc = curScope(), st = curTur(); if (sc.rocket) return 0; return sc.unit === 'thou' ? stdElev(curRifle(), st.drum * 100) : st.e * sc.click * UNIT[sc.unit]; }
@@ -258,7 +270,8 @@ try {
   renderer = new THREE.WebGLRenderer({ canvas: $('gl'), antialias: Q.aa, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
 } catch (e) { showErr('WebGL недоступен в этом браузере. Откройте игру в Chrome.'); return; }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pr));
-if (Q.sh) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = Q.sh > 1024 ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; }
+if (Q.sh) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = Q.sh > 1024 ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false; }
+const DR = { base: Math.min(window.devicePixelRatio || 1, Q.pr), pr: Math.min(window.devicePixelRatio || 1, Q.pr), acc: 0, n: 0, t: 0, frame: 0 };
 renderer.setSize(innerWidth, innerHeight, false);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.05, 20000);
@@ -358,7 +371,11 @@ if (MAPM === 'battle') {
   const xs = [], zs = [];
   for (let x = BRG.x0; x <= BRG.x1 + 0.1; x += step) xs.push(x);
   for (let z = BRG.z0; z <= BRG.z1 + 0.1; z += step) zs.push(z);
-  gridMesh(xs, zs, null);
+  const CX = 6, CZ = 12;
+  for (let a = 0; a < CX; a++) for (let c = 0; c < CZ; c++) {
+    const i0 = Math.floor(a * (xs.length - 1) / CX), i1 = Math.floor((a + 1) * (xs.length - 1) / CX), j0 = Math.floor(c * (zs.length - 1) / CZ), j1 = Math.floor((c + 1) * (zs.length - 1) / CZ);
+    const m = gridMesh(xs.slice(i0, i1 + 1), zs.slice(j0, j1 + 1), null); m.geometry.computeBoundingSphere();
+  }
   const N = 120, wx = [], wz = [];
   for (let i = 0; i <= N; i++) { const u = i / N * 2 - 1; wx.push(Math.sign(u) * Math.pow(Math.abs(u), 1.7) * 6000); wz.push(Math.sign(u) * Math.pow(Math.abs(u), 1.7) * 6000 - 800); }
   gridMesh(wx, wz, (x, z) => x > BRG.x0 + 40 && x < BRG.x1 - 40 && z > BRG.z0 + 40 && z < BRG.z1 - 40);
@@ -693,7 +710,7 @@ const rain = (function () {
 /* ---------------- погода: применение к сцене ---------------- */
 function applyWeatherVisuals() {
   const w = WEATHER[S.weather];
-  skyU.top.value.setHex(w.top); skyU.hor.value.setHex(w.hor); skyU.sunI.value = w.sun; skyU.night.value = w.night ? 1 : 0;
+  skyU.top.value.setHex(w.top); skyU.hor.value.setHex(w.hor); skyU.sunI.value = w.sun; skyU.night.value = w.dark ? 0.3 : w.night ? 1 : 0;
   const sd = w.sd || [-0.45, 0.5, 0.55]; SUN_DIR.set(sd[0], sd[1], sd[2]).normalize(); sun.color.setHex(w.sc || 0xfff1d6);
   hemi.color.setHex(w.sd ? 0xc9b8d0 : 0xd6e6ff);
   scene.fog.color.setHex(w.hor); scene.fog.density = w.fog;
@@ -701,13 +718,15 @@ function applyWeatherVisuals() {
   clouds.forEach((c, i) => { c.visible = i / clouds.length < w.clouds + 0.05; c.material.color.setHex(w.cc || (w.rain ? 0x8a9097 : w.clouds > 0.9 ? 0xc5c9cc : 0xffffff)); c.material.opacity = w.clouds > 0.9 ? 0.95 : 0.8; });
   rain.l.visible = !!w.rain;
   renderer.setClearColor(w.hor);
+  if (typeof VIS !== 'undefined') setVision(VIS.mode);
 }
 
 /* ---------------- приборы ночного видения ---------------- */
 const VIS = { mode: 'off' };
 function setVision(m) {
   VIS.mode = m; HOOK.vision = m;
-  const f = m === 'nvg' ? 'brightness(3.4) contrast(1.15) grayscale(1) sepia(1) hue-rotate(58deg) saturate(3.2)' : m === 'thermal' ? 'grayscale(1) brightness(1.5) contrast(1.9)' : '';
+  const w = WEATHER[S.weather] || {};
+  const f = m === 'nvg' ? (w.dark ? 'brightness(6) contrast(1.2) grayscale(1) sepia(1) hue-rotate(58deg) saturate(3.2)' : 'brightness(3.4) contrast(1.15) grayscale(1) sepia(1) hue-rotate(58deg) saturate(3.2)') : m === 'thermal' ? 'grayscale(1) brightness(1.5) contrast(1.9)' : w.night ? '' : 'contrast(1.07) saturate(1.15)';
   $('gl').style.filter = f;
   const b = $('bVision'); if (b) { b.classList.toggle('on', m !== 'off'); b.querySelector('span').textContent = m === 'nvg' ? 'ПНВ' : m === 'thermal' ? 'ТЕПЛО' : 'ОПТИКА'; }
   if (HOOK.onVision) HOOK.onVision(m);
@@ -729,8 +748,11 @@ function buildRifle(look) {
     m24:   { stock: 0x4b5a35, body: 0x202220, hand: 0x4b5a35, len: 0.95, scopeX: 0, mag: 0x202220 },
     awm:   { stock: 0x5f6b46, body: 0x262826, hand: 0x5f6b46, len: 1.0, scopeX: 0, mag: 0x222, bip: 1, brake: 1 },
     m107:  { stock: 0x3a3c3a, body: 0x2f312f, hand: 0x3a3c3a, len: 1.15, scopeX: 0, mag: 0x2a2a2a, bip: 1, brake: 2 },
+    vss:   { stock: 0x2a2a28, body: 0x1e1f1e, hand: 0x3a2a20, len: 0.5, scopeX: -0.035, mag: 0x1e1f20 },
+    ksvk:  { stock: 0x3a3e32, body: 0x2a2d28, hand: 0x3a3e32, len: 1.1, scopeX: 0, mag: 0x222, bip: 1, brake: 2 },
   }[look];
-  const big = look === 'm107' ? 1.35 : 1;
+  const big = look === 'm107' || look === 'ksvk' ? 1.35 : 1;
+  if (look === 'vss') cyl(0.028, 0.028, 0.5, 0x161616, 0, -0.03, -0.55);
   box(0.07 * big, 0.12 * big, 0.36, C.stock, 0, -0.08, 0.3);              // приклад
   box(0.055 * big, 0.07 * big, 0.34, C.body, 0, -0.04, -0.05);            // ствольная коробка
   box(0.06 * big, 0.06, 0.32, C.hand, 0, -0.05, -0.36);                   // цевьё
@@ -757,8 +779,9 @@ function buildIron(look) {
   const box = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(c)); m.position.set(x, y, z); g.add(m); return m; };
   const cyl = (r1, r2, l, c, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, l, 12), M(c)); m.rotation.x = Math.PI / 2; m.position.set(x, y, z); g.add(m); return m; };
   const BLK = 0x1a1b1b, DARK = 0x262422;
-  if (look === 'ak' || look === 'pkm') {
-    const pk = look === 'pkm', L = pk ? 1.0 : 0.85;
+  if (look === 'ak' || look === 'pkm' || look === 'rpk') {
+    const pk = look === 'pkm', L = pk ? 1.0 : look === 'rpk' ? 0.95 : 0.85;
+    if (look === 'rpk') { const dr = cyl(0.07, 0.07, 0.07, 0x1d1d1b, 0, -0.17, -0.3); dr.rotation.set(0, 0, Math.PI / 2); }
     box(0.05, 0.065, 0.36, BLK, 0, -0.075, -0.3);                        // ствольная коробка
     box(0.046, 0.012, 0.34, 0x222322, 0, -0.04, -0.3);                   // крышка
     box(0.056, 0.055, 0.2, pk ? BLK : 0x3a2a22, 0, -0.06, -0.55);        // цевьё
@@ -810,6 +833,10 @@ function buildIron(look) {
       if (mg) box(0.16, 0.2, 0.2, AR, 0.1, -0.2, -0.32); else box(0.05, 0.18, 0.09, AR, 0.03, -0.2, -0.3);
       g.userData.muzzle = new V3(0.03, -0.06, -1.1);
     }
+  } else if (look === 'm82') {
+    const t = cyl(0.045, 0.045, 1.2, 0x2f3a2a, 0.12, -0.25, -0.55); t.rotation.x = Math.PI / 2 - 0.85;
+    box(0.4, 0.04, 0.4, 0x252a24, 0.12, -0.7, -0.2);
+    g.userData.muzzle = new V3(0.12, 0.15, -0.95);
   } else if (look === 'kord') {
     box(0.11, 0.14, 0.62, BLK, 0, -0.14, -0.42);
     box(0.09, 0.025, 0.55, 0x222322, 0, -0.06, -0.45);
@@ -840,7 +867,7 @@ function showRifleModel() {
   const rf = curRifle();
   if (!rifleModels[rf.look]) {
     let m;
-    if (rf.type === 'sniper') { m = buildRifle(rf.look); m.scale.setScalar(0.62); m.rotation.y = 0.05; m.userData.muzzle = new V3(0, -0.02, -(0.25 + 1.1) * 0.62); }
+    if (rf.type === 'sniper' && rf.org !== 'BOT') { m = buildRifle(rf.look); m.scale.setScalar(0.62); m.rotation.y = 0.05; m.userData.muzzle = new V3(0, -0.02, -(0.25 + 1.1) * 0.62); }
     else m = buildIron(rf.look);
     rifleModels[rf.look] = m;
   }
@@ -851,34 +878,67 @@ function showRifleModel() {
 }
 
 /* ---------------- эффекты: трассеры, пыль, искры ---------------- */
-const effects = [];
-function trimEffects() { while (effects.length > 320) { const e = effects.shift(); scene.remove(e.o); e.o.material.dispose(); } }
-function addEffect(e) { scene.add(e.o); effects.push(e); trimEffects(); return e; }
+const PS_VS = 'attribute vec3 aColor; attribute float aSize; attribute float aAlpha; attribute float aMin;\n' +
+  'uniform float uScale; uniform float uFogD; varying vec3 vC; varying float vA; varying float vF;\n#include <common>\n#include <logdepthbuf_pars_vertex>\n' +
+  'void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; float d = max(-mv.z, 0.05);\n' +
+  ' float px = aSize * uScale / d; gl_PointSize = aAlpha <= 0.0 ? 0.0 : clamp(max(px, aMin), 0.0, 900.0); vC = aColor; vA = aAlpha; vF = 1.0 - exp(-uFogD * uFogD * d * d);\n#include <logdepthbuf_vertex>\n}';
+const PS_FS = 'uniform sampler2D map; uniform vec3 uFogC; uniform float uAdd; varying vec3 vC; varying float vA; varying float vF;\n#include <logdepthbuf_pars_fragment>\n' +
+  'void main(){\n#include <logdepthbuf_fragment>\n vec4 t = texture2D(map, gl_PointCoord); float a = t.a * vA; vec3 c = vC * t.rgb;\n' +
+  ' if (uAdd > 0.5) a *= 1.0 - vF; else c = mix(c, uFogC, vF); if (a < 0.004) discard; gl_FragColor = vec4(c, a); }';
+function makePS(tex, additive, cap) {
+  const geo = new THREE.BufferGeometry();
+  const A = (n, k) => { const a = new THREE.BufferAttribute(new Float32Array(cap * k), k); a.setUsage(THREE.DynamicDrawUsage); geo.setAttribute(n, a); return a.array; };
+  const ps = { cap, head: 0, geo, pos: A('position', 3), col: A('aColor', 3), size: A('aSize', 1), alpha: A('aAlpha', 1), mn: A('aMin', 1),
+    vx: new Float32Array(cap), vy: new Float32Array(cap), vz: new Float32Array(cap), t: new Float32Array(cap), life: new Float32Array(cap), s0: new Float32Array(cap), s1: new Float32Array(cap),
+    a0: new Float32Array(cap), g: new Uint8Array(cap), floor: new Float32Array(cap), on: new Uint8Array(cap), dirty: false };
+  const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, uScale: { value: 500 }, uFogC: { value: new THREE.Color() }, uFogD: { value: 0 }, uAdd: { value: additive ? 1 : 0 } },
+    vertexShader: PS_VS, fragmentShader: PS_FS, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+  ps.pts = new THREE.Points(geo, mat); ps.pts.frustumCulled = false; ps.pts.renderOrder = additive ? 4 : 3; scene.add(ps.pts);
+  return ps;
+}
+const PSY = { puff: makePS(puffTex, false, IS_TOUCH ? 1800 : 3000), glow: makePS(glowTex, true, IS_TOUCH ? 1400 : 2200) };
+const _pc = new THREE.Color();
+function emit(ps, x, y, z, vx, vy, vz, s0, s1, life, color, a0, grav, floor, minPx) {
+  const i = ps.head; ps.head = (ps.head + 1) % ps.cap;
+  ps.on[i] = 1; ps.t[i] = 0; ps.life[i] = life; ps.s0[i] = s0; ps.s1[i] = s1; ps.a0[i] = a0; ps.g[i] = grav ? 1 : 0; ps.floor[i] = floor || -1e9;
+  ps.pos[i * 3] = x; ps.pos[i * 3 + 1] = y; ps.pos[i * 3 + 2] = z; ps.vx[i] = vx; ps.vy[i] = vy; ps.vz[i] = vz;
+  _pc.setHex(color); ps.col[i * 3] = _pc.r; ps.col[i * 3 + 1] = _pc.g; ps.col[i * 3 + 2] = _pc.b;
+  ps.mn[i] = minPx || 0; ps.size[i] = s0; ps.alpha[i] = a0; ps.dirty = true;
+}
+function updatePS(ps, dt) {
+  if (!ps.dirty && !ps.live) return;
+  let live = 0;
+  const P_ = ps.pos;
+  for (let i = 0; i < ps.cap; i++) {
+    if (!ps.on[i]) continue;
+    const t = ps.t[i] += dt, k = t / ps.life[i];
+    if (k >= 1) { ps.on[i] = 0; ps.alpha[i] = 0; continue; }
+    live++;
+    P_[i * 3] += ps.vx[i] * dt; P_[i * 3 + 1] += ps.vy[i] * dt; P_[i * 3 + 2] += ps.vz[i] * dt;
+    if (ps.g[i]) { ps.vy[i] -= 9.8 * dt; if (P_[i * 3 + 1] < ps.floor[i]) { P_[i * 3 + 1] = ps.floor[i]; ps.vx[i] = ps.vy[i] = ps.vz[i] = 0; } }
+    else { const dr = 1 - dt * 1.2; ps.vx[i] *= dr; ps.vy[i] *= dr; ps.vz[i] *= dr; }
+    const e = 1 - (1 - k) * (1 - k);
+    ps.size[i] = ps.s0[i] + (ps.s1[i] - ps.s0[i]) * e;
+    ps.alpha[i] = ps.a0[i] * (1 - k) * (1 - k * 0.3);
+  }
+  ps.live = live; ps.dirty = false;
+  const at = ps.geo.attributes;
+  at.position.needsUpdate = true; at.aSize.needsUpdate = true; at.aAlpha.needsUpdate = true; at.aColor.needsUpdate = true; at.aMin.needsUpdate = true;
+}
+// совместимые обёртки
+function fxPuff(p, color, s0, s1, life, v, a0, grav, floor, minPx) { emit(PSY.puff, p.x, p.y, p.z, v ? v.x : 0, v ? v.y : 0, v ? v.z : 0, s0, s1, life, color, a0 == null ? 0.95 : a0, grav, floor, minPx); }
+function fxGlow(p, color, s0, s1, life, v, a0, grav, floor, minPx) { emit(PSY.glow, p.x, p.y, p.z, v ? v.x : 0, v ? v.y : 0, v ? v.z : 0, s0, s1, life, color, a0 == null ? 1 : a0, grav, floor, minPx); }
 function spawnPuff(p, color, size, life, n, rise, spread) {
-  trimEffects();
-  for (let i = 0; i < n; i++) {
-    const m = new THREE.SpriteMaterial({ map: puffTex, color, transparent: true, depthWrite: false, opacity: 0.95 });
-    const s = new THREE.Sprite(m);
-    s.position.copy(p); s.position.x += gauss() * spread; s.position.z += gauss() * spread; s.position.y += Math.random() * spread * 0.6;
-    scene.add(s);
-    effects.push({ o: s, t: 0, life: life * (0.7 + Math.random() * 0.6), s0: size * 0.3, s1: size * (0.8 + Math.random() * 0.6), v: new V3(gauss() * 0.4, rise * (0.5 + Math.random()), gauss() * 0.4), a0: 0.95 });
-  }
+  for (let i = 0; i < n; i++) emit(PSY.puff, p.x + gauss() * spread, p.y + Math.random() * spread * 0.6, p.z + gauss() * spread, gauss() * 0.4, rise * (0.5 + Math.random()), gauss() * 0.4,
+    size * 0.3, size * (0.8 + Math.random() * 0.6), life * (0.7 + Math.random() * 0.6), color, 0.95, 0, 0, 0);
 }
-function spawnSpark(p, size) {
-  const m = new THREE.SpriteMaterial({ map: glowTex, color: 0xffd27a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
-  const s = new THREE.Sprite(m); s.position.copy(p); scene.add(s);
-  effects.push({ o: s, t: 0, life: 0.18, s0: size, s1: size * 1.6, v: new V3(), a0: 1 });
-}
+function spawnSpark(p, size) { emit(PSY.glow, p.x, p.y, p.z, 0, 0, 0, size, size * 1.6, 0.18, 0xffd27a, 1, 0, 0, 2); }
 function updateEffects(dt) {
-  for (let i = effects.length - 1; i >= 0; i--) {
-    const e = effects[i]; e.t += dt;
-    const k = e.t / e.life;
-    if (k >= 1) { scene.remove(e.o); e.o.material.dispose(); effects.splice(i, 1); continue; }
-    const s = lerp(e.s0, e.s1, 1 - Math.pow(1 - k, 2)); e.o.scale.set(s, s, 1);
-    e.o.material.opacity = e.a0 * (1 - k) * (1 - k * 0.3);
-    e.o.position.addScaledVector(e.v, dt);
-    if (e.g) { e.v.y -= 9.8 * dt; if (e.o.position.y < e.floor) { e.v.set(0, 0, 0); e.o.position.y = e.floor; } } else e.v.multiplyScalar(1 - dt * 1.2);
-  }
+  updatePS(PSY.puff, dt); updatePS(PSY.glow, dt);
+}
+function syncPS(cam) {
+  const sc = renderer.domElement.height / (2 * Math.tan(cam.fov * DEG / 2));
+  for (const k in PSY) { const u = PSY[k].pts.material.uniforms; u.uScale.value = sc; u.uFogC.value.copy(scene.fog.color); u.uFogD.value = scene.fog.density; }
 }
 
 /* ---------------- звук (синтез WebAudio) ---------------- */
@@ -937,21 +997,22 @@ function sndImpact(kind, delay, dist) {
 function sndBeep() { if (!AC || !S.sound) return; tone(AC.currentTime, 2400, 0.08, 0.12, 'square'); }
 
 /* ---------------- игрок ---------------- */
-const P = { x: 0, z: 0.6, yaw: 0, pitch: 0.01, stance: 0, eye: 1.62, moving: 0, bob: 0, jy: 0, vy: 0, runLock: false };
+const P = { x: 0, z: 0.6, yaw: 0, pitch: 0.01, stance: 0, eye: 1.62, moving: 0, bob: 0, jy: 0, vy: 0, runLock: false, lean: 0, leanV: 0 };
+function setLean(d) { P.lean = P.lean === d ? 0 : d; $('bLeanL').classList.toggle('on', P.lean === -1); $('bLeanR').classList.toggle('on', P.lean === 1); }
 function jump() {
-  if (HOOK.dead || P.jy > 0.01 || P.stance === 2) return;
+  if (HOOK.dead || P.jy > 0.01 || P.stance === 2 || AIM.mode !== 'hip' || curRifle().mounted || (HOOK.noJump && HOOK.noJump())) return;
   if (P.stance === 1) { setStance(1); return; }
   P.vy = P.robot ? 6.2 : 4.4; P.jy = 0.001;
 }
 const STANCE = [
-  { eye: 1.62, speed: 3.4, sway: 3.0, tremor: 0.55, kick: 1.6, name: 'Стоя' },
+  { eye: 1.62, speed: 3.6, sway: 3.0, tremor: 0.55, kick: 1.6, name: 'Стоя' },
   { eye: 1.0,  speed: 1.7, sway: 1.6, tremor: 0.32, kick: 1.2, name: 'Сидя' },
-  { eye: 0.42, speed: 0.6, sway: 0.5, tremor: 0.11, kick: 0.65, name: 'Лёжа' },
+  { eye: 0.3, speed: 0.7, sway: 0.45, tremor: 0.1, kick: 0.6, name: 'Лёжа' },
 ];
 const RSTANCE = [
-  { eye: 2.15, speed: 2.8, sway: 0.9, tremor: 0.12, kick: 0.9, name: 'Стоя' },
-  { eye: 1.6,  speed: 1.4, sway: 0.6, tremor: 0.1,  kick: 0.7, name: 'Присед' },
-  { eye: 1.15, speed: 0.5, sway: 0.4, tremor: 0.08, kick: 0.5, name: 'На колене' },
+  { eye: 2.15, speed: 4.2, sway: 0.9, tremor: 0.12, kick: 0.9, name: 'Стоя' },
+  { eye: 1.6,  speed: 2.2, sway: 0.6, tremor: 0.1,  kick: 0.7, name: 'Присед' },
+  { eye: 1.15, speed: 0.9, sway: 0.4, tremor: 0.08, kick: 0.5, name: 'На колене' },
 ];
 const stOf = () => (P.robot ? RSTANCE : STANCE)[P.stance];
 const AIM = { mode: 'hip', zoom: 4, binoZoom: 10, blend: 0 };     // hip | scope | bino
@@ -974,18 +1035,22 @@ function fovFor(mode) {
 }
 function setAim(mode) {
   if (AIM.mode === mode) mode = 'hip';
+  if (mode === 'scope' && curRifle().type === 'mortar') mode = 'hip';
   AIM.mode = mode;
   const sc = curScope();
   if (mode === 'scope') { const st = curTur(); AIM.zoom = st.zoom || sc.min; }
   $('bScope').classList.toggle('on', mode === 'scope'); $('bScopeL').classList.toggle('on', mode === 'scope');
   $('bBino').classList.toggle('on', mode === 'bino');
   rifleHolder.visible = mode === 'hip' || (mode === 'scope' && sc.iron);
+  if (sc.thermal && mode === 'scope') { VIS.prev = VIS.mode; setVision('thermal'); }
+  else if (VIS.prev != null && mode !== 'scope') { setVision(VIS.prev); VIS.prev = null; }
   updateAimUI();
 }
 function updateAimUI() {
   const m = AIM.mode, sc = curScope();
-  $('tur').hidden = m !== 'scope' || !!sc.rocket;
-  $('tur').classList.toggle('iron', !!sc.iron);
+  const mortar = curRifle().type === 'mortar';
+  $('tur').hidden = (m !== 'scope' || !!sc.rocket) && !mortar;
+  $('tur').classList.toggle('iron', !!sc.iron || mortar);
   if (HOOK.aimUI) HOOK.aimUI(m);
   $('bBreath').hidden = m !== 'scope' || !!P.robot;
   $('stamina').hidden = m !== 'scope';
@@ -1014,6 +1079,7 @@ function updateZoomUI() {
 function fmt(v, d) { return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d); }
 function updateTurUI() {
   const sc = curScope(), st = curTur();
+  if (curRifle().type === 'mortar' && HOOK.mortarInfo) { const mi = HOOK.mortarInfo(); $('turE').textContent = 'ДАЛЬН ' + mi.range; $('turW').textContent = mi.tof + ' с'; $('turU').textContent = 'м'; return; }
   if (sc.iron) {
     $('turE').textContent = 'ПРИЦЕЛ ' + st.drum;
     $('turW').textContent = (st.drum * 100) + ' м';
@@ -1029,6 +1095,7 @@ function updateTurUI() {
 }
 function turretStep(t) {
   const sc = curScope(), st = curTur();
+  if (curRifle().type === 'mortar') { if (HOOK.mortarAdj && (t === 'e+' || t === 'e-')) HOOK.mortarAdj(t === 'e+' ? 25 : -25); if (HOOK.mortarAdj && t === '0') HOOK.mortarAdj(0); sndClick(); updateTurUI(); return; }
   if (t === '0') { st.e = 0; st.w = 0; st.drum = 1; }
   else if (t === 'e+' || t === 'e-') {
     const d = t === 'e+' ? 1 : -1;
@@ -1092,14 +1159,7 @@ function spawnBullet(o) {
     last: o.origin.clone(), cur: o.origin.clone(), alive: true, aim: o.aim || null, aimPass: null, paper: new Set(), reported: !o.player,
     origin: o.origin.clone(), trail: [], acc: 0, aimDir: (o.aimDir || d).clone(), dt: o.dt || 0.001, rico: !!o.rico,
   };
-  if (o.tracer) {
-    const key = o.tracer;
-    b.spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: key, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, sizeAttenuation: false }));
-    b.spr.scale.set(0.018, 0.018, 1); scene.add(b.spr);
-    const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(16 * 3), 3));
-    b.line = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: key, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.85, depthWrite: false }));
-    b.line.frustumCulled = false; scene.add(b.line);
-  }
+  if (o.tracer) { b.tc = o.tracer; b.fxp = o.origin.clone(); }
   bullets.push(b);
   return b;
 }
@@ -1108,12 +1168,13 @@ function fire() {
   if (AIM.mode === 'bino') { laser(); return; }
   if (HOOK.dead) return;
   const rf = curRifle(), st = curTur();
+  if (rf.type === 'mortar') { if (cycleT > 0) return; cycleT = rf.cycle; if (HOOK.fireMortar) HOOK.fireMortar(); return; }
   if (reloadT > 0) return;
   if (st.ammo <= 0) { if (rf.type !== 'auto' || !fireHeld || cycleT <= 0) reload(); return; }
   if (cycleT > 0) { if (rf.type === 'sniper' && !rf.semi) sndClick(); return; }
   if (P.sprint) return;
   st.ammo--; cycleT = rf.type === 'auto' ? 60 / rf.rpm : rf.type === 'rocket' ? 0.6 : rf.cycle;
-  if (HOOK.fired) HOOK.fired();
+  if (HOOK.fired) HOOK.fired(!!rf.silent);
   STATS.shots++;
   const q = camera.quaternion;
   const dir = new V3(0, 0, -1).applyQuaternion(q), up = new V3(0, 1, 0).applyQuaternion(q), right = new V3(1, 0, 0).applyQuaternion(q);
@@ -1122,15 +1183,16 @@ function fire() {
   const disp = rf.disp * hipK * (rf.type === 'auto' && P.stance === 2 ? 0.6 : 1) * 0.001 * (HOOK.dispMul || 1);
   if (S.vibro && navigator.vibrate) { try { navigator.vibrate(rf.type === 'auto' ? 7 : 18); } catch (e) { /* ignore */ } }
   const d = dir.clone();
+  const ae = HOOK.autoElev ? HOOK.autoElev(dir, rf) : 0;
   if (rf.type === 'rocket') {
-    d.applyAxisAngle(right, gauss() * disp); d.applyAxisAngle(up, gauss() * disp);
+    d.applyAxisAngle(right, gauss() * disp + ae); d.applyAxisAngle(up, gauss() * disp);
     if (HOOK.launchRocket) HOOK.launchRocket(camera.position.clone().addScaledVector(up, -0.07).addScaledVector(dir, 0.9), d, HOOK.playerTeam || 'h', true);
     REC.v += 0.5 * rf.recoil;
     flash.material.opacity = 1;
     updateWeaponUI();
     return;
   }
-  const el = zeroAngle(rf) + elevRad() + gauss() * disp;
+  const el = zeroAngle(rf) + elevRad() + gauss() * disp + ae;
   const wd = windRad() + gauss() * disp;
   d.applyAxisAngle(right, el); d.applyAxisAngle(up, -wd);
   const mv = mvNow(rf) + gauss() * 2.5;
@@ -1141,7 +1203,11 @@ function fire() {
   const sk = stOf().kick * rf.recoil;
   REC.v += 0.75 * sk * (auto ? 0.6 : 1);
   P.yaw += gauss() * (auto ? 0.0012 : 0.0025) * sk * (P.stance === 2 ? 0.4 : 1);
-  sndShot(clamp(0.55 + rf.recoil * 0.25, 0.45, 1), auto);
+  if (rf.silent) { if (AC && S.sound) { noiseHit(AC.currentTime, 0.08, 'bandpass', 1800, 0.35, 1.5); noiseHit(AC.currentTime + 0.02, 0.12, 'lowpass', 600, 0.25); } }
+  else sndShot(clamp(0.55 + rf.recoil * 0.25, 0.45, 1), auto);
+  // мощь оружия: тряска и пороховой дым у дула
+  SHAKE.a += (auto ? 0.0025 : 0.006) + rf.recoil * (auto ? 0.002 : 0.006);
+  if (!rf.silent && (!auto || STATS.shots % 3 === 0)) { const mz = camera.position.clone().addScaledVector(dir, 1.4).addScaledVector(up, -0.15); fxPuff(mz, 0xd8d4cc, 0.15, 0.9 + rf.recoil * 0.4, 1.2, dir.clone().multiplyScalar(1.5).add(new V3(0, 0.4, 0)), 0.35); }
   if (rf.type === 'sniper' && !rf.semi) sndBolt(0.45);
   flash.material.opacity = 1;
   if (P.stance === 2 && (!auto || STATS.shots % 4 === 0)) { const mp = camera.position.clone().addScaledVector(dir, 1.2); mp.y = terrainH(mp.x, mp.z) + 0.05; spawnPuff(mp, 0xa89a7c, 0.9 * rf.recoil, 1.2, auto ? 2 : 4, 0.4, 0.3); }
@@ -1157,20 +1223,14 @@ function updateBullets(dt) {
       while (b.acc >= DT && b.alive) { b.acc -= DT; stepBullet(b, DT); }
       if (b.alive && (b.t > 8 || b.cur.y < -100)) killBullet(b, null);
     }
-    if (b.spr) {
-      b.spr.position.copy(b.cur);
-      b.trail.unshift(b.cur.x, b.cur.y, b.cur.z); if (b.trail.length > 48) b.trail.length = 48;
-      const arr = b.line.geometry.attributes.position.array;
-      for (let k = 0; k < 16; k++) { const j = Math.min(k, b.trail.length / 3 - 1) * 3; arr[k * 3] = b.trail[j]; arr[k * 3 + 1] = b.trail[j + 1]; arr[k * 3 + 2] = b.trail[j + 2]; }
-      b.line.geometry.attributes.position.needsUpdate = true;
-      const sz = (AIM.mode === 'hip' ? 0.012 : 0.02) * (b.player ? 1 : 0.8);
-      b.spr.scale.set(sz, sz, 1);
-      if (!b.alive) { b.fade = (b.fade || 1) - dt * 4; b.spr.material.opacity = Math.max(0, b.fade); b.line.material.opacity = Math.max(0, b.fade) * 0.85; }
+    if (b.tc && b.alive) {
+      // трассер: цепочка коротко живущих светящихся частиц от прошлого кадра до текущего
+      const L = b.fxp.distanceTo(b.cur), n = Math.min(5, 1 + Math.floor(L / 6));
+      const px = AIM.mode === 'hip' ? 3.2 : 4.5, sz = b.rf.g > 30 ? 0.35 : 0.22;
+      for (let k = 1; k <= n; k++) { const f = k / n; emit(PSY.glow, lerp(b.fxp.x, b.cur.x, f), lerp(b.fxp.y, b.cur.y, f), lerp(b.fxp.z, b.cur.z, f), 0, 0, 0, sz, sz * 0.5, 0.11, b.tc, 1, 0, 0, px * (b.player ? 1 : 0.85)); }
+      b.fxp.copy(b.cur);
     }
-    if (!b.alive && (!b.spr || b.fade <= 0) && BCAM.b !== b) {
-      if (b.spr) { scene.remove(b.spr); scene.remove(b.line); b.spr.material.dispose(); b.line.geometry.dispose(); b.line.material.dispose(); }
-      bullets.splice(i, 1);
-    }
+    if (!b.alive && BCAM.b !== b) bullets.splice(i, 1);
   }
 }
 const _A = [0, 0, 0];
@@ -1424,6 +1484,9 @@ tapButton($('bCrouch'), () => setStance(1));
 tapButton($('bProne'), () => setStance(2));
 tapButton($('bReload'), reload);
 tapButton($('bJump'), jump);
+tapButton($('bLeanL'), () => setLean(-1));
+tapButton($('bLeanR'), () => setLean(1));
+tapButton($('bGren'), () => { if (HOOK.grenade) HOOK.grenade(); });
 tapButton($('bRun'), () => { P.runLock = !P.runLock; $('bRun').classList.toggle('on', P.runLock); });
 tapButton($('bVision'), () => setVision(VIS.mode === 'off' ? 'nvg' : VIS.mode === 'nvg' ? 'thermal' : 'off'));
 tapButton($('bSquad'), () => { if (HOOK.squadMenu) HOOK.squadMenu(); });
@@ -1459,6 +1522,9 @@ window.addEventListener('keydown', (e) => {
   if (k === 'Space') { e.preventDefault(); if (!e.repeat) { fireHeld = true; fire(); } }
   else if (k === 'KeyQ') setAim('scope');
   else if (k === 'KeyE') jump();
+  else if (k === 'KeyO') setLean(-1);
+  else if (k === 'KeyP') setLean(1);
+  else if (k === 'KeyK' && HOOK.grenade) HOOK.grenade();
   else if (k === 'KeyN') setVision(VIS.mode === 'off' ? 'nvg' : VIS.mode === 'nvg' ? 'thermal' : 'off');
   else if (k === 'KeyH' && HOOK.medkit) HOOK.medkit();
   else if (k === 'KeyT' && HOOK.squadMenu) HOOK.squadMenu();
@@ -1491,12 +1557,13 @@ function updatePlayer(dt) {
   if (HOOK.dead) { mx = 0; my = 0; }
   const wantRun = (K.ShiftLeft || K.ShiftRight || P.runLock || (IS_TOUCH && input.my > 0.95)) && my > 0.5 && AIM.mode === 'hip' && P.stance === 0;
   P.sprint = wantRun && Math.hypot(mx, my) > 0.3;
-  const sp = (P.sprint ? (P.robot ? 4.4 : 6.2) : st.speed * (AIM.mode === 'hip' ? 1 : 0.45)) * (HOOK.speedMul || 1);
+  const sp = (P.sprint ? (P.robot ? 9.5 : 7.4) : st.speed * (AIM.mode === 'hip' ? 1 : 0.45)) * (HOOK.speedMul || 1);
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   P.x += (mx * cy - my * sy) * sp * dt;
   P.z += (-mx * sy - my * cy) * sp * dt;
   if (HOOK.battle) { P.x = clamp(P.x, -700, 700); P.z = clamp(P.z, -2300, 560); } else { P.x = clamp(P.x, -160, 160); P.z = clamp(P.z, -320, 90); }
-  if (P.jy > 0 || P.vy > 0) { P.vy -= 9.8 * dt; P.jy += P.vy * dt; if (P.jy <= 0) { P.jy = 0; P.vy = 0; if (HOOK.land) HOOK.land(); } }
+  if (HOOK.chute) { P.vy = -5.5; P.jy = Math.max(0, P.jy - 5.5 * dt); if (P.jy <= 0) { P.vy = 0; if (HOOK.land) HOOK.land(); } }
+  else if (P.jy > 0 || P.vy > 0) { P.vy -= 9.8 * dt; P.jy += P.vy * dt; if (P.jy <= 0) { P.jy = 0; P.vy = 0; if (HOOK.land) HOOK.land(); } }
   if (HOOK.move) HOOK.move();
   P.moving = lerp(P.moving, Math.min(1, Math.hypot(mx, my)), dt * 6);
   P.eye = lerp(P.eye, st.eye, dt * 5);
@@ -1537,10 +1604,12 @@ function applyCamera(dt) {
   AIM.blend += (ironT - AIM.blend) * Math.min(1, dt * 11);
   SHAKE.a *= Math.exp(-dt * 3.5);
   const shx = (vnoise(simT * 23, 3.1) - 0.5) * SHAKE.a, shy = (vnoise(simT * 23, 8.7) - 0.5) * SHAKE.a;
-  camera.position.set(P.x, gy + P.eye + bob + P.jy + (HOOK.camDY || 0) + (HOOK.climbY ? HOOK.climbY(P.x, P.z) : 0), P.z);
+  P.leanV += ((P.stance === 2 || curRifle().mounted ? 0 : P.lean) - P.leanV) * Math.min(1, dt * 8);
+  const lx = Math.cos(P.yaw) * 0.38 * P.leanV, lz = -Math.sin(P.yaw) * 0.38 * P.leanV;
+  camera.position.set(P.x + lx, gy + P.eye + bob + P.jy - Math.abs(P.leanV) * 0.06 + (HOOK.camDY || 0) + (HOOK.climbY ? HOOK.climbY(P.x, P.z) : 0), P.z + lz);
   camera.rotation.y = P.yaw - SW.x * 0.001 + shx;
   camera.rotation.x = P.pitch + SW.y * 0.001 + REC.k + shy;
-  camera.rotation.z = HOOK.camRoll || 0;
+  camera.rotation.z = (HOOK.camRoll || 0) - P.leanV * 0.17;
   let fov = fovFor(AIM.mode);
   if (sc.iron && (AIM.mode === 'scope' || AIM.blend > 0.01)) fov = lerp(65, sc.fov, AIM.blend);
   if (Math.abs(camera.fov - fov) > 1e-4) { camera.fov = fov; camera.updateProjectionMatrix(); }
@@ -1771,6 +1840,11 @@ function drawOverlay() {
   o.clearRect(0, 0, W, H);
   const k = mrPx();
   const isc = curScope();
+  if (AIM.mode === 'scope' && isc.iron && isc.dot && AIM.blend > 0.6) {
+    o.fillStyle = 'rgba(255,40,30,.95)'; o.shadowColor = 'rgba(255,40,30,.9)'; o.shadowBlur = 6 * OVD;
+    o.beginPath(); o.arc(W / 2, H / 2, 2.2 * OVD, 0, TAU); o.fill(); o.shadowBlur = 0;
+    o.strokeStyle = 'rgba(20,20,20,.55)'; o.lineWidth = 10 * OVD; o.beginPath(); o.arc(W / 2, H / 2, Math.min(W, H) * 0.2, 0, TAU); o.stroke();
+  }
   if (AIM.mode === 'scope' && isc.iron) {
     // открытый прицел: только лёгкое затемнение краёв
     const vg = o.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.7);
@@ -1890,7 +1964,7 @@ function renderMenu() {
     if (r.mounted) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'rc' + (i === S.rifle ? ' on' : '');
     const kind = r.org === 'BOT' ? 'робот' : r.type === 'auto' ? (r.id === 'pkm' ? 'пулемёт' : 'автомат') : r.type === 'rocket' ? 'гранатомёт' : 'снайперская';
-    const desc = r.org === 'BOT' ? (r.type === 'rocket' ? '4 ракеты в пакете · до 500 м<br>цифровой прицел с вычислителем' : 'V0 ' + r.mv + ' м/с · ' + r.rpm + ' выстр/мин<br>цифровой прицел с вычислителем') :
+    const desc = r.org === 'BOT' ? (r.type === 'rocket' ? '4 ракеты в пакете · до 500 м<br>цифровой прицел с вычислителем' : r.type === 'sniper' ? 'V0 ' + r.mv + ' м/с · полуавтомат<br>цифровой прицел' : 'V0 ' + r.mv + ' м/с · ' + r.rpm + ' выстр/мин<br>цифровой прицел с вычислителем') :
       r.type === 'rocket' ? 'V0 117 → 295 м/с · до 500 м<br>ПГО-7, кумулятивная граната' :
       r.type === 'auto' ? 'V0 ' + r.mv + ' м/с · ' + r.rpm + ' выстр/мин<br>открытый прицел (мушка) · ' + r.mag + ' патр.' :
       'V0 ' + r.mv + ' м/с · БК G7 ' + r.bc.toFixed(3) + '<br>' + (r.semi ? 'самозарядная' : 'продольно-скользящий затвор') + ' · ' + r.mag + ' патр.';
@@ -1902,13 +1976,19 @@ function renderMenu() {
   });
   const rf = curRifle();
   if (rf.type === 'sniper') chips($('mScopes'), Object.values(SCOPES).filter((s) => !s.iron && !s.rocket).map((s) => [s.id, s.name]), scopeOf(rf).id, (id) => { S.scopes[rf.id] = id; const st = TUR[rf.id]; st.e = 0; st.w = 0; st.drum = 1; st.zoom = null; save(); renderMenu(); });
+  else if (rf.type === 'auto' && rf.org !== 'BOT') chips($('mScopes'), [[rf.scope, SCOPES[rf.scope].name + ' (штатный)']].concat(AUTO_SC.map((k) => [k, SCOPES[k].name + (k === 'pso' ? ' 4×' : '')])), scopeOf(rf).id, (id) => { S.scopes[rf.id] = id === rf.scope ? null : id; save(); renderMenu(); });
   else chips($('mScopes'), [[scopeOf(rf).id, scopeOf(rf).name + ' — штатный']], scopeOf(rf).id, () => {});
   chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Бой: высота против роботов']], S.gmode, (id) => { if (id === S.gmode) return; S.gmode = id; S.autostart = true; save(); location.reload(); });
   $('teamRow').hidden = S.gmode !== 'battle';
-  chips($('mTeam'), [4, 6, 8, 10, 12].map((n) => [n, n + ' роботов · ' + n * 3 + ' людей']), S.teamN, (id) => { S.teamN = id; save(); renderMenu(); });
-  chips($('mSide'), [['h', 'За людей: оборона окопов'], ['r', 'За роботов: штурм']], S.side, (id) => { S.side = id; save(); renderMenu(); });
+  chips($('mSide'), [['h', 'Играть за людей'], ['r', 'Играть за роботов']], S.side, (id) => { S.side = id; save(); renderMenu(); });
+  chips($('mScen'), [['def', 'Люди обороняют высоту'], ['att', 'Люди штурмуют (десант за 500 м)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
+  const roles = S.side === 'r' ? [['assault', 'Штурмовик'], ['heavy', 'Тяжёлый пулемётчик'], ['rocket', 'Ракетчик'], ['scout', 'Разведчик-снайпер']] : [['rifle', 'Стрелок'], ['mg', 'Пулемётчик'], ['sniper', 'Снайпер'], ['rpg', 'Гранатомётчик'], ['medic', 'Санитар'], ['mortar', 'Миномётчик'], ['lead', 'Командир тройки']];
+  if (!roles.some((r) => r[0] === S.role)) S.role = roles[0][0];
+  chips($('mRole'), roles, S.role, (id) => { S.role = id; save(); renderMenu(); });
+  $('mRoleNote').textContent = HOOK.roleInfo ? HOOK.roleInfo(S.side, S.role) : '';
+  $('mNH').value = S.nH || 18; $('mNR').value = S.nR || 6;
   $('gmodeNote').textContent = S.gmode === 'battle'
-    ? 'Взвод людей (втрое больше) держит траншеи на высоте; штурмовые группы роботов выходят из-за холмов в 2 км и подбираются через лес, балку, брод и дым. Вы — рядовой в тройке: команды тройке, аптечка, «Корд», бинокль + «АРТ». Ночью — ПНВ и тепловизор.'
+    ? 'Высота с траншеями, лагерь, «Корды» и миномёты. Оборона: тревога, люди бегут из лагеря по позициям, роботы подходят из-за холмов в 2 км под дымом. Штурм: артподготовка, дымовая стена и десант людей в 500 м. Выберите сторону, численность (до 50) и роль со своей задачей.'
     : 'Мишени от 100 до 1500 м, разбор каждого выстрела.';
   $('bRestart').hidden = !(started && S.gmode === 'battle');
   chips($('mWeather'), Object.entries(WEATHER).map(([k, w]) => [k, w.name + ' ' + (w.t > 0 ? '+' : '') + w.t + '°']), S.weather, (id) => { S.weather = id; save(); applyConditions(); applyWeatherVisuals(); renderMenu(); });
@@ -1923,6 +2003,7 @@ function renderMenu() {
   $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', [S.tracers, S.bcam, S.sound, S.vibro, S.assist][i]));
   $('mSens').value = S.sens; $('mSensV').textContent = (+S.sens).toFixed(2);
 }
+['mNH', 'mNR'].forEach((id) => $(id).addEventListener('change', (e) => { const v = Math.max(1, Math.min(50, Math.round(+e.target.value || 1))); e.target.value = v; S[id === 'mNH' ? 'nH' : 'nR'] = v; save(); }));
 $('mSens').addEventListener('input', (e) => { S.sens = +e.target.value; $('mSensV').textContent = S.sens.toFixed(2); save(); });
 function applyMode() { signs.forEach((s) => { s.visible = S.mode === 'train' && !HOOK.battle; }); if (S.mode !== 'train') $('toast').classList.remove('show'); }
 function openMenu() {
@@ -1980,18 +2061,31 @@ function loop(now) {
     cam = camB; rifleHolder.visible = false;
     if (!b.alive) { BCAM.hold -= dt; if (BCAM.hold <= 0) { BCAM.b = null; bulletMesh.visible = false; rifleHolder.visible = AIM.mode === 'hip'; } }
   }
+  DR.frame++;
+  if (Q.sh) renderer.shadowMap.needsUpdate = Q.sh > 1024 || DR.frame % 2 === 0;
+  syncPS(cam);
   renderer.render(scene, cam);
   drawOverlay();
+  // динамическое разрешение: держим плавность
+  if (S.dynres !== false && started) {
+    DR.acc += dt; DR.n++; DR.t += dt;
+    if (DR.t > 1.5) {
+      const avg = DR.acc / DR.n; DR.acc = 0; DR.n = 0; DR.t = 0;
+      let pr = DR.pr;
+      if (avg > 1 / 26) pr = Math.max(DR.base * 0.5, pr * 0.86); else if (avg < 1 / 48) pr = Math.min(DR.base, pr * 1.08);
+      if (Math.abs(pr - DR.pr) > 0.02) { DR.pr = pr; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false); }
+    }
+  }
 }
 
 window.SS = {
   THREE, V3, scene, camera, terrainH, S, P, AIM, STANCE, HOOK, SHAKE, HM, LRF, COND, RIFLES, TUR, STATS, UNIT, BR,
-  clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, addEffect,
+  clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,
   curRifle, curTur, scopeOf, selectRifle, setAim, setStance, updateWeaponUI, setRangeVisible, openMenu, renderMenu, targetSeg, paintRing, paintSteel, inPoly, SIL,
   IS_TOUCH, getSimT: () => simT, reload, rifleHolder, report, updateStats,
   shadows: !!Q.sh, SUN_DIR, RSTANCE, rangeAt, marchTerrain, WIDX: (id) => RIFLES.findIndex((r) => r.id === id),
-  MAPM, FORESTS, riverZ, gullyX, VIS, setVision, sun, hemi, WEATHER, jump, input, SW, REC, Q, elevRad,
+  MAPM, FORESTS, riverZ, gullyX, VIS, setVision, sun, hemi, WEATHER, jump, input, SW, REC, Q, elevRad, emit, PSY, DR, setLean, updateTurUI, curScope,
 };
 /* ---------------- старт ---------------- */
 applyConditions(); newWind(); applyWeatherVisuals(); applyMode();
@@ -2004,4 +2098,6 @@ renderMenu();
 requestAnimationFrame(loop);
 if (S.autostart) { S.autostart = false; save(); setTimeout(() => startGame(true), 60); }
 window.__game = { camera, fire, setAim, setStance, P, targets, STATS, COND, WIND, laser, AIM, turretStep, startGame, openCard, LRF };
+// отладка: ускоренная симуляция без отрисовки
+window.__game.sim = function (n, dt) { dt = dt || 0.033; for (let i = 0; i < n; i++) { simT += dt; if (HOOK.update) HOOK.update(dt, dt); updateBullets(dt); updateEffects(dt); } };
 })();

@@ -57,6 +57,9 @@ const kordGeo = merge([BX(0.12, 0.16, 0.9, 0, 0, -0.2, 0x262a24), CY(0.03, 0.03,
   BX(0.04, 0.12, 0.04, 0, 0.12, -0.05, 0x111111), BX(0.3, 0.04, 0.04, 0, -0.05, 0.32, 0x222222)]);
 const tripodGeo = merge([BX(0.08, 0.5, 0.08, 0, 0.75, 0, 0x222622), BX(0.05, 0.9, 0.05, -0.4, 0.4, 0.3, 0x222622, 0.4, 0, -0.45), BX(0.05, 0.9, 0.05, 0.4, 0.4, 0.3, 0x222622, 0.4, 0, 0.45), BX(0.05, 0.9, 0.05, 0, 0.4, -0.45, 0x222622, -0.5)]);
 const mortarGeo = merge([CY(0.045, 0.045, 1.25, 0, 0.55, 0, 0x2f3a2a, 0.6), BX(0.5, 0.05, 0.5, 0, 0.03, 0.32, 0x252a24), BX(0.03, 0.7, 0.03, -0.18, 0.33, -0.25, 0x252a24, 0.3, 0, -0.3), BX(0.03, 0.7, 0.03, 0.18, 0.33, -0.25, 0x252a24, 0.3, 0, 0.3)]);
+let CAMPFIRE = null;
+const tentGeo = merge([BX(3.4, 0.05, 2.1, 0, 0.78, 0.66, 0x55603c, -0.78), BX(3.4, 0.05, 2.1, 0, 0.78, -0.66, 0x4e5937, 0.78), BX(0.06, 1.5, 0.06, 1.6, 0.75, 0, 0x4a3a28), BX(0.06, 1.5, 0.06, -1.6, 0.75, 0, 0x4a3a28)]);
+const logGeo = merge([CY(0.09, 0.09, 1.1, 0, 0.09, 0, 0x3a2a1c, 0, 0, Math.PI / 2), CY(0.09, 0.09, 1.1, 0, 0.12, 0, 0x33251a, 0, Math.PI / 2, Math.PI / 2), CY(0.2, 0.25, 0.08, 0, 0.03, 0, 0x2a2622)]);
 if (BATTLE_MAP) (function buildHill() {
   const earthM = new THREE.MeshLambertMaterial({ color: 0x6e5c3f });
   const floorM = new THREE.MeshLambertMaterial({ color: 0x45392a });
@@ -98,12 +101,16 @@ if (BATTLE_MAP) (function buildHill() {
     parapets.push({ c: new V3(x - Math.sin(yaw) * 1.6, gy, z - Math.cos(yaw) * 1.6), u: new V3(Math.cos(yaw), 0, -Math.sin(yaw)), n: new V3(Math.sin(yaw), 0, Math.cos(yaw)), L: 1.6, name: 'nest', mn: [-1.6, -0.6, -0.3], mx: [1.6, 0.62, 0.3] });
   });
   // миномётные позиции за гребнем
-  [-34, 34].forEach((x) => {
-    const z = 92, gy = terrainH(x, z);
+  [[-34, 92], [34, 92], [-70, 100], [70, 100]].forEach(([x, z]) => {
+    const gy = terrainH(x, z);
     for (let k = 0; k < 16; k++) { const a = k / 16 * TAU; const bx = x + Math.cos(a) * 2.2, bz = z + Math.sin(a) * 2.2; bag(bx, terrainH(bx, bz) + 0.1, bz, a + Math.PI / 2); bag(bx, terrainH(bx, bz) + 0.3, bz, a + Math.PI / 2); }
     const mm = new THREE.Mesh(mortarGeo, lamV); mm.position.set(x, gy, z); mm.castShadow = SHD; fieldGroup.add(mm);
-    mortars.push({ pos: new V3(x, gy, z), mesh: mm, crew: [], cool: rnd(8, 14), tgt: null, spread: 45, shots: 0 });
+    mortars.push({ pos: new V3(x, gy, z), mesh: mm, crew: [], cool: rnd(8, 14), tgt: null, spread: 45, shots: 0, team: 'h', fixed: true });
   });
+  // лагерь за высотой: палатки и костёр
+  CAMPFIRE = new V3(0, terrainH(0, 118), 118);
+  const lg = new THREE.Mesh(logGeo, lamV); lg.position.copy(CAMPFIRE); fieldGroup.add(lg);
+  [[-17, 110, 0.3], [17, 111, -0.3], [-12, 133, 0.1], [13, 132, -0.15], [0, 140, 0]].forEach(([x, z, r]) => { const t = new THREE.Mesh(tentGeo, lamV); t.position.set(x, terrainH(x, z), z); t.rotation.y = r; t.castShadow = SHD; t.receiveShadow = SHD; fieldGroup.add(t); });
   bagMesh.count = nBags; bagMesh.instanceMatrix.needsUpdate = true;
 })();
 
@@ -203,8 +210,9 @@ function smokeBetween(a, b) {
 // прямая видимость: рельеф, брустверы, укрытия; лес и дым — отдельно (влияют на обнаружение)
 function los(a, b) {
   const L = a.distanceTo(b);
-  for (const pp of parapets) { if (!nearBox(pp, a, b, 2.5) && L < 400) continue; const t = segBox(pp, a, b); if (t != null && t * L > 1.2 && (1 - t) * L > 1.2) return false; }
-  for (const cv of covers) { const t = segBox(cv, a, b); if (t != null && t * L > 1.2 && (1 - t) * L > 1.5) return false; }
+  const x0 = Math.min(a.x, b.x) - 8, x1 = Math.max(a.x, b.x) + 8, z0 = Math.min(a.z, b.z) - 8, z1 = Math.max(a.z, b.z) + 8;
+  for (const pp of parapets) { if (pp.c.x < x0 || pp.c.x > x1 || pp.c.z < z0 || pp.c.z > z1) continue; const t = segBox(pp, a, b); if (t != null && t * L > 1.2 && (1 - t) * L > 1.2) return false; }
+  for (const cv of covers) { if (cv.c.x < x0 || cv.c.x > x1 || cv.c.z < z0 || cv.c.z > z1) continue; const t = segBox(cv, a, b); if (t != null && t * L > 1.2 && (1 - t) * L > 1.5) return false; }
   const n = Math.min(14, 3 + Math.floor(L / 60));
   for (let i = 1; i < n; i++) { const f = i / n; const x = lerp(a.x, b.x, f), y = lerp(a.y, b.y, f), z = lerp(a.z, b.z, f); if (y < terrainH(x, z) + 0.2) return false; }
   return true;
@@ -235,7 +243,7 @@ HOOK.climbY = (x, z) => (B.active ? climbY(x, z) : 0);
 
 /* ================= модели ================= */
 const PT = {};
-const MAXH = 40, MAXR = 14;
+const MAXH = 56, MAXR = 56;
 const unitMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 const glowMat = new THREE.MeshBasicMaterial({ vertexColors: true });
 function defPart(key, geo, mult, glow) {
@@ -303,7 +311,7 @@ function rigHuman(cls) {
   if (cls === 'medic') { const mb = J(hips, -0.2, 0.0, 0.08); parts.push(P_('h_medbag', mb, 'pelvis')); }
   return { root, tilt, hips, torso, head, shL, shR, faL, faR, thL, thR, snL, snR, gun, parts };
 }
-const RGUN = { assault: 'r_rifle', heavy: 'r_mg', rocket: 'r_rifle', scout: 'r_long' };
+const RGUN = { assault: 'r_rifle', heavy: 'r_mg', rocket: 'r_rifle', scout: 'r_long', mortar: 'r_rifle' };
 function rigRobot(cls) {
   const root = J(null, 0, 0, 0); root.rotation.order = 'YXZ';
   const tilt = J(root, 0, 0, 0), hips = J(tilt, 0, 1.2, 0), torso = J(hips, 0, 0.12, 0), head = J(torso, 0, 0.8, 0);
@@ -316,7 +324,7 @@ function rigRobot(cls) {
     P_('r_pad', shL, 'uarmL'), P_('r_pad', shR, 'uarmR'), P_('r_uarm', shL, 'uarmL'), P_('r_uarm', shR, 'uarmR'), P_('r_farm', faL, 'farmL'), P_('r_farm', faR, 'farmR'),
     P_('r_thigh', thL, 'thighL'), P_('r_thigh', thR, 'thighR'), P_('r_shin', snL, 'shinL'), P_('r_shin', snR, 'shinR'), P_(RGUN[cls], gun, 'gun')];
   let pod = null;
-  if (cls === 'rocket') { pod = J(torso, -0.28, 0.92, 0.1); parts.push(P_('r_pod', pod, 'torso')); }
+  if (cls === 'rocket' || cls === 'mortar') { pod = J(torso, -0.28, 0.92, 0.1); parts.push(P_('r_pod', pod, 'torso')); }
   const smk = J(torso, 0.26, 0.86, 0.18); parts.push(P_('r_smk', smk, 'torso'));
   return { root, tilt, hips, torso, head, shL, shR, faL, faR, thL, thR, snL, snR, gun, pod, parts };
 }
@@ -326,20 +334,20 @@ const ZNAME = { head: 'голова', torso: 'корпус', pelvis: 'таз', u
 
 /* ================= юниты ================= */
 const RW = {
-  assault: { id: 'r_assault', mv: 840, bc: 0.21, g: 9.5, sh: 0, sg: 1.5, rpm: 650, burst: [3, 6], pause: [0.5, 1.1], spread: 1.5, mag: 40 },
+  assault: { id: 'r_assault', mv: 840, bc: 0.21, g: 9.5, sh: 0, sg: 1.5, rpm: 650, burst: [3, 6], pause: [0.45, 1.0], spread: 1.2, mag: 40 },
   heavy:   { id: 'r_heavy',   mv: 860, bc: 0.25, g: 12, sh: 0, sg: 1.5, rpm: 780, burst: [10, 18], pause: [0.7, 1.4], spread: 2.4, mag: 150 },
   scout:   { id: 'r_scout',   mv: 950, bc: 0.32, g: 13, sh: 0, sg: 1.8, rpm: 60, burst: [1, 1], pause: [2.0, 3.5], spread: 0.35, mag: 8 },
 };
-RW.rocket = RW.assault;
+RW.rocket = RW.assault; RW.mortar = RW.assault;
 const units = [];
 let uid = 0;
 const PL = { isPlayer: true, team: 'h', robot: false, alive: true, hp: 100, pos: new V3(), vel: new V3(), right: new V3(1, 0, 0), lastHit: -99, Z: null, crouch: 0, kit: 1, firedT: -99, squad: null, id: -1, cls: 'player' };
 const B = { active: false, over: false, N: 6, t: 0, rumbleT: 8, artLeft: 3, kills: 0, lost: 0, robotsKilled: 0, humansDown: 0, hitsE: 0,
-  loadout: [], deadT: 0, dmgA: 0, dirs: [], hudT: 0, shells: [], startShots: 0, brainT: 0, phaseH: 'hold', side: 'h', wave: 1, contactT: -99, lullSaid: false, flareT: 20, rMortarT: 60, spect: false };
+  loadout: [], deadT: 0, dmgA: 0, dirs: [], hudT: 0, shells: [], startShots: 0, brainT: 0, phaseD: 'hold', side: 'h', scen: 'def', wave: 1, contactT: -99, lullSaid: false, flareT: 20, spect: false, kc: {}, kw: {}, healed: 0, trioKills: 0, announced: new Set(), sitT: 60, horizT: 5, cricketT: 1, fireT: 0, smokeSaid: 0 };
 const squads = [];
 const TK = { h: new Map(), r: new Map() };   // знание стороны: враг → {pos, t}
 const HCLS = { lead: 'командир', rifle: 'стрелок', mg: 'пулемётчик', sniper: 'снайпер', rpg: 'гранатомётчик', medic: 'санитар', hmg: 'расчёт «Корда»', mortar: 'миномётчик' };
-const RCLS = { assault: 'штурмовик', heavy: 'тяжёлый', rocket: 'ракетный', scout: 'разведчик' };
+const RCLS = { assault: 'штурмовик', heavy: 'тяжёлый', rocket: 'ракетный', scout: 'разведчик', mortar: 'миномётный' };
 const clsName = (c) => HCLS[c] || RCLS[c] || c;
 
 function makeUnit(team, cls, pos, yaw) {
@@ -356,11 +364,13 @@ function makeUnit(team, cls, pos, yaw) {
     u.Z = {};
     for (const z in RZ) u.Z[z] = { armor: RZ[z][0] * k, hp: RZ[z][1] * k, max: RZ[z][1] * k, int: 1 };
     u.wp = RW[cls]; u.mag = u.wp.mag;
-    u.speed = cls === 'heavy' ? 4.2 : cls === 'scout' ? 6.0 : 5.5;
+    u.speed = cls === 'heavy' ? 4.6 : cls === 'scout' ? 6.4 : 6.0;
+    u.gren = cls === 'assault' ? 2 : 0;
   } else {
     u.wp = W_(cls === 'mg' ? 'pkm' : cls === 'sniper' ? 'svd' : cls === 'rpg' ? 'rpg' : 'ak');
     u.mag = cls === 'mg' ? 100 : cls === 'sniper' ? 10 : cls === 'rpg' ? 1 : 30;
-    u.speed = 4.6;
+    u.speed = 4.8;
+    u.gren = cls === 'rifle' || cls === 'lead' ? 2 : 1;
   }
   units.push(u);
   return u;
@@ -386,17 +396,11 @@ const enemyTeam = (t) => (t === 'h' ? 'r' : 'h');
 const isFriend = (team) => team === B.side;
 
 /* ================= эффекты ================= */
-function flashFX(p, big) {
-  SS.addEffect({ o: new THREE.Sprite(new THREE.SpriteMaterial({ map: SS.glowTex, color: 0xffc46a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, sizeAttenuation: false })),
-    t: 0, life: 0.07, s0: big ? 0.022 : 0.013, s1: big ? 0.032 : 0.019, v: new V3(), a0: 1 }).o.position.copy(p);
-}
+function flashFX(p, big) { SS.fxGlow(p, 0xffc46a, big ? 0.6 : 0.4, big ? 0.9 : 0.6, 0.07, null, 1, 0, 0, big ? 9 : 6); }
 function sparks(p, n, size) {
   SS.spawnSpark(p, size || 0.35);
-  for (let i = 0; i < n; i++) {
-    const e = SS.addEffect({ o: new THREE.Sprite(new THREE.SpriteMaterial({ map: SS.glowTex, color: 0xffd27a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })),
-      t: 0, life: rnd(0.25, 0.6), s0: 0.12, s1: 0.04, v: new V3(gauss() * 4, rnd(1, 5), gauss() * 4), a0: 1, g: true, floor: terrainH(p.x, p.z) });
-    e.o.position.copy(p);
-  }
+  const fl = terrainH(p.x, p.z);
+  for (let i = 0; i < n; i++) SS.fxGlow(p, 0xffd27a, 0.12, 0.04, rnd(0.25, 0.6), _v.set(gauss() * 4, rnd(1, 5), gauss() * 4), 1, 1, fl, 1.5);
 }
 const smokers = [];
 const craterTex = (function () { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const g = x.createRadialGradient(64, 64, 4, 64, 64, 62); g.addColorStop(0, 'rgba(25,20,15,.95)'); g.addColorStop(0.55, 'rgba(55,45,32,.8)'); g.addColorStop(0.8, 'rgba(90,75,52,.45)'); g.addColorStop(1, 'rgba(90,75,52,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
@@ -441,13 +445,12 @@ function updateDebris(dt) {
 }
 
 /* ================= дымовые завесы ================= */
-function makeSmoke(pos, r, life) {
-  const s = { pos: pos.clone(), r, t: 0, life, dens: 0, sprites: [] };
-  for (let i = 0; i < 12; i++) {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: SS.puffTex, color: 0xbdbcb4, transparent: true, depthWrite: false, opacity: 0 }));
-    sp.userData.o = new V3(gauss() * r * 0.45, Math.abs(gauss()) * r * 0.35 + 1, gauss() * r * 0.45);
-    sp.userData.s = rnd(0.9, 1.5) * r;
-    scene.add(sp); s.sprites.push(sp);
+function makeSmoke(pos, r, life, np, fixed) {
+  const s = { pos: pos.clone(), r, t: 0, life, dens: 0, fixed };
+  const w = fixed ? [0, 0] : SS.windAt(pos.z, SS.getSimT());
+  for (let i = 0; i < (np || 16); i++) {
+    const p = _v.set(pos.x + gauss() * r * 0.45, pos.y + Math.abs(gauss()) * r * 0.35 + 1, pos.z + gauss() * r * 0.45);
+    SS.fxPuff(p, 0xbdbcb4, r * (fixed ? 1.05 : 0.45), r * rnd(fixed ? 1.4 : 1.1, 1.6), life * rnd(0.85, 1.1), _v2.set(w[0] * 0.35 + gauss() * 0.2, 0.15, w[1] * 0.35 + gauss() * 0.2), 0.9, 0, 0, 0);
   }
   smokes.push(s);
   const d = pos.distanceTo(camera.position); const AC = SS.getAC(); if (AC && d < 600) SS.noiseHit(AC.currentTime + d / 343, 1.2, 'lowpass', 600, clamp(20 / (d + 20), 0.03, 0.4));
@@ -456,15 +459,9 @@ function updateSmokes(dt) {
   for (let i = smokes.length - 1; i >= 0; i--) {
     const s = smokes[i]; s.t += dt;
     const w = SS.windAt(s.pos.z, SS.getSimT());
-    s.pos.x += w[0] * dt * 0.35; s.pos.z += w[1] * dt * 0.35;
-    s.dens = Math.min(1, s.t / 3) * (1 - smoothS(s.life - 12, s.life, s.t));
-    const grow = 0.55 + 0.45 * Math.min(1, s.t / 6);
-    for (const sp of s.sprites) {
-      sp.position.set(s.pos.x + sp.userData.o.x * grow, s.pos.y + sp.userData.o.y * grow, s.pos.z + sp.userData.o.z * grow);
-      const sc = sp.userData.s * grow; sp.scale.set(sc, sc, 1);
-      sp.material.opacity = 0.82 * s.dens;
-    }
-    if (s.t > s.life) { s.sprites.forEach((sp) => { scene.remove(sp); sp.material.dispose(); }); smokes.splice(i, 1); }
+    if (!s.fixed) { s.pos.x += w[0] * dt * 0.35; s.pos.z += w[1] * dt * 0.35; }
+    s.dens = Math.min(1, s.t / 3) * (1 - smoothS(s.life * 0.6, s.life, s.t));
+    if (s.t > s.life) smokes.splice(i, 1);
   }
 }
 function throwSmoke(u, at) {
@@ -565,7 +562,7 @@ function downHuman(u, by, dir, blast) {
     const mine = u.squad && PL.squad === u.squad;
     const lines = ['Санитара! Ранен ' + clsName(u.cls), clsName(u.cls) + ' выбыл', 'Ранен ' + clsName(u.cls) + '! Прикрыть!'];
     if (by === 'player') feed('Вы попали по своему!', 'bad'); else if (mine || Math.random() < 0.35) feed((mine ? 'Тройка: ' : '') + pickR(lines), 'bad');
-  } else if (by === 'player') { B.kills++; HM.t = 0.45; HM.kind = 'kill'; feed('Человек выведен из строя (' + clsName(u.cls) + ')', 'me'); }
+  } else if (by === 'player') { B.kills++; B.kc[u.cls] = (B.kc[u.cls] || 0) + 1; if (B.curWeap) B.kw[B.curWeap] = (B.kw[B.curWeap] || 0) + 1; HM.t = 0.45; HM.kind = 'kill'; feed('Человек выведен из строя (' + clsName(u.cls) + ')', 'me'); }
 }
 function killRobot(u, by, dir, blast) {
   if (!u.alive) return;
@@ -580,7 +577,7 @@ function killRobot(u, by, dir, blast) {
   explode(p.clone(), 0.45, { noDamage: true, ground: false });
   sparks(p, 12, 0.9);
   smokers.push({ u, zone: 'torso', t: 40, acc: 0, big: true });
-  if (by === 'player') { B.kills++; HM.t = 0.45; HM.kind = 'kill'; feed('Робот уничтожен (' + SS.curRifle().name + ', ' + Math.round(u.pos.distanceTo(PL.pos)) + ' м)', 'me'); }
+  if (by === 'player') { B.kills++; B.kc[u.cls] = (B.kc[u.cls] || 0) + 1; if (B.curWeap) B.kw[B.curWeap] = (B.kw[B.curWeap] || 0) + 1; HM.t = 0.45; HM.kind = 'kill'; feed('Робот уничтожен (' + (B.curWeap === 'mortar' ? 'миномёт' : B.curWeap === 'grenade' ? 'граната' : SS.curRifle().name) + ', ' + Math.round(u.pos.distanceTo(PL.pos)) + ' м)', 'me'); }
   else feed((isFriend('r') ? 'Потерян ' : 'Уничтожен ') + clsName(u.cls) + (isFriend('r') ? '' : ' робот'), isFriend('r') ? 'bad' : '');
   if (isFriend('r')) B.lost++;
 }
@@ -637,7 +634,7 @@ function humanDamage(zone, E) {
 }
 function hurtHuman(u, dmg, by, dir, blast) {
   if (!u.alive) return;
-  u.hp -= dmg; u.supp += 2.5; u.hitT = B.t;
+  u.hp -= dmg; u.supp += 2.5; u.hitT = B.t; u.cause = blast ? "blast" : "bullet";
   if (u.hp <= 0) downHuman(u, by, dir, blast);
   else if (u.hp < 70 && isFriend('h') && u.squad === PL.squad && Math.random() < 0.4) feed('Тройка: ' + clsName(u.cls) + ' ранен!', 'bad');
 }
@@ -696,15 +693,14 @@ function playerZoneHit(p0, p1) {
 function explode(pt, power, opts) {
   opts = opts || {};
   const dist = pt.distanceTo(camera.position);
-  const add = (color, s0, s1, life) => SS.addEffect({ o: new THREE.Sprite(new THREE.SpriteMaterial({ map: SS.glowTex, color, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })), t: 0, life, s0, s1, v: new V3(), a0: 1 }).o.position.copy(pt).add(_v.set(0, 0.4 * power, 0));
-  add(0xfff0c8, 2.5 * power, 6 * power, 0.18);
-  add(0xff8a2a, 2 * power, 5 * power, 0.5);
+  const up = _v.copy(pt); up.y += 0.4 * power;
+  SS.fxGlow(up, 0xfff0c8, 2.5 * power, 6 * power, 0.18, null, 1, 0, 0, 6);
+  SS.fxGlow(up, 0xff8a2a, 2 * power, 5 * power, 0.5, null, 1, 0, 0, 4);
+  if (isNight()) SS.fxGlow(up, 0xff7a20, 8 * power, 14 * power, 0.35, null, 0.55, 0, 0, 0);
   if (opts.ground !== false) {
     SS.spawnPuff(pt, 0x8a7a5c, 3.5 * power, 3.2, Math.round(5 + 4 * power), 1.3, 1.4 * power);
-    for (let i = 0; i < Math.round(8 * power); i++) {
-      const e = SS.addEffect({ o: new THREE.Sprite(new THREE.SpriteMaterial({ map: SS.puffTex, color: 0x3a3025, transparent: true, depthWrite: false })), t: 0, life: rnd(1.5, 2.6), s0: rnd(0.25, 0.6), s1: rnd(0.2, 0.5), v: new V3(gauss() * 4 * power, rnd(5, 13) * Math.sqrt(power), gauss() * 4 * power), a0: 1, g: true, floor: terrainH(pt.x, pt.z) });
-      e.o.position.copy(pt);
-    }
+    const fl = terrainH(pt.x, pt.z);
+    for (let i = 0; i < Math.round(8 * power); i++) SS.fxPuff(pt, 0x3a3025, rnd(0.25, 0.6), rnd(0.2, 0.5), rnd(1.5, 2.6), _v2.set(gauss() * 4 * power, rnd(5, 13) * Math.sqrt(power), gauss() * 4 * power), 1, 1, fl, 1);
     if (power >= 0.8) {
       const c = new THREE.Mesh(craterGeo, craterMat); const r = 1.4 * power + 0.6;
       c.scale.set(r * 2, 1, r * 2); c.position.set(pt.x, terrainH(pt.x, pt.z) + 0.04, pt.z); c.rotation.y = Math.random() * TAU; c.receiveShadow = SHD;
@@ -716,6 +712,7 @@ function explode(pt, power, opts) {
   SHAKE.a += clamp(power * 1.4 / (dist + 4), 0, 0.12);
   if (dist < 10 * power && PL.alive) ring(1);
   if (opts.noDamage) return;
+  B.curWeap = opts.weap || (opts.by === 'player' ? 'boom' : null);
   const R = 4 + 4.5 * power;
   for (const u of units) {
     if (!u.alive) continue;
@@ -749,6 +746,8 @@ function explode(pt, power, opts) {
       else hurtPlayer(130 * power * k, pt);
     }
   }
+  B.curWeap = null;
+  if (B.active && pt.distanceTo(_v.set(0, pt.y, HILL.cz)) < 260) raiseAlarm('взрыв на высоте');
 }
 
 /* ================= попадания (хук ядра) ================= */
@@ -792,14 +791,15 @@ HOOK.collide = function (b, p0, p1) {
     if (segSphere(camera.position, 3, p0, p1)) { b.cracked = true; if (b.v.length() > 360) SS.sndCrack(0.7); PL.suppT = B.t; if (b.owner) know(PL, b.owner, 0.25); }
   }
   // подавление: пуля прошла рядом с головой — пригнуться, и понять, откуда стреляют
-  for (const u of units) {
+  gridQuery(p0, p1, 3, _cand);
+  for (const u of _cand) {
     if (!u.alive || u.team === b.team || Math.abs(u.pos.z - p1.z) > 2.5 || Math.abs(u.pos.x - p1.x) > 2.5) continue;
     _v.set(u.pos.x, u.pos.y + 1.4, u.pos.z);
-    if (segSphere(_v, 1.6, p0, p1)) { u.supp += u.team === 'r' ? 0.05 : 0.3; if (b.owner && b.owner.alive) know(u, b.owner, 0.12); else if (b.player) know(u, PL, 0.12); }
+    if (segSphere(_v, 1.6, p0, p1)) { u.supp += u.team === 'r' ? (B.scen === 'att' ? 0.35 : 0.05) : 0.3; if (b.owner && b.owner.alive) know(u, b.owner, 0.12); else if (b.player) know(u, PL, 0.12); }
   }
   const st = staticHit(p0, p1);
   if (st != null) best = { t: st, fn: () => hitStatic(b, new V3().lerpVectors(p0, p1, st)) };
-  for (const u of units) {
+  for (const u of _cand) {
     if (!u.alive || u === b.owner) continue;
     if ((u.pos.z - p0.z > 2.6 && u.pos.z - p1.z > 2.6) || (u.pos.z - p0.z < -2.6 && u.pos.z - p1.z < -2.6)) continue;
     if ((u.pos.x - p0.x > 2.6 && u.pos.x - p1.x > 2.6) || (u.pos.x - p0.x < -2.6 && u.pos.x - p1.x < -2.6)) continue;
@@ -832,7 +832,9 @@ function bulletHitsUnit(b, u, h) {
     if (b.owner && b.owner.alive) know(u, b.owner, 0.5);
   } else {
     if (b.player) B.hitsE++;
+    const was = u.alive;
     robotBullet(u, h.zone, E, b, h.pt);
+    if (was && !u.alive && b.owner && PL.squad && b.owner.squad === PL.squad) B.trioKills++;
   }
 }
 HOOK.rayUnits = function (o, dir, maxD) {
@@ -950,14 +952,14 @@ HOOK.rocketElev = function (D) {
 };
 
 /* ================= артиллерия и миномёты ================= */
-function callArtillery(center, count, spread, team, delay, power, byPlayer) {
-  for (let i = 0; i < count; i++) B.shells.push({ t: delay + i * rnd(0.3, 0.7) + Math.random() * 0.5, pos: new V3(center.x + gauss() * spread, 0, center.z + gauss() * spread * 1.2), team, wh: false, power: power || 1.6, byPlayer: !!byPlayer });
+function callArtillery(center, count, spread, team, delay, power, byPlayer, weap) {
+  for (let i = 0; i < count; i++) B.shells.push({ t: delay + i * rnd(0.3, 0.7) + Math.random() * (count > 1 ? 0.5 : 0), pos: new V3(center.x + gauss() * spread, 0, center.z + gauss() * spread * 1.2), team, wh: false, power: power || 1.6, byPlayer: !!byPlayer, weap: weap || 'art' });
 }
 function updateShells(dt) {
   for (let i = B.shells.length - 1; i >= 0; i--) {
     const s = B.shells[i]; s.t -= dt;
     if (!s.wh && s.t < 1.5) { s.wh = true; whistle(s.pos.distanceTo(PL.pos)); }
-    if (s.t <= 0) { s.pos.y = terrainH(s.pos.x, s.pos.z); explode(s.pos, s.power, { by: s.byPlayer ? 'player' : '' }); B.shells.splice(i, 1); }
+    if (s.t <= 0) { s.pos.y = terrainH(s.pos.x, s.pos.z); explode(s.pos, s.power, { by: s.byPlayer ? 'player' : '', weap: s.weap }); B.shells.splice(i, 1); }
   }
 }
 HOOK.callArt = function () {
@@ -974,33 +976,44 @@ HOOK.callArt = function () {
 function updateArtBtn() { $('artTxt').textContent = 'АРТ ' + B.artLeft; $('bArt').disabled = B.artLeft <= 0; }
 $('bArt').addEventListener('pointerdown', (e) => { if (document.body.classList.contains('editing')) return; e.preventDefault(); e.stopPropagation(); SS.audioInit(); HOOK.callArt(); });
 // миномёты людей бьют по разведанным роботам
+function friendNear(team, p, r) {
+  for (const u of units) if (u.team === team && u.alive && Math.abs(u.pos.x - p.x) < r && Math.abs(u.pos.z - p.z) < r) return true;
+  return PL.alive && PL.team === team && Math.abs(PL.pos.x - p.x) < r && Math.abs(PL.pos.z - p.z) < r;
+}
 function updateMortars(dt) {
   for (const m of mortars) {
+    if (m.player || !m.team) continue;
     m.crew = m.crew.filter((c) => c.alive);
     if (!m.crew.length) continue;
+    if (m.team === 'h' && B.scen === 'def' && !B.alarm) continue;
+    if (B.t < (B.prepT || 0) && m.team === defTeam()) continue;
     m.cool -= dt;
     if (m.cool > 0) continue;
-    // цель — скопление известных роботов 250–2100 м
+    // цель — скопление известных врагов 150–2100 м, не ближе 40 м к своим
+    const K = TK[m.team];
     let best = null, bs = 0;
-    for (const [e, k] of TK.h) {
+    for (const [e, k] of K) {
       if (!e.alive || B.t - k.t > 25) continue;
-      const d = k.pos.distanceTo(m.pos); if (d < 250 || d > 2100) continue;
-      let sc = 1; for (const [e2, k2] of TK.h) if (e2 !== e && e2.alive && k2.pos.distanceTo(k.pos) < 30) sc++;
+      const d = k.pos.distanceTo(m.pos); if (d < 150 || d > 2100) continue;
+      if (friendNear(m.team, k.pos, 40)) continue;
+      let sc = 1; for (const [e2, k2] of K) if (e2 !== e && e2.alive && k2.pos.distanceTo(k.pos) < 30) sc++;
+      if (inTrench(k.pos)) sc += 1;
       sc += Math.random() * 0.5;
       if (sc > bs) { bs = sc; best = k; }
     }
     if (!best) { m.cool = 2; continue; }
-    if (m.tgt && m.tgt.distanceTo(best.pos) < 40) m.spread = Math.max(15, m.spread * 0.75); else m.spread = 45;
+    const rob = m.team === 'r';
+    if (m.tgt && m.tgt.distanceTo(best.pos) < 40) m.spread = Math.max(rob ? 9 : 14, m.spread * (rob ? 0.6 : 0.75)); else m.spread = rob ? 35 : 45;
     m.tgt = best.pos.clone();
     const d = best.pos.distanceTo(m.pos);
     const tof = 7 + d / 260;
-    callArtillery(best.pos, 1, m.spread, 'h', tof, 1.3, false);
-    m.cool = m.crew.length > 1 ? rnd(7, 9) : rnd(11, 14);
+    callArtillery(best.pos, 1, m.spread, m.team, tof, rob ? 1.6 : 1.3, false, 'mortar');
+    m.cool = rob ? rnd(5.5, 7.5) : m.crew.length > 1 ? rnd(7, 9) : rnd(10, 13);
     m.shots++;
     mortarThump(m.pos.distanceTo(camera.position));
-    SS.spawnPuff(m.pos.clone().add(_v.set(0, 1.3, 0)), 0xcfcac0, 1.2, 2, 2, 0.6, 0.2);
+    SS.fxPuff(_v.copy(m.pos).setY(m.pos.y + 1.4), 0xcfcac0, 0.6, 3, 2, _v2.set(0, 1.2, 0), 0.6);
     m.crew.forEach((c) => { c.kick = 1; });
-    if (m.shots === 1 && isFriend('h')) feed('Миномёты открыли огонь по противнику, ' + Math.round(d) + ' м');
+    if (m.shots === 1) { if (isFriend(m.team)) feed('Наши миномёты открыли огонь, ' + Math.round(d) + ' м'); else cmdSay('Противник бьёт из миномётов! Не скучиваться!'); }
   }
 }
 
@@ -1009,6 +1022,7 @@ const flareLight = new THREE.PointLight(0xffe8c0, 0, 900, 1.3); scene.add(flareL
 const flareSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: SS.glowTex, color: 0xfff0d0, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); flareSpr.visible = false; scene.add(flareSpr);
 const FL = { on: false, pos: new V3(), t: 0 };
 const isNight = () => !!(SS.WEATHER[S.weather] && SS.WEATHER[S.weather].night);
+const isDark = () => !!(SS.WEATHER[S.weather] && SS.WEATHER[S.weather].dark);
 function launchFlare(at) {
   FL.on = true; FL.t = 0; FL.pos.set(at.x, terrainH(at.x, at.z) + 190, at.z);
   const AC = SS.getAC(); if (AC) SS.noiseHit(AC.currentTime, 0.5, 'bandpass', 1800, 0.2, 2);
@@ -1025,7 +1039,7 @@ function updateFlare(dt) {
 function lightAt(p) {
   if (!isNight()) return 1;
   if (FL.on && Math.hypot(p.x - FL.pos.x, p.z - FL.pos.z) < 420) return 0.95;
-  return 0.18;
+  return isDark() ? 0.07 : 0.18;
 }
 const laserMat = new THREE.LineBasicMaterial({ color: 0xff2414, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
 function laserFor(u) {
@@ -1037,7 +1051,7 @@ function laserFor(u) {
   return u.laser;
 }
 function updateLaser(u) {
-  const on = u.alive && canShoot(u) && (u.target || u.engaged) && (isNight() || HOOK.vision === 'nvg' || u.cls === 'scout');
+  const on = u.alive && canShoot(u) && (u.target || u.engaged) && !u.mortar;
   const L = u.laser;
   if (!on) { if (L) { L.l.visible = false; L.dot.visible = false; } return; }
   const lz = laserFor(u);
@@ -1045,14 +1059,248 @@ function updateLaser(u) {
   const o = g.localToWorld(_v.set(0.06, 0.04, -0.6));
   const tip = g.localToWorld(_v2.set(0.06, 0.04, -2));
   const dir = tip.sub(o).normalize();
-  let d = u.target ? Math.min(600, o.distanceTo(u.target.pos) + 2) : 160;
+  const d = u.target ? Math.min(700, o.distanceTo(u.target.isPlayer ? PL.pos : u.target.pos) + 2) : 180;
   const end = _v3.copy(o).addScaledVector(dir, d);
   const st = staticHit(o, end); if (st != null) end.lerpVectors(o, end, st);
   const a = lz.l.geometry.attributes.position.array;
   a[0] = o.x; a[1] = o.y; a[2] = o.z; a[3] = end.x; a[4] = end.y; a[5] = end.z;
   lz.l.geometry.attributes.position.needsUpdate = true;
-  lz.l.visible = true; lz.dot.visible = true; lz.dot.position.copy(end);
+  lz.l.visible = true; lz.dot.visible = isNight() || HOOK.vision === 'nvg'; lz.dot.position.copy(end);
 }
+
+/* ================= сетка для попаданий ================= */
+const GRID = new Map(), GC = 8, _cand = [];
+function gridBuild() {
+  GRID.clear();
+  for (const u of units) { if (!u.alive) continue; const k = Math.floor(u.pos.x / GC) * 100003 + Math.floor(u.pos.z / GC); let a = GRID.get(k); if (!a) GRID.set(k, a = []); a.push(u); }
+}
+function gridQuery(p0, p1, pad, out) {
+  out.length = 0;
+  const x0 = Math.floor((Math.min(p0.x, p1.x) - pad) / GC), x1 = Math.floor((Math.max(p0.x, p1.x) + pad) / GC);
+  const z0 = Math.floor((Math.min(p0.z, p1.z) - pad) / GC), z1 = Math.floor((Math.max(p0.z, p1.z) + pad) / GC);
+  for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) { const a = GRID.get(i * 100003 + j); if (a) for (const u of a) out.push(u); }
+  return out;
+}
+const attTeam = () => (B.scen === 'att' ? 'h' : 'r');
+const defTeam = () => (B.scen === 'att' ? 'r' : 'h');
+
+/* ================= командир: квадраты, приказы ================= */
+const GCOL = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ';
+function grid(p) { const c = clamp(Math.floor((p.x + 1000) / 100), 0, GCOL.length - 1), r = Math.floor((-p.z + 600) / 100) + 1; return GCOL[c] + '-' + r; }
+function cmdSay(text) {
+  feed((B.side === 'r' ? 'Штаб: ' : 'Командир: ') + text, 'cmd');
+  const AC = SS.getAC(); if (AC) { SS.tone(AC.currentTime, 1400, 0.06, 0.05, 'square'); SS.tone(AC.currentTime + 0.08, 1800, 0.06, 0.05, 'square'); SS.noiseHit(AC.currentTime + 0.15, 0.35, 'bandpass', 2500, 0.05, 1); }
+}
+function siren() {
+  const AC = SS.getAC(); if (!AC) return;
+  for (let k = 0; k < 6; k++) SS.tone(AC.currentTime + k * 0.62, k % 2 ? 1150 : 620, 0.6, 0.11, 'sawtooth', k % 2 ? 620 : 1150);
+}
+function raiseAlarm(why) {
+  if (B.alarm || !B.active || B.scen !== 'def') return;
+  B.alarm = true;
+  if (isFriend('h')) { siren(); cmdSay('ТРЕВОГА! ' + (why ? why + '. ' : '') + 'Все по местам, рассредоточиться!'); }
+  for (const u of units) if (u.team === 'h' && u.alive && u.state === 'camp') { sendTo(u, u.home, rnd(0.2, 3.5)); u.run = true; }
+  if (B.side === 'h' && PL.alive && B.pslot && PL.pos.distanceTo(B.pslot.pos) > 8) B.obj2 = { pos: B.pslot.pos.clone(), text: B.pslot.text + ', кв. ' + grid(B.pslot.pos) };
+}
+function commander() {
+  const me = B.side, foe = enemyTeam(me);
+  const known = TK[me];
+  for (const g of squads) {
+    if (g.team !== foe || B.announced.has(g)) continue;
+    const seen = g.members.find((m) => m.alive && known.has(m) && B.t - known.get(m).t < 5);
+    if (!seen) continue;
+    B.announced.add(g);
+    const p = seen.pos, d = Math.round(p.distanceTo(PL.pos));
+    let txt = (foe === 'r' ? 'Группа роботов' : 'Группа людей') + ', кв. ' + grid(p) + ', дальность ' + d + ', направление — ' + dirWord(p) + '.';
+    if (B.scen === 'def' && foe === 'r') {
+      if (p.x > 160) txt += ' Обходят справа по балке — «Корд-2», перенести огонь!';
+      else if (p.x < -160) txt += ' Обходят слева через лес — пулемётам левого фланга внимание!';
+      else txt += ' Миномётам — огонь по квадрату!';
+      if (Math.abs(p.x) > 160 && d < 900 && PL.squad && PL.alive && !PL.robot) { const side = p.x > 0 ? 1 : -1; const s = slots.front.filter((q) => !q.used && Math.sign(q.pos.x) === side && Math.abs(q.pos.x) > 60).sort((a, b) => Math.abs(a.pos.x) - Math.abs(b.pos.x))[0]; if (s) { B.obj2 = { flank: true, pos: s.pos.clone(), text: 'Тройке: выдвинуться на ' + (side > 0 ? 'правый' : 'левый') + ' фланг, кв. ' + grid(s.pos) + ', прикрыть' }; txt += ' Тройка — на ' + (side > 0 ? 'правый' : 'левый') + ' фланг!'; } }
+    }
+    cmdSay(txt);
+    return;
+  }
+  if (smokes.length > B.smokeSaid) { B.smokeSaid = smokes.length; const s = smokes[smokes.length - 1]; if (s.pos.distanceTo(PL.pos) < 1500) cmdSay('Дым в квадрате ' + grid(s.pos) + ' — противник готовит рывок, наблюдать!'); }
+  const assaulting = squads.find((g) => g.team === foe && g.phase === 'assault' && g.members.some((m) => m.alive));
+  if (assaulting && !B.assaultSaid) { B.assaultSaid = true; cmdSay(foe === 'r' ? 'Роботы идут на штурм! Гранаты к бою, бить в упор!' : 'Люди идут на штурм высоты! Всем — огонь!'); }
+  B.sitT -= 1.5;
+  if (B.sitT <= 0) {
+    B.sitT = rnd(55, 75);
+    const mine = units.filter((u) => u.team === me && u.alive).length + (PL.alive ? 1 : 0);
+    const wnd = units.filter((u) => u.team === me && u.alive && u.hp < 60).length;
+    const ks = [...known.keys()].filter((e) => e.alive).length;
+    cmdSay('Доклад: в строю ' + mine + (me === 'h' ? ', раненых ' + wnd : '') + '. Противника замечено: ' + ks + '.');
+  }
+  if (B.obj2 && PL.alive && PL.pos.distanceTo(B.obj2.pos) < 10) { feed('Выполнено: ' + B.obj2.text, 'me'); if (PL.squad && B.obj2.flank) squadCmd('follow'); B.obj2 = null; }
+}
+
+/* ================= гранаты ================= */
+const grenades = [];
+const grenGeo = new THREE.SphereGeometry(0.05, 8, 6), grenMat = new THREE.MeshLambertMaterial({ color: 0x3d4a2c });
+function throwGrenade(from, vel, team, byPlayer, owner) {
+  const m = new THREE.Mesh(grenGeo, grenMat); m.position.copy(from); scene.add(m);
+  grenades.push({ p: from.clone(), v: vel.clone(), t: 0, fuse: rnd(3.0, 3.8), team, byPlayer, owner, mesh: m });
+}
+function lobVel(from, to, t) { return new V3((to.x - from.x) / t, (to.y - from.y + 0.5 * 9.8 * t * t) / t, (to.z - from.z) / t); }
+function updateGrenades(dt) {
+  for (let i = grenades.length - 1; i >= 0; i--) {
+    const g = grenades[i]; g.t += dt;
+    const p0 = g.p.clone();
+    g.v.y -= 9.8 * dt; g.p.addScaledVector(g.v, dt);
+    const st = B.active ? staticHit(p0, g.p) : null;
+    if (st != null) { g.p.lerpVectors(p0, g.p, st); g.v.multiplyScalar(-0.3); }
+    const gy = terrainH(g.p.x, g.p.z) + 0.05;
+    if (g.p.y < gy) { g.p.y = gy; g.v.y = Math.abs(g.v.y) * 0.3; g.v.x *= 0.5; g.v.z *= 0.5; }
+    g.mesh.position.copy(g.p); g.mesh.rotation.x += dt * 8;
+    if (g.t > g.fuse) { explode(g.p.clone(), 0.7, { by: g.byPlayer ? 'player' : '', weap: 'grenade' }); scene.remove(g.mesh); grenades.splice(i, 1); }
+  }
+}
+function updateGrenBtn() { const b = $('bGren'); if (b) { $('grenTxt').textContent = 'ГРАНАТА ' + (PL.gren || 0); b.disabled = !(PL.gren > 0); } }
+HOOK.grenade = function () {
+  if (!PL.alive || !(PL.gren > 0) || HOOK.dead) return;
+  const dir = new V3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const from = camera.position.clone().addScaledVector(dir, 0.6);
+  throwGrenade(from, dir.multiplyScalar(PL.robot ? 19 : 15).add(_v.set(0, 3.5, 0)).add(PL.vel), PL.team, true, null);
+  PL.gren--; updateGrenBtn();
+  const AC = SS.getAC(); if (AC) SS.noiseHit(AC.currentTime, 0.12, 'bandpass', 900, 0.2, 1.5);
+};
+
+/* ================= десант ================= */
+const chuteGeo = (function () { const g = new THREE.SphereGeometry(3.6, 10, 6, 0, TAU, 0, Math.PI / 2.3); g.scale(1, 0.55, 1); return g; })();
+const chuteMat = new THREE.MeshLambertMaterial({ color: 0x5a6640, side: THREE.DoubleSide });
+function addChute(u) { u.chute = { mesh: new THREE.Mesh(chuteGeo, chuteMat), ph: Math.random() * TAU }; scene.add(u.chute.mesh); }
+function updateChutes(dt) {
+  for (const u of units) {
+    if (!u.chute) continue;
+    const ch = u.chute;
+    if (!u.alive) { scene.remove(ch.mesh); u.chute = null; continue; }
+    const w = SS.windAt(u.pos.z, SS.getSimT());
+    u.pos.x += w[0] * 0.3 * dt; u.pos.z += w[1] * 0.3 * dt; u.pos.y -= 5.5 * dt;
+    ch.ph += dt;
+    ch.mesh.position.set(u.pos.x + Math.sin(ch.ph) * 0.3, u.pos.y + 5.4, u.pos.z); ch.mesh.rotation.z = Math.sin(ch.ph * 0.8) * 0.08;
+    const gy = terrainH(u.pos.x, u.pos.z);
+    if (u.pos.y <= gy) { u.pos.y = gy; scene.remove(ch.mesh); u.chute = null; u.state = 'pos'; u.crouchT = 1; SS.spawnPuff(u.pos, 0x8a7a5c, 0.8, 1.2, 2, 0.3, 0.3); }
+  }
+  if (B.pchute) {
+    B.pchute.position.set(camera.position.x, camera.position.y + 5.2, camera.position.z);
+    if (P.jy <= 0.01) { scene.remove(B.pchute); B.pchute = null; HOOK.chute = false; feed('Приземлились! К бою!', 'me'); }
+  }
+}
+
+/* ================= атмосфера ================= */
+function atmosphere(dt) {
+  const night = isNight();
+  B.horizT -= dt;
+  if (B.horizT <= 0) {
+    B.horizT = rnd(night ? 3 : 6, night ? 8 : 14);
+    const a = rnd(-1.2, 1.2) + (Math.random() < 0.5 ? 0 : Math.PI), r = rnd(3200, 5200);
+    const p = _v.set(Math.sin(a) * r, 40 + Math.random() * 60, HILL.cz - Math.cos(a) * r);
+    SS.fxGlow(p, Math.random() < 0.5 ? 0xffb060 : 0xfff0d0, 120, 380, rnd(0.3, 0.7), null, night ? 0.8 : 0.25, 0, 0, 0);
+    const AC = SS.getAC(); if (AC) SS.noiseHit(AC.currentTime + r / 343 * 0.3, 2.2, 'lowpass', 110, 0.12);
+  }
+  if (night && B.scen === 'def' && !B.alarm) {
+    B.cricketT -= dt;
+    if (B.cricketT <= 0) { B.cricketT = rnd(0.6, 2.2); const AC = SS.getAC(); if (AC) for (let k = 0; k < 3; k++) SS.tone(AC.currentTime + k * 0.07, rnd(4200, 4800), 0.035, 0.012, 'sine'); }
+  }
+  if (B.scen === 'def' && CAMPFIRE) {
+    B.fireT -= dt;
+    if (B.fireT <= 0) { B.fireT = 0.09; SS.fxGlow(_v.set(CAMPFIRE.x + gauss() * 0.2, CAMPFIRE.y + 0.3, CAMPFIRE.z + gauss() * 0.2), 0xff8a30, 0.5, 0.15, 0.6, _v2.set(0, 1.2, 0), night ? 0.9 : 0.5, 0, 0, 0); if (Math.random() < 0.2) SS.fxPuff(_v.set(CAMPFIRE.x, CAMPFIRE.y + 1, CAMPFIRE.z), 0x6a6660, 0.6, 2.2, 4, _v2.set(0, 0.8, 0), 0.4); }
+  }
+}
+
+/* ================= мини-карта ================= */
+const MM = $('minimap'), mmc = MM ? MM.getContext('2d') : null;
+let mmBig = false;
+if (MM) MM.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); mmBig = !mmBig; MM.classList.toggle('big', mmBig); });
+function drawMinimap() {
+  if (!mmc) return;
+  const W = MM.width, H = MM.height, c = mmc;
+  c.clearRect(0, 0, W, H);
+  c.fillStyle = 'rgba(18,24,14,.78)'; c.fillRect(0, 0, W, H);
+  const R = mmBig ? 1350 : 600, cx = mmBig ? 0 : PL.pos.x, cz = mmBig ? -760 : PL.pos.z, k = W / (2 * R);
+  const X = (x) => W / 2 + (x - cx) * k, Y = (z) => H / 2 + (z - cz) * k;
+  const step = mmBig ? 200 : 100;
+  c.strokeStyle = 'rgba(220,230,200,.08)'; c.lineWidth = 1;
+  for (let x = Math.ceil((cx - R) / step) * step; x < cx + R; x += step) { c.beginPath(); c.moveTo(X(x), 0); c.lineTo(X(x), H); c.stroke(); }
+  for (let z = Math.ceil((cz - R) / step) * step; z < cz + R; z += step) { c.beginPath(); c.moveTo(0, Y(z)); c.lineTo(W, Y(z)); c.stroke(); }
+  c.fillStyle = 'rgba(40,70,30,.6)';
+  for (const f of FOREST) { if (Math.abs(f.x - cx) > R + f.r || Math.abs(f.z - cz) > R + f.r) continue; c.beginPath(); c.arc(X(f.x), Y(f.z), Math.max(1.5, f.r * k), 0, TAU); c.fill(); }
+  c.strokeStyle = 'rgba(90,140,170,.9)'; c.lineWidth = Math.max(2, 22 * k); c.beginPath();
+  for (let x = -1000; x <= 1000; x += 25) { const z = SS.riverZ(x); if (x === -1000) c.moveTo(X(x), Y(z)); else c.lineTo(X(x), Y(z)); } c.stroke();
+  c.strokeStyle = 'rgba(200,180,120,.35)'; c.lineWidth = 1; c.beginPath(); c.arc(X(0), Y(HILL.cz), 330 * k, 0, TAU); c.stroke();
+  c.beginPath(); c.arc(X(0), Y(HILL.cz), 120 * k, 0, TAU); c.stroke();
+  c.fillStyle = 'rgba(150,120,80,.9)'; for (const pp of parapets) c.fillRect(X(pp.c.x) - 1, Y(pp.c.z) - 1, 2, 2);
+  c.fillStyle = 'rgba(160,160,150,.5)'; for (const cv of covers) c.fillRect(X(cv.c.x) - 1, Y(cv.c.z) - 1, 2, 2);
+  c.fillStyle = 'rgba(190,190,180,.35)'; for (const s of smokes) { c.beginPath(); c.arc(X(s.pos.x), Y(s.pos.z), Math.max(3, s.r * k), 0, TAU); c.fill(); }
+  const me = B.side;
+  for (const u of units) {
+    const x = X(u.pos.x), y = Y(u.pos.z); if (x < -4 || x > W + 4 || y < -4 || y > H + 4) continue;
+    if (u.team === me) { if (!u.alive) { if (u.down) { c.fillStyle = 'rgba(255,90,70,.8)'; c.fillRect(x - 1.5, y - 1.5, 3, 3); } continue; } c.fillStyle = PL.squad && u.squad === PL.squad ? '#7ff0ff' : '#6fa8ff'; c.beginPath(); c.arc(x, y, 2.6, 0, TAU); c.fill(); }
+  }
+  for (const [e, q] of TK[me]) { if (!e.alive || e.isPlayer) continue; const age = B.t - q.t; if (age > 25) continue; c.fillStyle = 'rgba(255,70,50,' + (1 - age / 30).toFixed(2) + ')'; const x = X(q.pos.x), y = Y(q.pos.z); c.fillRect(x - 2.5, y - 2.5, 5, 5); }
+  if (B.obj2) { const x = X(B.obj2.pos.x), y = Y(B.obj2.pos.z); c.strokeStyle = '#f2c94c'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y - 6); c.lineTo(x + 6, y); c.lineTo(x, y + 6); c.lineTo(x - 6, y); c.closePath(); c.stroke(); }
+  if (B.lastMortar) { const x = X(B.lastMortar.pos.x), y = Y(B.lastMortar.pos.z); c.strokeStyle = 'rgba(255,200,80,.9)'; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.stroke(); }
+  c.save(); c.translate(X(PL.pos.x), Y(PL.pos.z)); c.rotate(-P.yaw); c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -7); c.lineTo(5, 5); c.lineTo(0, 2); c.lineTo(-5, 5); c.closePath(); c.fill(); c.restore();
+  c.fillStyle = 'rgba(236,240,220,.85)'; c.font = '600 ' + (mmBig ? 13 : 15) + 'px monospace'; c.textAlign = 'left';
+  c.fillText('кв. ' + grid(PL.pos), 6, H - 8);
+  c.textAlign = 'right'; c.fillText(isNight() ? (isDark() ? 'ТЬМА' : 'НОЧЬ') : 'С ↑', W - 6, 16);
+}
+
+/* ================= роли и задачи ================= */
+const ROLES_H = {
+  rifle:  { w: ['ak', 'rpg'], gren: 3, kits: 1, rockets: 2, text: 'Стрелок: АК-74М (по умолчанию с коллиматором), РПГ с 2 гранатами, 3 ручные гранаты.', obj: 'Уничтожить 2 робота', need: 2, val: () => B.kills },
+  mg:     { w: ['pkm', 'rpk'], gren: 1, kits: 1, text: 'Пулемётчик: ПКМ и РПК-16. Прижимать противника, прикрывать перебежки.', obj: 'Уничтожить 2 робота', need: 2, val: () => B.kills },
+  sniper: { w: ['svd', 'vss', 'ksvk'], gren: 0, kits: 1, text: 'Снайпер: СВД, бесшумный «Винторез», КСВК 12,7. Ночью — тепловизор.', obj: 'Уничтожить 2 разведчика, ракетчика или миномётчика', need: 2, val: () => (B.kc.scout || 0) + (B.kc.rocket || 0) + (B.kc.mortar || 0) },
+  rpg:    { w: ['rpg', 'ak'], gren: 1, kits: 1, rockets: 6, text: 'Гранатомётчик: РПГ-7 (6 гранат) и АК.', obj: 'Уничтожить 2 тяжёлых или ракетных робота', need: 2, val: () => (B.kc.heavy || 0) + (B.kc.rocket || 0) },
+  medic:  { w: ['ak'], gren: 1, kits: 5, text: 'Санитар: 5 аптечек. Кнопка «АПТЕЧКА» рядом с раненым перевязывает его (+25).', obj: 'Перевязать 4 раненых', need: 4, val: () => B.healed },
+  mortar: { w: ['ak'], gren: 1, kits: 1, text: 'Миномётчик: свой 82-мм миномёт на позиции (кнопка «К МИНОМЁТУ»). Бинокль → лазер → «СБР» берёт дальность и азимут, ▲▼ ±25 м.', obj: 'Уничтожить миномётом 3 робота', need: 3, val: () => B.kw.mortar || 0 },
+  lead:   { w: ['ak', 'rpg'], gren: 2, kits: 1, rockets: 3, art: 4, text: 'Командир тройки: АК, РПГ, 4 заявки на артиллерию, команды тройке.', obj: 'Уничтожить 5 роботов силами тройки', need: 5, val: () => B.kills + B.trioKills },
+};
+const ROLES_R = {
+  assault: { w: ['rr'], gren: 2, text: 'Штурмовик: винтовка Р-12, 2 гранаты, быстрый бег.', obj: 'Ворваться в первую траншею', need: 1, val: () => (B.reachedTrench ? 1 : 0) },
+  heavy:   { w: ['rmg', 'rr'], gren: 0, text: 'Тяжёлый: пулемёт П-30 на 150 патронов.', obj: 'Вывести из строя 4 человек', need: 4, val: () => B.kills },
+  rocket:  { w: ['rrk', 'rr'], gren: 1, text: 'Ракетчик: РК-4 (4 ракеты в пакете) и винтовка.', obj: 'Уничтожить расчёты «Корда» или миномётов (2)', need: 2, val: () => (B.kc.hmg || 0) + (B.kc.mortar || 0) },
+  scout:   { w: ['rsn', 'rr'], gren: 0, text: 'Разведчик: снайперская Р-50 «Жало» с цифровым прицелом.', obj: 'Вывести из строя 3 человек', need: 3, val: () => B.kills },
+};
+HOOK.roleInfo = function (side, role) { const R = (side === 'r' ? ROLES_R : ROLES_H)[role]; return R ? R.text + ' Задача: ' + R.obj + '.' : ''; };
+function roleOf() { return (B.side === 'r' ? ROLES_R : ROLES_H)[S.role] || (B.side === 'r' ? ROLES_R.assault : ROLES_H.rifle); }
+
+/* ================= миномёт игрока ================= */
+function nearMortar() { for (const m of mortars) if (m.team === PL.team && !PL.robot && Math.hypot(m.pos.x - P.x, m.pos.z - P.z) < 3.2) return m; return null; }
+function mountMortar(m) {
+  B.mortarMode = m; m.player = true; B.prevW = S.rifle;
+  if (!m.range) m.range = 800;
+  SS.selectRifle(WIDX('m82'));
+  P.x = m.pos.x; P.z = m.pos.z + 1.2; P.stance = 0;
+  if (LRF.pt && LRF.t > 0) HOOK.mortarAdj(0);
+  feed('Вы у миномёта. ▲▼ — дальность, «СБР» — по дальномеру, огонь — выстрел', 'me');
+  SS.updateTurUI();
+}
+function dismountMortar() { const m = B.mortarMode; if (!m) return; m.player = false; B.mortarMode = null; SS.selectRifle(B.prevW != null && RIFLES[B.prevW].type !== 'mortar' ? B.prevW : WIDX('ak')); }
+HOOK.mortarAdj = function (d) {
+  const m = B.mortarMode; if (!m) return;
+  if (d === 0) {
+    if (LRF.pt && LRF.t > 0) { m.range = clamp(Math.round(LRF.pt.distanceTo(m.pos) / 5) * 5, 100, 2400); P.yaw = faceYaw(LRF.pt.x - m.pos.x, LRF.pt.z - m.pos.z); feed('Данные с дальномера: ' + m.range + ' м, кв. ' + grid(LRF.pt), 'me'); }
+    else feed('Сначала измерьте дальность биноклем');
+  } else m.range = clamp(m.range + d, 100, 2400);
+  SS.updateTurUI();
+};
+HOOK.mortarInfo = function () { const m = B.mortarMode; const r = m ? m.range : 0; return { range: r, tof: Math.round(7 + r / 260) }; };
+HOOK.fireMortar = function () {
+  const m = B.mortarMode; if (!m) return;
+  const dir = _v.set(-Math.sin(P.yaw), 0, -Math.cos(P.yaw));
+  const tgt = m.pos.clone().addScaledVector(dir, m.range);
+  const tof = 7 + m.range / 260;
+  const w = SS.windAt(tgt.z, SS.getSimT());
+  tgt.x += w[0] * tof * 0.25; tgt.z += w[1] * tof * 0.25;
+  callArtillery(tgt, 1, 4 + m.range * 0.012, PL.team, tof, 1.5, true, 'mortar');
+  B.lastMortar = { pos: tgt.clone(), t: B.t + tof };
+  mortarThump(0); SHAKE.a += 0.03;
+  SS.fxPuff(m.pos.clone().add(_v2.set(0, 1.4, 0)), 0xcfcac0, 0.6, 3, 2, _v3.set(0, 1.2, 0), 0.7);
+  feed('Выстрел! ' + m.range + ' м, азимут ' + Math.round(((-P.yaw * 180 / Math.PI) % 360 + 360) % 360) + '°, подлёт ' + Math.round(tof) + ' с');
+};
+HOOK.noJump = () => !!(B.mounted || B.mortarMode || HOOK.chute);
 
 /* ================= обнаружение ================= */
 function enemiesOf(team) {
@@ -1066,9 +1314,7 @@ function share(team, e, who) {
   const k = TK[team].get(e);
   if (k) { k.pos.copy(pos); k.t = B.t; return; }
   TK[team].set(e, { pos, t: B.t });
-  if (team === 'h' && isFriend('h') && B.t - B.contactT > 25) {
-    feed('Контакт! Роботы — ' + dirWord(pos) + ', ' + Math.round(pos.distanceTo(PL.pos)) + ' м', 'bad');
-  }
+  if (team === 'h' && !B.alarm) raiseAlarm('Противник, кв. ' + grid(pos) + ', ' + Math.round(pos.distanceTo(new V3(0, 0, HILL.cz))) + ' м');
   if (team === 'h') B.contactT = B.t;
   if (team === 'r') B.rContactT = B.t;
 }
@@ -1086,11 +1332,18 @@ function perceive(u, dt) {
   const night = isNight();
   const maxR = robot ? 1500 : night ? 1000 : 1400;
   eyeOf(u, _pe);
-  for (const e of enemiesOf(u.team)) {
+  const list = enemiesOf(u.team);
+  let budget = 9;
+  const n0 = Math.floor(Math.random() * Math.max(1, list.length));
+  for (let li = 0; li < list.length; li++) {
+    const e = list[(li + n0) % list.length];
     const ep = e.isPlayer ? PL.pos : e.pos;
     const dx = ep.x - u.pos.x, dz = ep.z - u.pos.z, d = Math.hypot(dx, dz);
     let c = u.aw.get(e) || 0;
     if (d > maxR) { if (c) u.aw.set(e, Math.max(0, c - 0.1 * tick)); continue; }
+    if (budget <= 0 && d > 40 && c < 1) continue;
+    if (d > 650 && c < 0.3 && Math.random() < 0.45) continue;
+    budget--;
     const ang = Math.abs(angDiff(faceYaw(dx, dz), u.yaw + u.head));
     const fired = B.t - (e.firedT || -99) < 2.5;
     const near = d < 16;
@@ -1104,11 +1357,12 @@ function perceive(u, dt) {
     else ex = e.crawl ? 0.5 : e.crouch > 0.5 ? 0.6 : 1;
     if (inForest(ep)) ex *= 0.35;
     const fb = forestBetween(_pe, _pt); if (fb > 35) ex *= 0.08; else if (fb > 14) ex *= 0.4;
-    const sm = smokeBetween(_pe, _pt); ex *= robot ? 1 - sm * 0.5 : 1 - sm * 0.97;
+    const sm = smokeBetween(_pe, _pt); ex *= robot ? 1 - sm * 0.85 : 1 - sm * 0.97;
     const mv = e.isPlayer ? P.moving : Math.min(1, e.vel.length() / 3);
     ex *= 1 + mv * 0.8;
     if (fired) ex *= 3;
-    if (!robot) { let li = lightAt(ep); if (u.nvg) li = Math.max(li, 0.65); if (e.laser && e.laser.l.visible) li = Math.max(li, 0.85); ex *= li; }
+    if (!robot) { let lt = lightAt(ep); if (u.nvg) lt = Math.max(lt, isDark() ? 0.45 : 0.65); if (e.laser && e.laser.l.visible) lt = Math.max(lt, 0.85); ex *= lt; }
+    else if (isDark() && !e.isPlayer && e.team === 'h' && e.chute) ex *= 1.5;
     if (ang > 0.6 && !near) ex *= 0.5;
     c = Math.min(2, c + rate * ex * tick);
     u.aw.set(e, c);
@@ -1130,7 +1384,8 @@ function visibleNow(u, t) {
   eyeOf(u, _pe);
   if (t.isPlayer) _pt.copy(camera.position); else aimPointOf(t, t.team === 'r' ? 'torso' : 'head', _pt);
   if (!los(_pe, _pt)) return false;
-  if (u.team === 'h' && smokeBetween(_pe, _pt) > 0.6) return false;
+  const sm = smokeBetween(_pe, _pt);
+  if (sm > (u.team === 'h' ? 0.6 : 0.8)) return false;
   return true;
 }
 function pickTarget(u, load) {
@@ -1219,21 +1474,21 @@ function moveUnit(u, dt, speed) {
 }
 function spotNear(team, from, toward, minD, maxD, lane) {
   let best = null, bs = Infinity;
-  const pool = [];
-  for (const cv of covers) for (const p of (team === 'h' ? cv.pts.h : cv.pts.r)) pool.push(p);
-  if (team === 'r') for (const p of forestSpots) pool.push(p);
-  if (team === 'h') { for (const p of slots.front) pool.push(p); for (const p of slots.rear) pool.push(p); }
+  const att = team === attTeam();
   const tx = toward.x - from.x, tz = toward.z - from.z, tl = Math.hypot(tx, tz) || 1;
-  for (const p of pool) {
-    if (p.used) continue;
+  const test = (p) => {
+    if (p.used) return;
     const ox = p.pos.x - from.x, oz = p.pos.z - from.z;
     const along = (ox * tx + oz * tz) / tl;
-    if (along < minD || along > maxD) continue;
+    if (along < minD || along > maxD) return;
     const side = Math.abs(p.pos.x - (lane != null ? lane : from.x));
-    if (side > 70) continue;
+    if (side > 70) return;
     const sc = Math.abs(along - (minD + maxD) / 2) * 0.5 + side * 1.0 + (p.forest ? -12 : 0) + Math.random() * 8;
     if (sc < bs) { bs = sc; best = p; }
-  }
+  };
+  for (const cv of covers) { if (Math.abs(cv.c.x - from.x) > maxD + 80 || Math.abs(cv.c.z - from.z) > maxD + 80) continue; for (const p of (att ? cv.pts.r : cv.pts.h)) test(p); }
+  if (att) for (const p of forestSpots) test(p);
+  else { for (const p of slots.front) test(p); for (const p of slots.rear) test(p); }
   return best;
 }
 
@@ -1271,6 +1526,8 @@ function doHeal(u, dt) {
 }
 function updateHuman(u, dt) {
   perceive(u, dt);
+  if (u.chute) { u.mv = 0; u.vel.set(0, 0, 0); u.crouchT = 0; return; }
+  if (u.state === 'camp') { u.crouchT = 1; u.mv = lerp(u.mv, 0, dt * 6); u.vel.set(0, 0, 0); u.scan += dt * 0.3; u.head = lerp(u.head, Math.sin(u.scan + u.id) * 0.6, dt * 2); return; }
   u.cool -= dt; u.supp = Math.max(0, u.supp - dt * 0.8); u.reloadT = Math.max(0, u.reloadT - dt); u.st -= dt;
   if (u.reloadT <= 0 && u.mag <= 0) { u.reloadT = u.cls === 'mg' ? 5.5 : u.cls === 'rpg' ? 4 : 2.6; u.mag = u.cls === 'mg' ? 100 : u.cls === 'sniper' ? 10 : u.cls === 'rpg' ? 1 : 30; }
   // расчёты
@@ -1283,7 +1540,7 @@ function updateHuman(u, dt) {
     if (p && (u.cls === 'medic' || p.isPlayer || p.hp < 45)) { u.patient = p; p.healer = u; u.home = u.spot; if (u.spot) { u.spot.used = null; u.spot = null; } u.state = 'heal'; u.healT = 0; if (p.isPlayer && isFriend('h')) feed(clsName(u.cls) + ': держись, иду к тебе!', 'me'); return; }
   }
   // раненый отходит
-  if (u.hp < 35 && !u.retreated && u.state !== 'move' && !inRear(u)) {
+  if (B.scen === 'def' && u.hp < 35 && !u.retreated && u.state !== 'move' && !inRear(u)) {
     const s = slots.rear.filter((q) => !q.used).sort((a, b) => a.pos.distanceTo(u.pos) - b.pos.distanceTo(u.pos))[0];
     if (s) { sendTo(u, s, 0); u.retreated = true; }
   }
@@ -1301,8 +1558,8 @@ function updateHuman(u, dt) {
   if (u.state === 'move') {
     if (u.moveDelay > 0) { u.moveDelay -= dt; u.crouchT = 1; u.mv = lerp(u.mv, 0, dt * 6); return; }
     u.crouchT = u.supp > 1.5 ? 0.45 : 0;
-    const sp = u.speed * (u.hp < 40 ? 0.45 : 1) * (u.supp > 1.5 ? 0.7 : 1);
-    if (moveUnit(u, dt, sp)) { u.st = rnd(0.3, 1); u.crouchT = 1; }
+    const sp = u.speed * (u.run ? 1.5 : 1) * (u.hp < 40 ? 0.45 : 1) * (u.supp > 1.5 ? 0.7 : 1);
+    if (moveUnit(u, dt, sp)) { u.st = rnd(0.3, 1); u.crouchT = 1; u.run = false; }
     u.mv = lerp(u.mv, 1, dt * 5);
     return;
   }
@@ -1313,10 +1570,12 @@ function updateHuman(u, dt) {
   const baseYaw = u.slot ? u.slot.yaw : u.yaw;
   const inCover = !!u.spot;
   // огонь по точке / подавление по приказу
-  if (sq && sq.player && (sq.order === 'fire' || sq.order === 'cover') && B.t < sq.orderT && u.reloadT <= 0 && u.supp < 3.5) {
+  const autoCover = B.scen === 'att' && sq && !sq.player && !sq.static && (u.cls === 'mg' || (u.cls === 'rifle' && u.id % 2) || u.cls === 'lead') && u.state === 'pos' && (!u.target || !u.target.alive || B.t - (u.seenT || 0) > 3) && Math.random() < 0.985;
+  if (sq && ((sq.player && (sq.order === 'fire' || sq.order === 'cover') && B.t < sq.orderT) || autoCover) && u.reloadT <= 0 && u.supp < 3.5) {
     let pt = null;
     if (sq.order === 'fire' && sq.firePt) pt = sq.firePt.clone().add(_v.set(gauss() * 4, 1 + Math.random(), gauss() * 4));
     else { const k = [...TK.h.values()].filter((q) => B.t - q.t < 30).sort((a, b) => a.pos.distanceTo(u.pos) - b.pos.distanceTo(u.pos))[0]; if (k) pt = k.pos.clone().add(_v.set(gauss() * 3, 1.4, gauss() * 3)); }
+    if (pt && autoCover && pt.distanceTo(u.pos) > 520) pt = null;
     if (pt) {
       u.crouchT = 0;
       u.yaw += angDiff(faceYaw(pt.x - u.pos.x, pt.z - u.pos.z), u.yaw) * Math.min(1, dt * 5); u.head = lerp(u.head, 0, dt * 4);
@@ -1344,11 +1603,17 @@ function updateHuman(u, dt) {
   u.head = lerp(u.head, 0, dt * 6);
   const D = Math.hypot(tp.x - u.pos.x, tp.z - u.pos.z);
   u.pitch = Math.atan2(tp.y - (u.pos.y + 1.45), D);
+  u.grenT = (u.grenT || 0) - dt;
+  if (u.gren > 0 && u.grenT <= 0 && D < 28 && D > 8 && u.supp < 3) {
+    u.grenT = rnd(5, 9);
+    if (Math.random() < 0.7) { const from = u.pos.clone().add(_v.set(0, 1.7, 0)); const to = (t.isPlayer ? PL.pos : t.pos).clone(); to.x += gauss() * 1.5; to.z += gauss() * 1.5; throwGrenade(from, lobVel(from, to, 0.9 + D / 30), 'h', false, u); u.gren--; u.kick = 1; u.cool = 1; if (isFriend('h') && Math.random() < 0.5) feed(clsName(u.cls) + ': граната!'); return; }
+  }
   if (u.crouch > 0.3) return;
   u.aimT += dt; u.expT += dt;
   if (u.expT > (u.cls === 'mg' ? 6 : 4) && inCover) { u.expT = 0; u.st = rnd(1.5, 3.5); return; }
   if (u.cool > 0 || u.aimT < (u.cls === 'sniper' ? 1.2 : 0.55)) return;
   if (!visibleNow(u, t)) { u.cool = 0.5; u.target = null; return; }
+  u.seenT = B.t;
   const acc = 1 + 1.6 * Math.exp(-u.aimT * 1.5);
   const base = ({ rifle: 2.6, lead: 2.5, medic: 2.8, mg: 3.2, sniper: 0.55, rpg: 1 }[u.cls] || 2.6) * acc * (1 + D / 700);
   const size = t.isPlayer ? 0.6 : t.team === 'r' ? 0.7 : 0.45;
@@ -1414,8 +1679,10 @@ function hmgCrew(u, dt) {
 /* ================= роботы ================= */
 function updateRobot(u, dt) {
   perceive(u, dt);
+  if (u.mortarU) { u.vel.set(0, 0, 0); u.mv = lerp(u.mv, 0, dt * 4); u.crouchT = 1; u.kick *= 0.9; return; }
+  if (B.t < (B.prepT || 0) && u.state !== 'move') { u.crouchT = 1; u.mv = lerp(u.mv, 0, dt * 4); u.vel.set(0, 0, 0); return; }
   u.cool -= dt; u.rocketCool -= dt; u.reloadT = Math.max(0, u.reloadT - dt);
-  u.stagger = Math.max(0, u.stagger - dt * 0.8);
+  u.stagger = Math.max(0, u.stagger - dt * 0.8); u.supp = Math.max(0, (u.supp || 0) - dt * 0.7);
   if (u.mag <= 0 && u.reloadT <= 0) { u.reloadT = u.cls === 'heavy' ? 4 : 2.4; u.mag = u.wp.mag; }
   const g = u.squad;
   const armed = canShoot(u);
@@ -1460,9 +1727,15 @@ function updateRobot(u, dt) {
   u.head = lerp(u.head, clamp(angDiff(u.aimYaw, u.yaw), -1, 1), dt * 6);
   if (u.state !== 'move') u.yaw += angDiff(u.aimYaw, u.yaw) * Math.min(1, dt * 3);
   if (marching && D > 320) return;
+  u.grenT = (u.grenT || 0) - dt;
+  if (u.gren > 0 && u.grenT <= 0 && D < 32 && D > 7 && !u.crawl) {
+    u.grenT = rnd(4, 8);
+    if (Math.random() < 0.75) { const from = u.pos.clone().add(_v.set(0, 2.2, 0)); const to = (t.isPlayer ? PL.pos : t.pos).clone(); to.x += gauss() * 1.2; to.z += gauss() * 1.2; throwGrenade(from, lobVel(from, to, 0.8 + D / 35), 'r', false, u); u.gren--; u.kick = 1; u.cool = 0.8; if (isFriend('h') && u.pos.distanceTo(PL.pos) < 60) feed('Граната!', 'bad'); return; }
+  }
   if (u.reloadT > 0 || u.crouch > 0.4) return;
   if (u.cls === 'rocket' && u.rocketCool <= 0 && D < 470 && D > 40 && !u.crawl) { launchAt(u, tp.clone().setY(tp.y - 0.4), D, 0.008); u.rocketCool = rnd(8, 12); return; }
-  if (u.cool > 0 || D > (EFF[u.cls] || 650)) return;
+  if (B.scen === 'att' && u.spot && u.state === 'pos' && u.supp > (u.cls === 'heavy' ? 4 : 2.2)) { u.crouchT = 1; return; }
+  if (u.cool > 0 || D > (EFF[u.cls] || 650) * (B.scen === 'att' ? 0.75 : 1)) return;
   if (u.state === 'move' && u.cls !== 'assault') return;
   if (!visibleNow(u, t)) { u.cool = 0.35; return; }
   const wp = u.wp;
@@ -1482,52 +1755,68 @@ const ROUTES = [
   [[620, -2100], [460, -1500], [390, -1320], [620, -900], [540, -470], [330, -260], [150, -150]],
 ];
 function groupCenter(g) { const al = g.members.filter((m) => m.alive && !m.crawl); if (!al.length) return null; const c = new V3(); al.forEach((m) => c.add(m.pos)); return c.divideScalar(al.length); }
-function brainRobots() {
-  const hsAlive = units.filter((u) => u.team === 'h' && u.alive).length + (PL.alive && PL.team === 'h' ? 1 : 0);
-  const rAlive = units.filter((u) => u.team === 'r' && u.alive).length + (PL.alive && PL.team === 'r' ? 1 : 0);
+/* ================= командир людей ================= */
+const HROUTES = [
+  [[-260, -540], [-240, -420], [-200, -300], [-150, -200], [-110, -140]],
+  [[-90, -560], [-80, -420], [-50, -300], [-30, -200], [-15, -140]],
+  [[90, -560], [80, -420], [50, -300], [30, -200], [15, -140]],
+  [[260, -540], [240, -420], [200, -300], [150, -200], [110, -140]],
+];
+const TN = (t) => (t === 'r' ? 'роботов' : 'людей');
+function computeLoads() {
+  B.load = new Map(); B.loadR = new Map();
+  for (const u of units) if (u.alive && u.target && u.target.alive) { const L = u.team === 'h' ? B.load : B.loadR; L.set(u.target, (L.get(u.target) || 0) + 1); }
+}
+function aliveN(team) { let n = 0; for (const u of units) if (u.team === team && u.alive) n++; return n + (PL.alive && PL.team === team ? 1 : 0); }
+function brainAttack(team) {
+  const foe = enemyTeam(team);
+  const defAlive = aliveN(foe), attAlive = aliveN(team);
+  const str = team === 'r' ? 3.2 : 0.75;
+  const me = isFriend(team);
+  const holdD = team === 'r' ? [900, 750] : [430, 380];
+  const hold = (m) => m.cls === 'scout' || m.cls === 'sniper';
   for (const g of squads) {
-    if (g.team !== 'r') continue;
-    const al = g.members.filter((m) => m.alive && !m.crawl);
+    if (g.team !== team || g.player || g.static) continue;
+    if (g.phase === 'chute') { if (g.members.some((m) => m.alive && m.chute)) continue; g.phase = 'deploy'; if (me) feed(g.name + ': приземлились, к бою!'); }
+    const al = g.members.filter((m) => m.alive && !m.crawl && !m.chute && !m.mortar);
     if (!al.length) continue;
-    const c = groupCenter(g);
+    const c = groupCenter(g) || al[0].pos.clone();
     const toHill = Math.hypot(c.x, c.z - HILL.cz);
-    if (g.phase === 'wait') { if (B.t > g.release || rAlive < B.N * 0.55) { g.phase = 'march'; if (isFriend('h') && B.wave < 2) { B.wave = 2; feed('Новая волна роботов выходит из-за холмов!', 'bad'); } } continue; }
-    const spotted = al.some((m) => { const k = TK.h.get(m); return k && B.t - k.t < 6; });
-    const sees = [...TK.r.values()].some((q) => B.t - q.t < 8 && q.pos.distanceTo(c) < 900);
+    if (g.phase === 'wait') { if (B.t > g.release || attAlive < B.NA * 0.55) { g.phase = 'march'; if (B.wave < 2) { B.wave = 2; feed(me ? 'Второй эшелон выдвигается!' : 'Новая волна ' + TN(team) + ' выходит на рубеж!', me ? 'me' : 'bad'); } } continue; }
+    const spotted = al.some((m) => { const k = TK[foe].get(m); return k && B.t - k.t < 6; });
+    const sees = [...TK[team].values()].some((q) => B.t - q.t < 8 && q.pos.distanceTo(c) < 900);
     if (g.phase === 'march') {
-      if (toHill < 780 || ((spotted || sees) && toHill < 950)) { g.phase = 'deploy'; al.forEach((m) => { m.state = 'pos'; m.dest = null; }); if (isFriend('r')) feed(g.name + ': контакт, развёртываемся'); }
+      if (toHill < 780 || ((spotted || sees) && toHill < 950)) { g.phase = 'deploy'; al.forEach((m) => { m.state = 'pos'; m.dest = null; }); if (me) feed(g.name + ': контакт, развёртываемся'); }
       else {
         const wp = g.route[g.wi];
         if (!wp) { g.phase = 'deploy'; continue; }
         if (Math.hypot(c.x - wp[0], c.z - wp[1]) < 25) g.wi++;
-        al.forEach((m, i) => { const o = (i - (al.length - 1) / 2) * 5; m.dest = new V3(wp[0] + o, 0, wp[1] - i * 3); m.state = 'move'; m.moveDelay = 0; if (m.spot) { m.spot.used = null; m.spot = null; } });
+        al.forEach((m, i) => { const o = (i - (al.length - 1) / 2) * 5; m.dest = new V3(wp[0] + o, 0, wp[1] - i * 3); m.state = 'move'; m.moveDelay = 0; m.moveT = 0; if (m.spot) { m.spot.used = null; m.spot = null; } });
       }
       continue;
     }
     if (g.phase === 'deploy') {
-      // дымовая завеса перед открытым участком
       if (!g.smoked && al.length) {
         const dir = new V3(-c.x, 0, HILL.cz - c.z).normalize();
         const n = Math.min(3, al.filter((m) => m.smokes > 0).length);
-        for (let i = 0; i < n; i++) { const m = al[i]; const at = c.clone().addScaledVector(dir, rnd(70, 120)).add(_v.set(-dir.z * (i - 1) * 26, 0, dir.x * (i - 1) * 26)); throwSmoke(m, at); }
+        const sm = al.filter((m) => m.smokes > 0);
+        for (let i = 0; i < n; i++) { const at = c.clone().addScaledVector(dir, rnd(70, 120)).add(_v.set(-dir.z * (i - 1) * 26, 0, dir.x * (i - 1) * 26)); throwSmoke(sm[i], at); }
         g.smoked = true;
-        if (n && isFriend('h')) feed('Роботы ставят дымовую завесу!', 'bad');
-        if (n && isFriend('r')) feed(g.name + ': ставим дым, вперёд');
+        if (n && !me && B.side !== team) feed(TN(team) === 'роботов' ? 'Роботы ставят дымовую завесу!' : 'Люди ставят дымовую завесу!', 'bad');
+        if (n && me) feed(g.name + ': ставим дым, вперёд');
       }
       g.phase = 'bound'; g.turn = 0;
     }
     if (g.phase === 'bound') {
       const lossF = 1 - al.length / g.members.length;
-      if (lossF >= 0.6 && !g.regrouped) { g.phase = 'regroup'; g.regroupT = B.t + rnd(30, 45); g.regrouped = true; const back = new V3(c.x, 0, c.z - 160); al.forEach((m, i) => { const sp = spotNear('r', m.pos, back, 40, 220, m.pos.x); if (sp) sendTo(m, sp, i * 0.3); }); if (isFriend('h')) feed('Роботы отходят на перегруппировку'); continue; }
-      if (toHill < 300 && (rAlive * 3.2 > hsAlive || toHill < 200)) { g.phase = 'assault'; feed(isFriend('h') ? 'Роботы идут на штурм высоты!' : g.name + ': штурм!', isFriend('h') ? 'bad' : 'me'); continue; }
+      if (lossF >= 0.6 && !g.regrouped) { g.phase = 'regroup'; g.regroupT = B.t + rnd(30, 45); g.regrouped = true; const back = new V3(c.x, 0, c.z - 160); al.forEach((m, i) => { const sp = spotNear(team, m.pos, back, 40, 220, m.pos.x); if (sp) sendTo(m, sp, i * 0.3); }); feed(me ? g.name + ': большие потери, отходим на перегруппировку' : 'Противник отходит на перегруппировку', me ? 'bad' : ''); continue; }
+      if (toHill < 300 && (attAlive * str > defAlive || toHill < 200)) { g.phase = 'assault'; feed(me ? g.name + ': штурм!' : (team === 'r' ? 'Роботы' : 'Люди') + ' идут на штурм высоты!', me ? 'me' : 'bad'); continue; }
       const rush = toHill > 450 || B.t - (g.underFire || -99) < 4;
       if (rush) {
         const wpn = g.route[Math.min(g.wi, g.route.length - 1)];
         if (Math.hypot(c.x - wpn[0], c.z - wpn[1]) < 90 && g.wi < g.route.length - 1) g.wi++;
         const toward = new V3(wpn[0], 0, wpn[1]);
-        {
-          al.forEach((m, i) => { if (m.state === 'move' || (m.cls === 'scout' && toHill < 900)) return; const sp = spotNear('r', m.pos, toward, 80, 170, lerp(m.pos.x, toward.x, 0.6) + (i - 1) * 6); if (sp) sendTo(m, sp, i * 0.2); else { const d = toward.clone().sub(m.pos).setY(0).normalize(); sendTo(m, null, i * 0.2, m.pos.clone().addScaledVector(d, 110).add(_v.set((i - 1) * 6, 0, 0))); } m.rush = true; });
-        }
+        al.forEach((m, i) => { if (m.state === 'move' || (hold(m) && toHill < holdD[0])) return; const sp = spotNear(team, m.pos, toward, 80, 170, lerp(m.pos.x, toward.x, 0.6) + (i - 1) * 6); if (sp) sendTo(m, sp, i * 0.2); else { const d = toward.clone().sub(m.pos).setY(0).normalize(); sendTo(m, null, i * 0.2, m.pos.clone().addScaledVector(d, 110).add(_v.set((i - 1) * 6, 0, 0))); } m.rush = true; if (team === 'h') m.run = true; });
         continue;
       }
       al.forEach((m) => { m.rush = false; });
@@ -1537,94 +1826,96 @@ function brainRobots() {
         const toward = new V3(wpn[0], 0, wpn[1]);
         if (Math.hypot(c.x - wpn[0], c.z - wpn[1]) < 70 && g.wi < g.route.length - 1) g.wi++;
         al.filter((m, i) => i % 2 === g.turn).forEach((m, i) => {
-          if (m.state === 'move' || m.cls === 'scout' && toHill < 750) return;
-          const sp = spotNear('r', m.pos, toward, 35, 120, lerp(m.pos.x, toward.x, 0.5));
+          if (m.state === 'move' || hold(m) && toHill < holdD[1]) return;
+          const sp = spotNear(team, m.pos, toward, 35, 120, lerp(m.pos.x, toward.x, 0.5));
           if (sp) sendTo(m, sp, i * 0.4);
           else { const d = toward.clone().sub(m.pos).setY(0).normalize(); sendTo(m, null, i * 0.4, m.pos.clone().addScaledVector(d, 60)); }
         });
         g.turn = 1 - g.turn;
       }
     }
-    if (g.phase === 'regroup' && B.t > g.regroupT) { g.phase = 'bound'; if (isFriend('h')) feed('Роботы снова наступают'); }
+    if (g.phase === 'regroup' && B.t > g.regroupT) { g.phase = 'bound'; feed(me ? g.name + ': снова вперёд!' : 'Противник снова наступает', me ? 'me' : 'bad'); }
     if (g.phase === 'assault') {
-      al.forEach((m) => {
+      const movingN = al.filter((m) => m.state === 'move').length;
+      if (team === 'h' && movingN) continue;
+      g.turn = 1 - (g.turn || 0);
+      al.forEach((m, i) => {
         if (m.state === 'move' && m.dest && m.dest.z > HILL.cz - 170) return;
-        if (m.cls === 'scout') return;
-        const s = slots.front.filter((q) => !q.used || q.used.team === 'r').sort((a, b) => a.pos.distanceTo(m.pos) - b.pos.distanceTo(m.pos))[0];
+        if (hold(m)) return;
+        if (team === 'h') {
+          if (i % 2 !== g.turn && al.length > 1) return;
+          const s = slots.front.filter((q) => !q.used || q.used.team === team).sort((a, b) => a.pos.distanceTo(m.pos) - b.pos.distanceTo(m.pos))[0];
+          const goal = s ? s.pos : new V3(m.pos.x, 0, HILL.cz - 150);
+          const dd = goal.distanceTo(m.pos);
+          const p = dd < 45 ? goal.clone().add(_v.set(gauss() * 2, 0, rnd(-1, 4))) : m.pos.clone().lerp(goal, 38 / dd).add(_v.set(gauss() * 3, 0, 0));
+          sendTo(m, null, Math.random() * 0.5, p); m.run = true;
+          return;
+        }
+        const s = slots.front.filter((q) => !q.used || q.used.team === team).sort((a, b) => a.pos.distanceTo(m.pos) - b.pos.distanceTo(m.pos))[0];
         const p = s ? s.pos.clone().add(_v.set(gauss() * 2, 0, rnd(-1, 4))) : new V3(m.pos.x, 0, HILL.cz - 150);
         sendTo(m, null, Math.random() * 0.6, p);
+        if (team === 'h') m.run = true;
       });
     }
   }
-  // миномёт роботов по известным позициям
-  B.rMortarT -= 1.5;
-  if (B.rMortarT <= 0 && !isFriend('r')) {
-    const ks = [...TK.r.entries()].filter(([e, q]) => e.alive && B.t - q.t < 20);
-    if (ks.length) { const k = pickR(ks)[1]; callArtillery(k.pos, 3, 16, 'r', 2, 1.4); }
-    B.rMortarT = rnd(45, 65);
-  }
 }
-/* ================= командир людей ================= */
-function brainHumans() {
-  const robots = units.filter((u) => u.team === 'r' && u.alive);
-  const rAlive = robots.length + (PL.alive && PL.team === 'r' ? 1 : 0);
-  const near = robots.reduce((m, r) => Math.min(m, Math.hypot(r.pos.x, r.pos.z - HILL.cz)), 9999);
-  // распределение целей: не больше 2–3 стрелков на одного робота
-  B.load = new Map();
-  for (const u of units) if (u.team === 'h' && u.alive && u.target && u.target.alive) B.load.set(u.target, (B.load.get(u.target) || 0) + 1);
-  B.loadR = new Map();
-  for (const u of units) if (u.team === 'r' && u.alive && u.target && u.target.alive) B.loadR.set(u.target, (B.loadR.get(u.target) || 0) + 1);
-  // затишье
-  if (B.contactT > 0 && B.t - B.contactT > 35 && !B.lullSaid && isFriend('h')) { B.lullSaid = true; feed('Затишье. Перезарядиться, перевязать раненых, смотреть в оба'); }
-  if (B.t - B.contactT < 5) B.lullSaid = false;
-  // контратака, когда роботов почти не осталось
-  if (B.phaseH !== 'attack' && rAlive > 0 && rAlive <= Math.max(1, Math.round(B.N * 0.25)) && near > 120) {
-    B.phaseH = 'attack'; feed('Командир: добить оставшихся! Отделения — вперёд перебежками', isFriend('h') ? 'me' : 'bad');
+function brainDefend(team) {
+  const foe = enemyTeam(team);
+  const enemies = units.filter((u) => u.team === foe && u.alive);
+  const eAlive = enemies.length + (PL.alive && PL.team === foe ? 1 : 0);
+  const near = enemies.reduce((m, r) => Math.min(m, Math.hypot(r.pos.x, r.pos.z - HILL.cz)), 9999);
+  const me = isFriend(team);
+  if (team === 'h' && me) {
+    if (B.contactT > 0 && B.t - B.contactT > 35 && !B.lullSaid) { B.lullSaid = true; cmdSay('Затишье. Перезарядиться, перевязать раненых, смотреть в оба'); }
+    if (B.t - B.contactT < 5) B.lullSaid = false;
+  }
+  if (B.phaseD !== 'attack' && eAlive > 0 && eAlive <= Math.max(1, Math.round(B.NA * 0.25)) && near > 120 && B.t > 60) {
+    B.phaseD = 'attack';
+    if (me) cmdSay('Добить оставшихся! Отделения — вперёд перебежками, кв. ' + grid(enemies[0] ? enemies[0].pos : PL.pos)); else feed('Противник контратакует!', 'bad');
   }
   for (const sq of squads) {
-    if (sq.team !== 'h' || sq.player) continue;
-    const al = sq.members.filter((m) => m.alive && !m.nest && !m.mortar);
+    if (sq.team !== team || sq.player || sq.static) continue;
+    const al = sq.members.filter((m) => m.alive && !m.nest && !m.mortar && !m.mortarU && m.state !== 'camp');
     if (!al.length) continue;
-    // фокус отделения
     const foc = al.map((m) => m.target).filter((x) => x && x.alive);
     sq.focus = foc.length ? foc[0] : null;
-    // отход при прорыве
     const lost = 1 - sq.members.filter((m) => m.alive).length / sq.members.length;
     const front = al.filter((m) => !inRear(m));
-    const danger = robots.filter((r) => front.some((m) => m.pos.distanceTo(r.pos) < 45)).length;
+    const danger = enemies.filter((r) => front.some((m) => m.pos.distanceTo(r.pos) < 45)).length;
     if (sq.order === 'hold' && front.length && (danger >= 2 || (lost >= 0.5 && near < 200))) {
       sq.order = 'fallback';
-      al.forEach((m, i) => { const s = slots.rear.filter((q) => !q.used).sort((a, b) => Math.abs(a.pos.x - m.pos.x) - Math.abs(b.pos.x - m.pos.x))[0]; if (s) sendTo(m, s, (i % 2) * 2); });
-      if (isFriend('h')) feed(sq.name + ': отходим во вторую траншею, прикрывайте!');
+      al.forEach((m, i) => { const s = slots.rear.filter((q) => !q.used).sort((a, b) => Math.abs(a.pos.x - m.pos.x) - Math.abs(b.pos.x - m.pos.x))[0]; if (s) { sendTo(m, s, (i % 2) * 2); m.run = true; } });
+      if (me) feed(sq.name + ': отходим во вторую траншею, прикрывайте!');
     }
     if (sq.order === 'fallback' && al.every((m) => m.state !== 'move')) sq.order = 'hold';
-    if (B.phaseH === 'attack' && sq.order !== 'attack') { sq.order = 'attack'; sq.turn = 0; }
+    if (B.phaseD === 'attack' && sq.order !== 'attack') { sq.order = 'attack'; sq.turn = 0; }
     if (sq.order === 'attack') {
       const moving = al.some((m) => m.state === 'move');
-      if (!moving && robots.length) {
+      if (!moving && enemies.length) {
         al.filter((m, i) => i % 2 === sq.turn && m.cls !== 'medic').forEach((m, i) => {
-          const tgt = robots.reduce((a, r) => (r.pos.distanceTo(m.pos) < a.pos.distanceTo(m.pos) ? r : a), robots[0]);
+          const tgt = enemies.reduce((a, r) => (r.pos.distanceTo(m.pos) < a.pos.distanceTo(m.pos) ? r : a), enemies[0]);
           if (m.pos.distanceTo(tgt.pos) < 60) return;
-          const sp = spotNear('h', m.pos, tgt.pos, 20, 80, lerp(m.pos.x, tgt.pos.x, 0.4));
-          if (sp) sendTo(m, sp, i * 0.4);
+          const sp = spotNear(team, m.pos, tgt.pos, 20, 80, lerp(m.pos.x, tgt.pos.x, 0.4));
+          if (sp) sendTo(m, sp, i * 0.4); else sendTo(m, null, i * 0.4, m.pos.clone().lerp(tgt.pos, 0.3));
         });
         sq.turn = 1 - sq.turn;
       }
     }
-    // часовые: по одному в отделении постоянно осматривают сектор
     al.forEach((m, i) => { m.sentry = i === 0; });
   }
-  // ночью — осветительные ракеты над известными роботами
+}
+function support() {
+  // осветительные ракеты над известными противниками (люди, обе стороны сценария)
   B.flareT -= 1.5;
-  if (isNight() && !FL.on && B.flareT <= 0 && !isFriend('r') || isNight() && !FL.on && B.flareT <= 0 && isFriend('r')) {
+  if (isNight() && !FL.on && B.flareT <= 0 && units.some((u) => u.team === 'h' && u.alive && !u.chute)) {
     const ks = [...TK.h.values()].filter((q) => B.t - q.t < 30);
-    const at = ks.length ? pickR(ks).pos : new V3(gauss() * 200, 0, HILL.cz - rnd(450, 900));
-    launchFlare(at); B.flareT = rnd(26, 38);
+    if (ks.length || B.alarm) { const at = ks.length ? pickR(ks).pos : new V3(gauss() * 200, 0, HILL.cz - rnd(450, 900)); launchFlare(at); }
+    B.flareT = rnd(26, 38);
   }
-  // если игрок за роботов — люди сами вызывают артиллерию
-  if (isFriend('r')) {
+  // если игрок за роботов или люди штурмуют — приданная батарея людей
+  if (isFriend('r') || B.scen === 'att') {
     B.hArtT = (B.hArtT || 50) - 1.5;
-    if (B.hArtT <= 0) { const ks = [...TK.h.values()].filter((q) => B.t - q.t < 20); if (ks.length) { callArtillery(pickR(ks).pos, 4, 18, 'h', 6, 2.0); feed('Люди вызвали артиллерию!', 'bad'); } B.hArtT = rnd(45, 65); }
+    if (B.hArtT <= 0) { const ks = [...TK.h.values()].filter((q) => B.t - q.t < 20 && !friendNear('h', q.pos, 60)); if (ks.length) { const tp = pickR(ks).pos; callArtillery(tp, 4, 18, 'h', 6, 2.0); if (isFriend('h')) cmdSay('Батарея: огонь по высоте, кв. ' + grid(tp) + '!'); else cmdSay('Люди вызвали артиллерию — в укрытие!'); } B.hArtT = rnd(45, 65); }
   }
 }
 
@@ -1647,14 +1938,22 @@ function squadCmd(c) {
     al.forEach((m, i) => { const sp = spotNear(sq.team, m.pos, toward, 15, 70, lerp(m.pos.x, toward.x, 0.3)); if (sp) sendTo(m, sp, (i % 2) * 2.5); else sendTo(m, null, (i % 2) * 2.5, m.pos.clone().lerp(toward, 0.3)); });
     feed('Тройка: вперёд перебежками, по двое!', 'me'); sq.order = 'hold';
   } else if (c === 'back') {
-    al.forEach((m, i) => { const s = slots.rear.filter((q) => !q.used).sort((a, b) => a.pos.distanceTo(m.pos) - b.pos.distanceTo(m.pos))[0]; if (s) sendTo(m, s, i * 0.6); else sendTo(m, null, i * 0.6, m.pos.clone().add(_v.set(0, 0, 60))); });
+    al.forEach((m, i) => { const s = B.scen === 'def' ? slots.rear.filter((q) => !q.used).sort((a, b) => a.pos.distanceTo(m.pos) - b.pos.distanceTo(m.pos))[0] : null; if (s) sendTo(m, s, i * 0.6); else sendTo(m, null, i * 0.6, m.pos.clone().add(_v.set(0, 0, B.scen === 'def' ? 60 : -60))); });
     feed('Тройка: отходим!', 'me'); sq.order = 'hold';
   }
 }
 HOOK.medkit = function () {
   if (!B.active || !PL.alive || PL.robot) return;
+  const medic = S.role === 'medic';
+  if (PL.kit > 0 && (medic || PL.hp >= 85)) {
+    const dn = units.filter((u) => u.team === 'h' && !u.alive && u.down && !u.stab && u.pos.distanceTo(PL.pos) < 3.2)[0];
+    if (dn && medic) { PL.kit--; dn.stab = true; B.healed++; feed('Вы остановили кровотечение тяжелораненому (' + clsName(dn.cls) + ') — будет эвакуирован', 'me'); updateMedBtn(); return; }
+    const w = units.filter((u) => u.team === 'h' && u.alive && u.hp < 90 && u.pos.distanceTo(PL.pos) < 3.2).sort((a, b) => a.hp - b.hp)[0];
+    if (w) { PL.kit--; w.hp = Math.min(100, w.hp + 25); B.healed++; feed('Вы перевязали бойца (' + clsName(w.cls) + '): +25', 'me'); updateMedBtn(); return; }
+  }
   if (PL.kit > 0 && PL.hp < 100) { PL.kit--; PL.hp = Math.min(100, PL.hp + 25); feed('Вы перевязались: +25', 'me'); }
   else if (PL.hp < 100) { PL.calledMedic = false; PL.hp = Math.min(PL.hp, 69); feed('Санитара! — зовёте помощь'); }
+  else if (medic) feed('Рядом нет раненых — подойдите вплотную (3 м)');
   updateMedBtn();
 };
 function updateMedBtn() { $('medTxt').textContent = 'АПТЕЧКА ' + PL.kit; }
@@ -1673,12 +1972,30 @@ function dismount() {
   n.piv.visible = true; B.mounted = null;
   SS.selectRifle(B.prevW != null ? B.prevW : B.loadout[0]);
 }
-HOOK.use = function () { if (!B.active || !PL.alive) return; if (B.mounted) dismount(); else { const n = nearNest(); if (n) mount(n); } };
+HOOK.use = function () { if (!B.active || !PL.alive) return; if (B.mounted) { dismount(); return; } if (B.mortarMode) { dismountMortar(); return; } const n = nearNest(); if (n) { mount(n); return; } const m = nearMortar(); if (m) mountMortar(m); };
 HOOK.move = function () {
   if (!B.active) return;
   if (B.mounted) { const n = B.mounted; const back = _v.set(Math.sin(n.yaw), 0, Math.cos(n.yaw)); P.x = n.pos.x + back.x * 0.9; P.z = n.pos.z + back.z * 0.9; P.yaw = n.yaw + clamp(angDiff(P.yaw, n.yaw), -1.2, 1.2); }
+  if (B.mortarMode) { const m = B.mortarMode; P.x = m.pos.x; P.z = m.pos.z + 1.2; }
 };
-HOOK.fired = function () { PL.firedT = B.t; };
+HOOK.fired = function (silent) { PL.firedT = silent ? B.t - 2.1 : B.t; };
+// помощник: если прицел почти на известном враге — сам добавляет возвышение на падение пули
+HOOK.autoElev = function (dir, rf) {
+  if (!B.active || !(S.assist || PL.robot) || rf.type === 'rocket' || rf.type === 'mortar') return 0;
+  let best = null, ba = 0.035;
+  for (const [e, k] of TK[PL.team]) {
+    if (!e.alive || e.isPlayer || B.t - k.t > 6) continue;
+    const tp = aimPointOf(e, 'torso', _v2);
+    const d = _v3.copy(tp).sub(camera.position); const D = d.length(); if (D < 30 || D > 1500) continue;
+    d.divideScalar(D);
+    const a = Math.acos(clamp(d.dot(dir), -1, 1));
+    if (a < ba) { ba = a; best = { D, ty: d.y }; }
+  }
+  if (!best) return 0;
+  const need = SS.stdElev(rf, best.D) - SS.elevRad();
+  const above = Math.asin(clamp(dir.y, -1, 1)) - Math.asin(clamp(best.ty, -1, 1));
+  return clamp(need - above, -0.03, 0.06);
+};
 
 /* ================= анимация ================= */
 function poseHuman(u, dt) {
@@ -1706,6 +2023,7 @@ function poseHuman(u, dt) {
     else { T.shRx = 1.3 + u.pitch * 0.5; T.shRz = 0; T.faR = 0.35; T.shLx = 1.45 + u.pitch * 0.5; T.shLz = -0.35; T.faL = 0.2; T.gunX = u.pitch * 0.5 - c * 0.6 + u.kick * 0.05; }
     if (u.reloadT > 0) { T.shLx = 0.7; T.faL = 1.4; T.gunX -= 0.4; }
     if (u.healing) { T.hipsY = 0.5; T.thL = 1.5; T.snL = -1.6; T.thR = 0.2; T.snR = -1.7; T.torX = -0.7; T.shLx = 1.1; T.shRx = 1.0; T.faL = 0.6 + Math.sin(B.t * 6) * 0.3; T.faR = 0.8; T.gunX = -0.9; }
+    if (u.chute) { T.hipsY = 0.95; T.thL = 0.15; T.thR = 0.05; T.snL = -0.35; T.snR = -0.2; T.torX = 0; T.shLx = 2.9; T.shLz = -0.35; T.shRx = 2.9; T.shRz = 0.35; T.faL = 0.4; T.faR = 0.4; T.gunX = -1.3; T.headX = 0.3; }
     if (u.mortar) { T.shLx = 0.9 + u.kick * 0.8; T.shRx = 0.9 + u.kick * 0.8; T.faL = 0.8; T.faR = 0.8; T.gunX = -0.9; }
     blendPV(u, PV_H, dt * 11);
   }
@@ -1771,10 +2089,15 @@ const SCORCH = new THREE.Color(0x231d18), _c = new THREE.Color(), DEADC = new TH
 function renderUnits(dt) {
   for (const k in PT) PT[k].n = 0;
   const flick = (SS.getSimT() * 17) % 1 > 0.5;
+  B.rf = (B.rf || 0) + 1;
+  const cx = camera.position.x, cz = camera.position.z, zoomed = AIM.mode !== 'hip';
   for (const u of units) {
-    if (u.team === 'h') poseHuman(u, dt); else poseRobot(u, dt);
-    u.right.set(Math.cos(u.yaw), 0, -Math.sin(u.yaw));
-    u.rig.root.updateMatrixWorld(true);
+    const far = !zoomed && !u.chute && Math.abs(u.pos.x - cx) + Math.abs(u.pos.z - cz) > 260;
+    if (!far || ((u.id + B.rf) & 1) || !u.pv) {
+      if (u.team === 'h') poseHuman(u, far ? dt * 2 : dt); else poseRobot(u, far ? dt * 2 : dt);
+      u.right.set(Math.cos(u.yaw), 0, -Math.sin(u.yaw));
+      u.rig.root.updateMatrixWorld(true);
+    }
     if (u.team === 'r') { aimRobotGun(u); updateLaser(u); }
     u.rig.hips.getWorldPosition(u.bc);
     for (const p of u.rig.parts) {
@@ -1801,112 +2124,224 @@ HOOK.onVision = function (m) {
 
 /* ================= ход боя ================= */
 function clearBattle() {
-  units.forEach((u) => { if (u.laser) { scene.remove(u.laser.l); scene.remove(u.laser.dot); } });
+  units.forEach((u) => { if (u.laser) { scene.remove(u.laser.l); scene.remove(u.laser.dot); } if (u.chute) scene.remove(u.chute.mesh); });
   units.length = 0; squads.length = 0; smokers.length = 0; B.shells.length = 0;
   TK.h.clear(); TK.r.clear();
   rockets.forEach((r) => scene.remove(r.mesh)); rockets.length = 0;
   craters.forEach((c) => scene.remove(c)); craters.length = 0;
   debris.forEach((d) => scene.remove(d.g)); debris.length = 0;
-  smokes.forEach((s) => s.sprites.forEach((sp) => scene.remove(sp))); smokes.length = 0;
+  grenades.forEach((g) => scene.remove(g.mesh)); grenades.length = 0;
+  smokes.length = 0;
+  if (B.pchute) { scene.remove(B.pchute); B.pchute = null; }
+  HOOK.chute = false;
   for (const k in PT) PT[k].mesh.count = 0;
   slots.front.concat(slots.rear).forEach((s) => { s.used = null; });
   covers.forEach((cv) => cv.pts.h.concat(cv.pts.r).forEach((p) => { p.used = null; }));
   forestSpots.forEach((p) => { p.used = null; });
   nests.forEach((n) => { n.crew = []; n.piv.visible = true; });
-  mortars.forEach((m) => { m.crew = []; m.cool = rnd(8, 14); m.spread = 45; m.shots = 0; m.tgt = null; });
+  for (let i = mortars.length - 1; i >= 0; i--) { const m = mortars[i]; if (m.dyn) { scene.remove(m.mesh); mortars.splice(i, 1); continue; } Object.assign(m, { crew: [], cool: rnd(8, 14), spread: 45, shots: 0, tgt: null, team: 'h', player: false, range: 0 }); }
   FL.on = false;
 }
 const SQN = ['1-е отделение', '2-е отделение', '3-е отделение', '4-е отделение', '5-е отделение', '6-е отделение', '7-е отделение'];
 const RSQN = ['Штурмовая группа «Альфа»', 'Группа «Бета»', 'Группа «Гамма»', 'Группа «Дельта»', 'Группа «Эпсилон»', 'Группа «Дзета»'];
+function addMortar(x, z, team) {
+  const gy = terrainH(x, z);
+  const mm = new THREE.Mesh(mortarGeo, lamV); mm.position.set(x, gy, z); mm.rotation.y = Math.PI; mm.castShadow = SHD; scene.add(mm);
+  const m = { pos: new V3(x, gy, z), mesh: mm, crew: [], cool: rnd(20, 30), tgt: null, spread: 40, shots: 0, team, dyn: true };
+  mortars.push(m); return m;
+}
 function startBattle() {
   if (!BATTLE_MAP) { S.gmode = 'battle'; S.autostart = true; try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (e) { /* ignore */ } location.reload(); return; }
   clearBattle();
-  const N = clamp(S.teamN || 6, 4, 12);
   B.side = S.side === 'r' ? 'r' : 'h';
-  Object.assign(B, { N, active: true, over: false, t: 0, rumbleT: 6, artLeft: 3, kills: 0, lost: 0, robotsKilled: 0, humansDown: 0, hitsE: 0, wave: 1, contactT: -99, rContactT: -99, lullSaid: false,
-    startShots: STATS.shots, deadT: 0, dmgA: 0, dirs: [], brainT: 0, phaseH: 'hold', flareT: rnd(10, 20), rMortarT: rnd(70, 90), hArtT: rnd(50, 70), mounted: null, spect: false, load: new Map(), loadR: new Map() });
-  HOOK.battle = true; HOOK.over = false; HOOK.dead = false; HOOK.camRoll = 0; HOOK.camDY = 0; HOOK.speedMul = 1; HOOK.dispMul = 1;
+  B.scen = S.scen === 'att' ? 'att' : 'def';
+  const nHt = clamp(Math.round(+S.nH || 18), 1, 50), nRt = clamp(Math.round(+S.nR || 6), 1, 50);
+  const AT = attTeam(), DT = defTeam();
+  Object.assign(B, { N: nRt, NA: AT === 'h' ? nHt : nRt, ND: DT === 'h' ? nHt : nRt, active: true, over: false, t: 0, rumbleT: 6, kills: 0, lost: 0, robotsKilled: 0, humansDown: 0, hitsE: 0, wave: 1, contactT: -99, rContactT: -99, lullSaid: false,
+    startShots: STATS.shots, deadT: 0, dmgA: 0, dirs: [], brainT: 0, phaseD: 'hold', flareT: rnd(10, 20), hArtT: rnd(50, 70), mounted: null, mortarMode: null, spect: false, load: new Map(), loadR: new Map(),
+    kc: {}, kw: {}, healed: 0, trioKills: 0, announced: new Set(), obj2: null, pslot: null, sitT: rnd(40, 60), horizT: 3, cricketT: 1, fireT: 0, smokeSaid: 0, assaultSaid: false, alarm: B.scen !== 'def', reachedTrench: false, lastMortar: null, mmT: 0, objDone: false, diedShown: false, rf: 0, prepT: 0 });
+  HOOK.battle = true; HOOK.over = false; HOOK.dead = false; HOOK.camRoll = 0; HOOK.camDY = 0; HOOK.speedMul = 1; HOOK.dispMul = 1; HOOK.chute = false;
   HOOK.playerTeam = B.side;
   fieldGroup.visible = true; SS.setRangeVisible(false);
-  PL.team = B.side; PL.robot = B.side === 'r'; PL.alive = true; PL.hp = 100; PL.lastHit = -99; PL.kit = 1; PL.calledMedic = false; PL.healer = null; PL.firedT = -99; PL.squad = null;
+  const R = roleOf();
+  PL.team = B.side; PL.robot = B.side === 'r'; PL.alive = true; PL.hp = 100; PL.lastHit = -99; PL.kit = PL.robot ? 0 : (R.kits || 1); PL.gren = R.gren || 0; PL.calledMedic = false; PL.healer = null; PL.firedT = -99; PL.squad = null;
+  B.artLeft = R.art || 3;
   P.robot = PL.robot;
   if (PL.robot) { PL.Z = {}; for (const z in PZ_DEF) PL.Z[z] = { armor: PZ_DEF[z][0], hp: PZ_DEF[z][1], max: PZ_DEF[z][1], int: 1 }; }
-  const nH = 3 * N - (B.side === 'h' ? 1 : 0);
-  const nR = N - (B.side === 'r' ? 1 : 0);
-  // --- люди
+  let nH = nHt - (B.side === 'h' ? 1 : 0), nR = nRt - (B.side === 'r' ? 1 : 0);
   const fs = slots.front.slice().sort((a, b) => Math.abs(a.pos.x) - Math.abs(b.pos.x));
-  let left = nH;
-  const take = () => fs.find((q) => !q.used) || slots.rear.find((q) => !q.used);
-  const place = (cls, s) => { const u = makeUnit('h', cls, s.pos, s.yaw); s.used = u; u.spot = s; u.slot = s; u.home = s; return u; };
-  if (B.side === 'h') {
-    const ps = fs[0]; ps.used = PL; P.x = ps.pos.x; P.z = ps.pos.z + 0.3; P.yaw = 0; P.pitch = 0.02;
-    const trio = { id: 'trio', team: 'h', name: 'Тройка', members: [], order: 'hold', player: true, orderT: 0 };
-    ['rifle', 'mg', 'medic'].forEach((c) => { const s = fs.filter((q) => !q.used).sort((a, b) => a.pos.distanceTo(ps.pos) - b.pos.distanceTo(ps.pos))[0]; const u = place(c, s); u.squad = trio; trio.members.push(u); left--; });
-    squads.push(trio); PL.squad = trio;
-  }
-  const crewN = nH >= 14 ? 2 : nH >= 6 ? 1 : 0;
-  for (let i = 0; i < crewN && left >= 2; i++) { const n = nests[i]; for (let k = 0; k < 2; k++) { const u = makeUnit('h', 'hmg', n.pos, n.yaw); u.nest = n; n.crew.push(u); left--; } n.wp = W_('kord'); }
-  const morN = nH >= 20 ? 2 : nH >= 9 ? 1 : 0;
-  for (let i = 0; i < morN && left >= 2; i++) { const m = mortars[i]; for (let k = 0; k < 2; k++) { const p = m.pos.clone().add(_v.set(k ? 1.1 : -1.1, 0, 0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('h', 'mortar', p, Math.PI); u.mortar = m; m.crew.push(u); left--; } }
-  const snN = nH >= 16 ? 2 : nH >= 8 ? 1 : 0;
-  for (let i = 0; i < snN && left > 0; i++) { const s = slots.rear.filter((q) => !q.used).sort((a, b) => Math.abs(a.pos.x - (i ? 40 : -40)) - Math.abs(b.pos.x - (i ? 40 : -40)))[0]; if (s) { place('sniper', s); left--; } }
-  const roles = ['lead', 'mg', 'rpg', 'medic', 'rifle', 'rifle'];
-  let k = 0;
-  while (left > 0) {
-    const sq = { id: 'h' + k, team: 'h', name: SQN[k] || (k + 1) + '-е отделение', members: [], order: 'hold', turn: 0 };
-    for (let i = 0; i < 6 && left > 0; i++) { const s = take(); if (!s) { left = 0; break; } const u = place(roles[i], s); u.squad = sq; sq.members.push(u); left--; }
-    if (sq.members.length) squads.push(sq);
-    k++;
-  }
-  // --- роботы: штурмовые группы на дальних холмах
-  const comps = [['assault', 'heavy', 'assault', 'rocket'], ['assault', 'scout', 'assault'], ['assault', 'heavy', 'rocket'], ['assault', 'assault', 'scout', 'heavy']];
-  const gN = Math.max(1, Math.round((nR + (B.side === 'r' ? 1 : 0)) / 3.3));
-  let made = 0;
-  for (let gi = 0; gi < gN; gi++) {
-    const n = gi === gN - 1 ? nR - made : Math.min(nR - made, Math.round((nR + (B.side === 'r' ? 1 : 0)) / gN));
-    if (n <= 0) continue;
-    const route = ROUTES[gi % ROUTES.length];
-    const wave = gi < Math.ceil(gN * 0.6) ? 1 : 2;
-    const g = { id: 'r' + gi, team: 'r', name: RSQN[gi] || 'Группа ' + (gi + 1), members: [], phase: wave === 1 ? 'march' : 'wait', release: rnd(85, 110), route, wi: 1, turn: 0, smoked: false };
-    const comp = comps[gi % comps.length];
-    for (let i = 0; i < n; i++) {
-      const x = route[0][0] + (i - (n - 1) / 2) * 6, z = route[0][1] - i * 4 - (wave === 2 ? 60 : 0);
-      const u = makeUnit('r', comp[i % comp.length], new V3(x, terrainH(x, z), z), 0);
-      u.squad = g; g.members.push(u); made++;
+  const nearFree = (list, p) => list.filter((q) => !q.used).sort((a, b) => a.pos.distanceTo(p) - b.pos.distanceTo(p))[0];
+  let pstart = null, ppos = null;
+  if (B.scen === 'def') {
+    // ===== люди обороняют: отдыхают в лагере, на постах — часовые, расчёты «Корда» и миномётов
+    let ci = 0;
+    const campPos = () => { const i = ci++; const a = i * 2.39996, r = 3.2 + Math.sqrt(i) * 2.3; const x = CAMPFIRE.x + Math.cos(a) * r * 1.4, z = CAMPFIRE.z + Math.sin(a) * r; return new V3(x, terrainH(x, z), z); };
+    const placeH = (cls, s, camp) => {
+      const p = camp ? campPos() : s.pos;
+      const u = makeUnit('h', cls, p, camp ? faceYaw(CAMPFIRE.x - p.x, CAMPFIRE.z - p.z) : s.yaw);
+      s.used = u; u.home = s;
+      if (camp) u.state = 'camp'; else { u.spot = s; u.slot = s; }
+      return u;
+    };
+    if (B.side === 'h') {
+      let myM = null;
+      if (S.role === 'mortar') { myM = mortars.find((m) => m.fixed); B.pslot = { pos: myM.pos.clone().add(_v.set(0, 0, 1.2)), text: 'Бегом к своему миномёту' }; myM.reserved = true; }
+      const ps = S.role === 'sniper' ? slots.rear.slice().sort((a, b) => Math.abs(a.pos.x - 30) - Math.abs(b.pos.x - 30))[0] : fs[0];
+      ps.used = PL;
+      if (!B.pslot) B.pslot = { pos: ps.pos.clone(), text: S.role === 'sniper' ? 'Занять снайперскую позицию во второй траншее' : 'Занять позицию в первой траншее' };
+      ppos = new V3(CAMPFIRE.x + 2.5, 0, CAMPFIRE.z + 3);
+      if (nH >= 3) {
+        const trio = { id: 'trio', team: 'h', name: 'Тройка', members: [], order: 'hold', player: true, orderT: 0 };
+        ['rifle', 'mg', 'medic'].forEach((c) => { const s = nearFree(fs, ps.pos); const u = placeH(c, s, true); u.squad = trio; trio.members.push(u); nH--; });
+        squads.push(trio); PL.squad = trio;
+      }
     }
-    squads.push(g);
+    const hq = { id: 'hq', team: 'h', name: 'Расчёты', members: [], static: true };
+    const crewN = Math.min(2, Math.floor(nH / 6));
+    for (let i = 0; i < crewN && nH >= 2; i++) { const n = nests[i]; n.wp = W_('kord'); for (let k = 0; k < 2; k++) { const u = makeUnit('h', 'hmg', n.pos, n.yaw); u.nest = n; n.crew.push(u); hq.members.push(u); nH--; } }
+    const pits = mortars.filter((m) => m.fixed && !m.reserved);
+    const morN = Math.min(pits.length, Math.floor(nH / 7));
+    for (let i = 0; i < morN && nH >= 1; i++) { const m = pits[i]; for (let k = 0; k < (nH >= 12 ? 2 : 1); k++) { const p = m.pos.clone().add(_v.set(k ? 1.1 : -1.1, 0, 0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('h', 'mortar', p, Math.PI); u.mortar = m; m.crew.push(u); hq.members.push(u); nH--; } }
+    const snN = nH >= 14 ? 2 : nH >= 7 ? 1 : 0;
+    for (let i = 0; i < snN && nH > 0; i++) { const s = slots.rear.filter((q) => !q.used).sort((a, b) => Math.abs(a.pos.x - (i ? 45 : -45)) - Math.abs(b.pos.x - (i ? 45 : -45)))[0]; if (s) { const u = placeH('sniper', s, false); hq.members.push(u); nH--; } }
+    if (hq.members.length) squads.push(hq);
+    const roles = ['lead', 'mg', 'rpg', 'medic', 'rifle', 'rifle'];
+    let k = 0;
+    while (nH > 0) {
+      const sq = { id: 'h' + k, team: 'h', name: SQN[k] || (k + 1) + '-е отделение', members: [], order: 'hold', turn: 0 };
+      for (let i = 0; i < 6 && nH > 0; i++) { const s = fs.find((q) => !q.used) || slots.rear.find((q) => !q.used); if (!s) { nH = 0; break; } const u = placeH(roles[i], s, i > 0); u.squad = sq; sq.members.push(u); nH--; }
+      if (sq.members.length) squads.push(sq);
+      k++;
+    }
+    // ===== роботы наступают с дальних холмов
+    const comps = [['assault', 'heavy', 'assault', 'rocket', 'assault'], ['assault', 'scout', 'assault', 'heavy'], ['assault', 'heavy', 'rocket', 'assault'], ['assault', 'assault', 'scout', 'heavy', 'rocket']];
+    const rmN = nR >= 8 ? Math.min(4, Math.floor(nR / 8)) : 0;
+    const rmg = { id: 'rm', team: 'r', name: 'Миномётная батарея роботов', members: [], static: true };
+    [[-180, -1480], [200, -1520], [-20, -1600], [420, -1450]].slice(0, rmN).forEach(([x, z]) => { const m = addMortar(x, z, 'r'); const u = makeUnit('r', 'mortar', m.pos.clone().add(_v.set(1, 0, 0.8)), 0); u.mortarU = m; m.crew.push(u); u.squad = rmg; rmg.members.push(u); nR--; });
+    if (rmg.members.length) squads.push(rmg);
+    const tot = nR + (B.side === 'r' ? 1 : 0);
+    const gN = Math.max(1, Math.round(tot / 4));
+    let made = 0;
+    for (let gi = 0; gi < gN; gi++) {
+      const n = gi === gN - 1 ? nR - made : Math.min(nR - made, Math.round(tot / gN));
+      if (n <= 0) continue;
+      const route = ROUTES[gi % ROUTES.length];
+      const wave = gi < Math.ceil(gN * 0.6) ? 1 : 2;
+      const g = { id: 'r' + gi, team: 'r', name: RSQN[gi] || 'Группа ' + (gi + 1), members: [], phase: wave === 1 ? 'march' : 'wait', release: rnd(85, 110), route, wi: 1, turn: 0, smoked: false };
+      const comp = comps[gi % comps.length];
+      for (let i = 0; i < n; i++) {
+        const lane = Math.floor(gi / ROUTES.length) * 40;
+        const x = route[0][0] + (i - (n - 1) / 2) * 6 + lane, z = route[0][1] - i * 4 - (wave === 2 ? 60 : 0) - lane;
+        const u = makeUnit('r', comp[i % comp.length], new V3(x, terrainH(x, z), z), 0);
+        u.squad = g; g.members.push(u); made++;
+      }
+      squads.push(g);
+    }
+    if (B.side === 'r') {
+      const g = squads.find((q) => q.team === 'r' && !q.static);
+      const r0 = g.route[0]; ppos = new V3(r0[0] - 8, 0, r0[1] + 6); PL.squad = g;
+    }
+  } else {
+    // ===== люди штурмуют: роботы держат траншеи, люди десантируются в ~500 м
+    const rcomp = ['assault', 'heavy', 'assault', 'rocket', 'scout'];
+    const rmN = nR >= 6 ? Math.min(4, Math.floor(nR / 6)) : 0;
+    const rmg = { id: 'rm', team: 'r', name: 'Миномёты роботов на высоте', members: [], static: true };
+    mortars.filter((m) => m.fixed).slice(0, rmN).forEach((m) => { m.team = 'r'; m.cool = rnd(15, 25); const p = m.pos.clone().add(_v.set(1.1, 0, 0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('r', 'mortar', p, 0); u.mortarU = m; m.crew.push(u); u.squad = rmg; rmg.members.push(u); nR--; });
+    if (rmg.members.length) squads.push(rmg);
+    if (B.side === 'r') { const ps = fs[0]; ps.used = PL; ppos = ps.pos.clone(); }
+    const spread = fs.filter((q, i) => i % 2 === 0).concat(fs.filter((q, i) => i % 2 === 1));
+    let k = 0;
+    while (nR > 0) {
+      const g = { id: 'rd' + k, team: 'r', name: RSQN[k] || 'Группа ' + (k + 1), members: [], order: 'hold', turn: 0, phase: 'hold' };
+      for (let i = 0; i < 5 && nR > 0; i++) {
+        const s = spread.find((q) => !q.used) || slots.rear.find((q) => !q.used); if (!s) { nR = 0; break; }
+        const u = makeUnit('r', rcomp[i % rcomp.length], s.pos, s.yaw); s.used = u; u.spot = s; u.slot = s; u.home = s; u.squad = g; g.members.push(u); nR--;
+      }
+      if (g.members.length) squads.push(g);
+      if (B.side === 'r' && k === 0) PL.squad = g;
+      k++;
+    }
+    // десант людей
+    const hq = { id: 'hq', team: 'h', name: 'Миномётчики', members: [], static: true };
+    const lmN = nH >= 12 ? 2 : nH >= 6 ? 1 : 0;
+    for (let i = 0; i < lmN; i++) { const m = addMortar(i ? 45 : -45, -640, 'h'); m.cool = rnd(10, 16); for (let j = 0; j < (nH >= 16 ? 2 : 1); j++) { const p = m.pos.clone().add(_v.set(j ? 1.1 : -1.1, 0, -0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('h', 'mortar', p, 0); u.mortar = m; m.crew.push(u); hq.members.push(u); nH--; } }
+    B.prepT = 38;
+    for (let i = 0; i < 22; i++) callArtillery(new V3(rnd(-190, 190), 0, HILL.cz - rnd(140, 160)), 1, 6, 'h', 3 + i * 1.5, 1.8, false, 'art');
+    for (let x = -360; x <= 360; x += 20) { const z = -240 + gauss() * 5; makeSmoke(new V3(x, terrainH(x, z), z), rnd(18, 21), rnd(210, 250), 9, true); }
+    if (S.role === 'mortar' && B.side === 'h') { const m = addMortar(0, -650, 'h'); m.reserved = true; B.pslot = { pos: m.pos.clone(), text: 'Ваш миномёт на ЛЗ' }; }
+    if (hq.members.length) squads.push(hq);
+    const air = (u, x, z, h) => { u.pos.set(x, terrainH(x, z) + h, z); addChute(u); u.state = 'pos'; };
+    const roles = ['lead', 'mg', 'rpg', 'medic', 'rifle', 'sniper'];
+    if (B.side === 'h') {
+      ppos = new V3(0, 0, -545);
+      if (nH >= 3) {
+        const trio = { id: 'trio', team: 'h', name: 'Тройка', members: [], order: 'follow', player: true, orderT: 0 };
+        ['rifle', 'mg', 'medic'].forEach((c, i) => { const u = makeUnit('h', c, new V3(), 0); air(u, (i - 1) * 9, -545 - 6 - i * 3, 72 + i * 4); u.squad = trio; trio.members.push(u); nH--; });
+        squads.push(trio); PL.squad = trio;
+      }
+    }
+    const tot = Math.max(1, Math.ceil(nH / 6));
+    for (let k2 = 0; k2 < tot && nH > 0; k2++) {
+      const route = HROUTES[k2 % HROUTES.length];
+      const wave = k2 < 4 ? 1 : 2;
+      const sq = { id: 'h' + k2, team: 'h', name: SQN[k2] || (k2 + 1) + '-е отделение', members: [], order: 'hold', turn: 0, phase: wave === 1 ? 'chute' : 'wait', release: rnd(70, 100), route, wi: 1, smoked: false };
+      const off = Math.floor(k2 / HROUTES.length) * 30;
+      for (let i = 0; i < 6 && nH > 0; i++) {
+        const u = makeUnit('h', roles[i], new V3(), 0);
+        const x = route[0][0] + (i - 2.5) * 7 + off, z = route[0][1] - (i % 2) * 6 - off;
+        if (wave === 1) air(u, x, z, rnd(60, 95)); else { const zz = z - 150; u.pos.set(x, terrainH(x, zz), zz); }
+        u.smokes = roles[i] === 'lead' ? 2 : roles[i] === 'rifle' ? 1 : 0;
+        u.squad = sq; sq.members.push(u); nH--;
+      }
+      squads.push(sq);
+    }
   }
-  if (B.side === 'r') {
-    const g = squads.find((q) => q.team === 'r');
-    const r0 = g.route[0]; P.x = r0[0] - 8; P.z = r0[1] + 6; P.yaw = 0; P.pitch = 0.02; PL.squad = g; g.player = false;
+  P.x = ppos.x; P.z = ppos.z; P.yaw = B.side === attTeam() ? Math.PI : 0; P.pitch = 0.02;
+  P.stance = 0; P.eye = PL.robot ? 2.15 : 1.62; P.jy = 0; P.vy = 0; P.lean = 0;
+  if (B.scen === 'att' && B.side === 'h') {
+    P.jy = 70; HOOK.chute = true;
+    B.pchute = new THREE.Mesh(chuteGeo, chuteMat); scene.add(B.pchute);
   }
-  P.stance = 0; P.eye = PL.robot ? 2.15 : 1.62; P.jy = 0; P.vy = 0;
   PL.pos.set(P.x, terrainH(P.x, P.z), P.z);
-  // снаряжение
+  // снаряжение по роли
   B.loadout = [];
-  const ld = B.side === 'r' ? ['rr', 'rmg', 'rrk'] : [null, 'ak', 'rpg'];
-  ld.forEach((id) => { const i = id ? WIDX(id) : (RIFLES[S.rifle].org === 'BOT' || RIFLES[S.rifle].mounted ? WIDX('ak') : S.rifle); if (i >= 0 && B.loadout.indexOf(i) < 0) B.loadout.push(i); });
-  RIFLES.forEach((r) => { TUR[r.id].ammo = r.mag; TUR[r.id].reserve = r.type === 'rocket' ? (r.org === 'BOT' ? 3 : 4) : null; });
+  let ids = R.w.slice();
+  const cur = RIFLES[S.rifle];
+  if (!PL.robot && cur && cur.org !== 'BOT' && !cur.mounted) {
+    if (S.role === 'sniper' && cur.type === 'sniper') ids = [cur.id].concat(ids.filter((i) => i !== cur.id));
+    if (S.role === 'rifle' && cur.type === 'auto' && cur.id !== 'pkm' && cur.id !== 'rpk') ids[0] = cur.id;
+  }
+  ids.forEach((id) => { const i = WIDX(id); if (i >= 0 && B.loadout.indexOf(i) < 0) B.loadout.push(i); });
+  if (!B.loadout.length) B.loadout.push(WIDX(PL.robot ? 'rr' : 'ak'));
+  RIFLES.forEach((r) => { TUR[r.id].ammo = r.mag; TUR[r.id].reserve = r.type === 'rocket' ? (r.org === 'BOT' ? 3 : (R.rockets != null ? R.rockets : 2)) : null; });
   SS.selectRifle(B.loadout[0]);
-  ['bbar', 'hp', 'feed'].forEach((id) => { $(id).hidden = false; });
-  $('bSquad').hidden = B.side !== 'h'; $('bMed').hidden = B.side !== 'h';
+  ['bbar', 'hp', 'feed', 'minimap', 'obj'].forEach((id) => { const e = $(id); if (e) e.hidden = false; });
+  document.body.classList.add('battle');
+  $('bSquad').hidden = !PL.squad || !PL.squad.player; $('bMed').hidden = PL.robot; $('bGren').hidden = !(PL.gren > 0);
   $('feed').innerHTML = ''; $('endScr').hidden = true;
   $('bHl').textContent = B.side === 'h' ? 'ЛЮДИ' : 'РОБОТЫ'; $('bRl').textContent = B.side === 'h' ? 'РОБОТЫ' : 'ЛЮДИ';
-  updateArtBtn(); updateMedBtn();
+  updateArtBtn(); updateMedBtn(); updateGrenBtn();
   if (isNight() && SS.VIS.mode === 'off' && B.side === 'r') SS.setVision('thermal');
-  feed(B.side === 'h' ? 'Вы — в тройке на первой траншее. Ждём роботов с севера. Наблюдать!' : 'Вы — в штурмовой группе. Цель: высота с траншеями. Вперёд!', 'me');
+  const roleName = (B.side === 'r' ? { assault: 'штурмовик', heavy: 'тяжёлый пулемётчик', rocket: 'ракетчик', scout: 'разведчик' } : { rifle: 'стрелок', mg: 'пулемётчик', sniper: 'снайпер', rpg: 'гранатомётчик', medic: 'санитар', mortar: 'миномётчик', lead: 'командир тройки' })[S.role] || '';
+  let intro;
+  if (B.scen === 'def') intro = B.side === 'h' ? 'Вы — ' + roleName + '. ' + (isNight() ? 'Ночь, отдых у костра. ' : 'Привал в лагере за высотой. ') + 'На постах часовые. По тревоге — бегом на позицию!' : 'Вы — ' + roleName + ' штурмовой группы. Цель — высота с траншеями, кв. ' + grid(new V3(0, 0, HILL.cz)) + '. Вперёд!';
+  else intro = B.side === 'h' ? 'Вы — ' + roleName + '. Десант! Артподготовка и дымовая завеса, приземление в 500 м от высоты, кв. ' + grid(new V3(0, 0, -545)) + '.' : 'Вы — ' + roleName + '. Удерживаем высоту: люди высаживают десант с севера.';
+  feed(intro, 'me');
+  cmdSay('Задача: ' + R.obj + '.');
   SS.updateWeaponUI();
 }
 function stopBattle() {
+  if (B.mortarMode) dismountMortar();
   clearBattle();
-  B.active = false; HOOK.battle = false; HOOK.dead = false; HOOK.camRoll = 0; HOOK.camDY = 0; HOOK.speedMul = 1; HOOK.dispMul = 1; HOOK.playerTeam = 'h';
+  B.active = false; HOOK.battle = false; HOOK.dead = false; HOOK.camRoll = 0; HOOK.camDY = 0; HOOK.speedMul = 1; HOOK.dispMul = 1; HOOK.playerTeam = 'h'; HOOK.chute = false;
   P.robot = false; PL.robot = false;
   fieldGroup.visible = false;
-  ['bbar', 'hp', 'feed', 'bArt', 'bSquad', 'bMed', 'bUse', 'sqPanel'].forEach((id) => { $(id).hidden = true; });
+  ['bbar', 'hp', 'feed', 'bArt', 'bSquad', 'bMed', 'bUse', 'sqPanel', 'minimap', 'obj', 'bGren'].forEach((id) => { const e = $(id); if (e) e.hidden = true; });
+  document.body.classList.remove('battle');
   $('endScr').hidden = true; $('dmg').style.opacity = '0';
   RIFLES.forEach((r) => { TUR[r.id].reserve = null; });
   if (RIFLES[S.rifle].org === 'BOT' || RIFLES[S.rifle].mounted) SS.selectRifle(0);
-  P.x = 0; P.z = 0.6; P.yaw = 0; P.eye = 1.62;
+  P.x = 0; P.z = 0.6; P.yaw = 0; P.eye = 1.62; P.jy = 0;
 }
 function endBattle(win, why, final) {
   if (B.over) return;
@@ -1914,10 +2349,13 @@ function endBattle(win, why, final) {
   const shots = STATS.shots - B.startShots;
   const mm = Math.floor(B.t / 60), ss = Math.round(B.t % 60);
   const hAll = units.filter((u) => u.team === 'h').length, rAll = units.filter((u) => u.team === 'r').length;
-  $('endE').textContent = final ? (win ? (B.side === 'h' ? 'Высота удержана, противник уничтожен' : 'Высота взята') : 'Бой проигран') : 'Вы выбыли из боя';
+  const iAtt = B.side === attTeam();
+  $('endE').textContent = final ? (win ? (iAtt ? 'Высота взята' : 'Высота удержана, атака отбита') : 'Бой проигран') : 'Вы выбыли из боя';
   $('endT').textContent = final ? (win ? 'Победа' : why) : why;
+  const R = roleOf(), v = R.val();
   $('endP').innerHTML = 'Длительность: ' + mm + ' мин ' + ss + ' с<br>Роботов уничтожено: ' + B.robotsKilled + ' из ' + rAll + (B.side === 'r' ? ' (+ вы)' : '') + '<br>Людей выбыло: ' + B.humansDown + ' из ' + hAll + (B.side === 'h' ? ' (+ вы)' : '') +
-    '<br>Лично вами: ' + B.kills + '<br>Ваши выстрелы: ' + shots + ', попаданий: ' + B.hitsE + (shots ? ' (' + Math.round(B.hitsE / shots * 100) + '%)' : '') + (final ? '' : '<br><br>Бой продолжается без вас.');
+    '<br>Лично вами: ' + B.kills + (B.healed ? ', перевязано: ' + B.healed : '') + '<br>Ваши выстрелы: ' + shots + ', попаданий: ' + B.hitsE + (shots ? ' (' + Math.round(B.hitsE / shots * 100) + '%)' : '') +
+    '<br>Задача «' + R.obj + '»: ' + (v >= R.need ? '<b style="color:#9fdc7a">выполнена</b>' : v + ' из ' + R.need) + (final ? '' : '<br><br>Бой продолжается без вас.');
   $('endWatch').hidden = !!final;
   setTimeout(() => { $('endScr').hidden = false; try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ } }, win ? 1500 : 400);
 }
@@ -1930,10 +2368,10 @@ $('endWatch').addEventListener('click', () => {
 
 HOOK.startBattle = startBattle;
 HOOK.stopBattle = stopBattle;
-HOOK._dbg = { units, B, PL, explode, squads, covers, partDamage, hurtHuman, TK, smokes, nests, mortars, squadCmd };
+HOOK._dbg = { units, B, PL, explode, squads, covers, partDamage, hurtHuman, TK, smokes, nests, mortars, squadCmd, grenades, raiseAlarm, smokeBetween, visibleNow, los };
 HOOK.nextWeapon = function () {
   if (!B.active) { SS.selectRifle(S.rifle + 1); return; }
-  if (B.mounted) return;
+  if (B.mounted || B.mortarMode) return;
   const i = (B.loadout.indexOf(S.rifle) + 1) % B.loadout.length;
   SS.selectRifle(B.loadout[i]);
 };
@@ -1952,25 +2390,33 @@ HOOK.update = function (dt, sdt) {
   PL.pos.set(P.x, gy, P.z);
   PL.right.set(Math.cos(P.yaw), 0, -Math.sin(P.yaw));
   PL.crouch = P.stance > 0 ? 1 : 0;
+  gridBuild();
   if (!B.over) {
     B.brainT -= sdt;
-    if (B.brainT <= 0) { B.brainT = 1.5; brainHumans(); brainRobots(); }
+    if (B.brainT <= 0) { B.brainT = 1.5; computeLoads(); brainAttack(attTeam()); brainDefend(defTeam()); support(); commander(); }
     for (const u of units) {
       if (!u.alive) continue;
       if (u.team === 'h') updateHuman(u, sdt); else updateRobot(u, sdt);
     }
     updateShells(sdt);
     updateMortars(sdt);
+    updateChutes(sdt);
+    updateGrenades(sdt);
+    atmosphere(dt);
+    if (B.scen === 'def' && !B.alarm) { for (const u of units) if (u.team === 'r' && u.alive && !u.mortarU && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 1300) { raiseAlarm('Роботы в квадрате ' + grid(u.pos) + ', ' + Math.round(Math.hypot(u.pos.x, u.pos.z - HILL.cz)) + ' м'); break; } }
+    if (PL.alive && PL.team === attTeam() && Math.hypot(PL.pos.x, PL.pos.z - HILL.cz) < 158) B.reachedTrench = true;
     B.rumbleT -= dt;
     if (B.rumbleT <= 0) { B.rumbleT = rnd(7, 16); const AC = SS.getAC(); if (AC) SS.noiseHit(AC.currentTime, 2.5, 'lowpass', 120, 0.18); }
     if (PL.alive && PL.robot && B.t - PL.lastHit > 6) { for (const z in PL.Z) { const Z = PL.Z[z]; if (Z.hp > 0 && Z.hp < Z.max) Z.hp = Math.min(Z.max, Z.hp + dt * Z.max * 0.01); } PL.hp = PL.Z.torso.hp / PL.Z.torso.max * 100; }
     // итоги
-    const hAlive = units.some((u) => u.team === 'h' && u.alive) || (PL.alive && PL.team === 'h');
-    const rAlive = units.some((u) => u.team === 'r' && u.alive) || (PL.alive && PL.team === 'r');
-    const rInTrench = units.filter((u) => u.team === 'r' && u.alive && !u.crawl && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 160).length;
-    const hHold = units.filter((u) => u.team === 'h' && u.alive && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 170).length + (PL.alive && PL.team === 'h' ? 1 : 0);
-    if (!rAlive) endBattle(B.side === 'h', 'Все роботы уничтожены', true);
-    else if (!hAlive || (rInTrench >= 2 && hHold <= 2)) endBattle(B.side === 'r', 'Высота потеряна', true);
+    const AT = attTeam(), DT = defTeam();
+    const fighter = (u) => u.alive && !u.mortarU && !u.mortar;
+    const aAlive = units.some((u) => u.team === AT && fighter(u)) || (PL.alive && PL.team === AT);
+    const dAlive = units.some((u) => u.team === DT && fighter(u)) || (PL.alive && PL.team === DT);
+    const aIn = units.filter((u) => u.team === AT && u.alive && !u.crawl && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 160).length + (PL.alive && PL.team === AT && Math.hypot(PL.pos.x, PL.pos.z - HILL.cz) < 160 ? 1 : 0);
+    const dHold = units.filter((u) => u.team === DT && fighter(u) && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 170).length + (PL.alive && PL.team === DT ? 1 : 0);
+    if (!aAlive) endBattle(B.side === DT, 'Штурм отбит', true);
+    else if (!dAlive || (aIn >= 2 && dHold <= 2)) endBattle(B.side === AT, 'Высота потеряна', true);
   }
   if (!PL.alive && !B.spect) {
     B.deadT += dt;
@@ -2001,10 +2447,14 @@ HOOK.update = function (dt, sdt) {
     $('hpFill').style.transform = 'scaleX(' + (Math.max(0, PL.hp) / 100).toFixed(3) + ')';
     $('hpFill').style.background = PL.hp < 35 ? '#ff7a5c' : PL.hp < 65 ? '#f2c94c' : '#9fdc7a';
     $('hpTxt').textContent = Math.max(0, Math.round(PL.hp));
-    const nn = nearNest();
-    $('bUse').hidden = !(B.mounted || nn);
-    $('useTxt').textContent = B.mounted ? 'СЛЕЗТЬ' : 'ЗА ПУЛЕМЁТ';
+    const nn = nearNest(), nm = nn ? null : nearMortar();
+    $('bUse').hidden = !(B.mounted || nn || B.mortarMode || nm);
+    $('useTxt').textContent = B.mounted ? 'СЛЕЗТЬ' : B.mortarMode ? 'ОТОЙТИ' : nn ? 'ЗА ПУЛЕМЁТ' : 'К МИНОМЁТУ';
     updateArtBtn();
+    B.mmT -= 0.25; if (B.mmT <= 0) { B.mmT = mmBig ? 0.25 : 0.5; drawMinimap(); }
+    const R = roleOf(), v = R.val(), ob = $('obj');
+    if (v >= R.need && !B.objDone) { B.objDone = true; cmdSay('Задача «' + R.obj + '» выполнена. Молодец!'); }
+    if (ob) ob.innerHTML = (B.objDone ? '✔ ' : '◆ ') + R.obj + ' <b>' + Math.min(v, R.need) + '/' + R.need + '</b>' + (B.obj2 ? '<br>▶ ' + B.obj2.text + ' · ' + Math.round(B.obj2.pos.distanceTo(PL.pos)) + ' м' : '');
   }
 };
 // помощник прицеливания и метки противника
@@ -2047,7 +2497,7 @@ HOOK.drawOverlay = function (o, W, H, D) {
   if (PL.robot && PL.alive) {
     o.fillStyle = 'rgba(255,90,30,0.035)'; o.fillRect(0, 0, W, H);
     if (PL.Z.head.hp <= 0 || (PL.Z.head.hp < PL.Z.head.max * 0.3 && Math.random() < 0.3)) { o.fillStyle = 'rgba(200,200,200,' + (0.08 + Math.random() * 0.1) + ')'; for (let i = 0; i < 40; i++) o.fillRect(Math.random() * W, Math.random() * H, 30 * D, 2 * D); }
-    const x0 = 14 * D, y0 = 92 * D, s = 6 * D;
+    const x0 = ((MM && !MM.hidden ? MM.getBoundingClientRect().right : 0) + 10) * D, y0 = 14 * D, s = 6 * D;
     const col = (z) => { const Z = PL.Z[z]; const f = Math.max(0, Z.hp / Z.max); return Z.hp <= 0 ? 'rgba(60,60,60,.8)' : 'rgba(' + Math.round(255 - 150 * f) + ',' + Math.round(80 + 140 * f) + ',60,.85)'; };
     o.fillStyle = col('head'); o.fillRect(x0 + s * 1.5, y0, s * 1.6, s * 1.4);
     o.fillStyle = col('torso'); o.fillRect(x0 + s, y0 + s * 1.6, s * 2.6, s * 3);
@@ -2063,6 +2513,40 @@ HOOK.drawOverlay = function (o, W, H, D) {
       o.fillStyle = 'rgba(120,200,255,.85)'; o.font = 600 * 1 + ' ' + 10 * D + 'px monospace'; o.textAlign = 'center';
       o.fillText(m.cls === 'medic' ? '✚' : '▼', s[0], s[1]);
     }
+  }
+  // метки раненых своих
+  if (PL.alive && !PL.robot) {
+    o.lineWidth = 2.2 * D;
+    for (const u of units) {
+      if (u.team !== PL.team || u.isPlayer || u.nest) continue;
+      const hurt = u.alive && u.hp < 60, dn = !u.alive && u.down;
+      if (!hurt && !dn) continue;
+      const dd = Math.abs(u.pos.x - PL.pos.x) + Math.abs(u.pos.z - PL.pos.z); if (dd > 300) continue;
+      const s = toScreen(_v.set(u.pos.x, u.pos.y + (dn ? 0.7 : 2.0), u.pos.z), W, H); if (!s) continue;
+      const k = (dn ? 9 : 7.5) * D;
+      o.strokeStyle = dn ? (u.stab ? 'rgba(170,170,170,.7)' : 'rgba(255,60,50,' + (0.6 + 0.4 * Math.sin(B.t * 5)).toFixed(2) + ')') : 'rgba(242,201,76,.9)';
+      o.beginPath(); o.moveTo(s[0] - k, s[1]); o.lineTo(s[0] + k, s[1]); o.moveTo(s[0], s[1] - k); o.lineTo(s[0], s[1] + k); o.stroke();
+      if (dn && dd < 60) { o.fillStyle = o.strokeStyle; o.font = 9 * D + 'px monospace'; o.textAlign = 'center'; o.fillText(Math.round(dd) + ' м', s[0], s[1] + k + 10 * D); }
+    }
+  }
+  // точка задачи
+  if (B.obj2 && PL.alive) {
+    const s = toScreen(_v.set(B.obj2.pos.x, B.obj2.pos.y + 2.5, B.obj2.pos.z), W, H);
+    if (s) { const k = 8 * D; o.strokeStyle = '#f2c94c'; o.lineWidth = 2 * D; o.beginPath(); o.moveTo(s[0], s[1] - k); o.lineTo(s[0] + k, s[1]); o.lineTo(s[0], s[1] + k); o.lineTo(s[0] - k, s[1]); o.closePath(); o.stroke(); o.fillStyle = '#f2c94c'; o.font = 600 + ' ' + 11 * D + 'px monospace'; o.textAlign = 'center'; o.fillText(Math.round(B.obj2.pos.distanceTo(PL.pos)) + ' м', s[0], s[1] + k + 12 * D); }
+  }
+  // миномёт игрока
+  if (B.mortarMode) {
+    const m = B.mortarMode, az = Math.round(((-P.yaw * 180 / Math.PI) % 360 + 360) % 360);
+    o.fillStyle = 'rgba(0,0,0,.45)'; o.fillRect(W / 2 - 170 * D, 58 * D, 340 * D, 24 * D);
+    o.fillStyle = '#f2e6b0'; o.font = 600 + ' ' + 12 * D + 'px monospace'; o.textAlign = 'center';
+    o.fillText('82 мм · дальность ' + m.range + ' м · азимут ' + az + '° · подлёт ' + Math.round(7 + m.range / 260) + ' с', W / 2, 75 * D);
+    const tp = m.pos.clone().add(_v.set(-Math.sin(P.yaw) * m.range, 0, -Math.cos(P.yaw) * m.range)); tp.y = terrainH(tp.x, tp.z) + 1;
+    const s = toScreen(tp, W, H);
+    if (s) { o.strokeStyle = 'rgba(255,200,80,.9)'; o.lineWidth = 1.5 * D; o.beginPath(); o.arc(s[0], s[1], 9 * D, 0, TAU); o.moveTo(s[0] - 14 * D, s[1]); o.lineTo(s[0] + 14 * D, s[1]); o.stroke(); }
+  }
+  if (B.lastMortar && B.t < B.lastMortar.t + 15) {
+    const s = toScreen(_v.set(B.lastMortar.pos.x, terrainH(B.lastMortar.pos.x, B.lastMortar.pos.z) + 1, B.lastMortar.pos.z), W, H);
+    if (s) { o.strokeStyle = B.t < B.lastMortar.t ? 'rgba(255,220,120,.8)' : 'rgba(255,120,60,.8)'; o.lineWidth = 1.5 * D; o.beginPath(); o.arc(s[0], s[1], 6 * D, 0, TAU); o.stroke(); o.fillStyle = o.strokeStyle; o.font = 10 * D + 'px monospace'; o.textAlign = 'center'; o.fillText(B.t < B.lastMortar.t ? 'подлёт ' + Math.ceil(B.lastMortar.t - B.t) + ' с' : 'разрыв', s[0], s[1] - 10 * D); }
   }
   const R = Math.min(W, H) * 0.32;
   for (const d of B.dirs) {
