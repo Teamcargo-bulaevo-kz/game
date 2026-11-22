@@ -1210,7 +1210,6 @@ document.addEventListener('pointerdown', (e) => {
 }, true);
 function selectRifle(i) {
   if (HOOK.dead) return;
-  if (HOOK.canSwitch && !HOOK.canSwitch()) return;
   if (i === S.rifle && rifleModels[curRifle().look]) return;
   S.rifle = (i + RIFLES.length) % RIFLES.length; save();
   cycleT = 0.6; reloadT = 0;
