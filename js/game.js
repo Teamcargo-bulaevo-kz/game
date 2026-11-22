@@ -182,15 +182,18 @@ RIFLES.push(
 RIFLES.push({ id: 'm82', name: 'Миномёт 82 мм', full: 'Батальонный миномёт', org: 'RU', type: 'mortar', mounted: true, cal: 'осколочная мина 3,1 кг', mv: 211, bc: 1, g: 3100, sh: 0, mag: 1, cycle: 3, recoil: 0, sg: 0, scope: 'iron_ak', disp: 0, look: 'm82' });
 RIFLES.push({ id: 'kord', name: '«Корд» 12,7', full: 'Станковый крупнокалиберный пулемёт', org: 'RU', type: 'auto', mounted: true, cal: '12,7×108 · Б-32, 48 г', mv: 820, bc: 0.33, g: 48, sh: 0.1, mag: 150, rpm: 650, recoil: 0.18, sg: 1.8, scope: 'iron_kord', disp: 0.55, look: 'kord' });
 Object.assign(SCOPES, {
-  reddot: { id: 'reddot', name: 'Коллиматор', iron: true, dot: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 46 },
+  reddot: { id: 'reddot', name: 'Коллиматор', iron: true, dot: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 50 },
+  holosight: { id: 'holosight', name: 'Голографический', iron: true, dot: true, holo: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 44 },
+  acog: { id: 'acog', name: 'ACOG 4×', min: 4, max: 4, unit: 'thou', click: 0.5, maxW: 0, drumMax: 8, ret: 'acog' },
+  lpvo: { id: 'lpvo', name: 'Оптика 2–6×', min: 2, max: 6, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, ret: 'lpvo' },
   posp:   { id: 'posp',   name: 'ПОСП 8×42', min: 8, max: 8, unit: 'thou', click: 0.5, maxW: 10, ret: 'pso' },
   thermo: { id: 'thermo', name: 'Тепловизор 3–12×', min: 3, max: 12, unit: 'mrad', click: 0.1, maxE: 25, maxW: 10, ret: 'mildot', thermal: true },
-  iron_kord: { id: 'iron_kord', name: 'Прицел «Корда» 1–20', iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 20, fov: 34 },
+  iron_kord: { id: 'iron_kord', name: 'Прицел «Корда» 1–20', iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 20, fov: 31 },
   holo:    { id: 'holo',    name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 20, maxW: 5, ret: 'holo' },
   holo_rk: { id: 'holo_rk', name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 0, maxW: 0, ret: 'holo', rocket: true },
-  iron_ak:  { id: 'iron_ak',  name: 'Открытый прицел 1–10',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 42 },
-  iron_pkm: { id: 'iron_pkm', name: 'Открытый прицел 1–15',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 15, fov: 40 },
-  iron_m4:  { id: 'iron_m4',  name: 'Диоптр 1–6',            iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 6,  fov: 42 },
+  iron_ak:  { id: 'iron_ak',  name: 'Открытый прицел 1–10',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 37 },
+  iron_pkm: { id: 'iron_pkm', name: 'Открытый прицел 1–15',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 15, fov: 35 },
+  iron_m4:  { id: 'iron_m4',  name: 'Диоптр 1–6',            iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 6,  fov: 38 },
   pgo:      { id: 'pgo',      name: 'ПГО-7 2,7×', rocket: true, min: 2.7, max: 2.7, unit: 'thou', click: 0.5, maxW: 0, ret: 'pgo' },
 });
 const WEATHER = {
@@ -215,7 +218,7 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, foe: 'bot', sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
 if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
@@ -223,14 +226,15 @@ const HOOK = {};
 const SHAKE = { a: 0 };
 const HM = { t: 0, kind: '' };
 let fireHeld = false;
+const LASER = { on: false, line: null, dot: null, d: 60, f: 0 };
 function save() { try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (e) { /* ignore */ } }
 const Q = QUALITY[S.quality] || QUALITY.mid;
 MAPM = S.gmode === 'battle' ? 'battle' : 'range';
 
 const TUR = {};   // состояние барабанов на каждую винтовку
-RIFLES.forEach((r) => { TUR[r.id] = { e: 0, w: 0, drum: 1, zoom: null, ammo: r.mag, reserve: null }; });
+RIFLES.forEach((r) => { TUR[r.id] = { e: 0, w: 0, drum: 1, zoom: null, ammo: r.mag, reserve: null, mags: null }; });
 const curRifle = () => RIFLES[S.rifle];
-const AUTO_SC = ['reddot', 'pso'];
+const AUTO_SC = ['reddot', 'holosight', 'acog', 'lpvo', 'pso'];
 const scopeOf = (rf) => (rf.type === 'sniper' ? SCOPES[S.scopes[rf.id] || rf.scope] : rf.type === 'auto' && !rf.mounted && rf.org !== 'BOT' && AUTO_SC.indexOf(S.scopes[rf.id]) >= 0 ? SCOPES[S.scopes[rf.id]] : SCOPES[rf.scope]) || SCOPES[rf.scope];
 const curScope = () => scopeOf(curRifle());
 const curTur = () => TUR[curRifle().id];
@@ -788,10 +792,20 @@ function buildIron(look) {
     box(0.03, 0.024, 0.22, BLK, 0, -0.024, -0.56);                       // газовая трубка
     cyl(0.009, 0.009, L - 0.42, BLK, 0, -0.045, -0.42 - (L - 0.42) / 2);  // ствол
     box(0.034, 0.12, 0.05, DARK, 0, -0.14, -0.14).rotation.x = 0.25;     // рукоять
+    box(0.03, 0.032, 0.05, DARK, 0, -0.038, -0.64);                       // газовый блок
+    cyl(0.0125, 0.0125, 0.045, BLK, 0, -0.045, -L + 0.01);               // дульный тормоз
+    box(0.006, 0.006, 0.36, 0x8c8a82, 0, -0.082, -0.58);                  // шомпол
+    box(0.012, 0.022, 0.04, 0x2a2a28, 0.034, -0.062, -0.28);              // затворная рукоять
+    box(0.052, 0.004, 0.3, 0x2b2b29, 0, -0.1, -0.30);                     // нижняя кромка коробки
+    for (let i = 0; i < 4; i++) box(0.058, 0.006, 0.02, 0x2a1e18, 0, -0.045, -0.5 - i * 0.04); // вентиляционные прорези цевья
+    box(0.05, 0.095, 0.012, 0x1c1c1b, 0, -0.1, 0.115);                    // затылок приклада
+    box(0.03, 0.014, 0.034, BLK, 0, -0.0065, -0.285);                     // подушка целика
     box(0.05, 0.09, 0.22, pk ? 0x2a2a28 : 0x3a2a22, 0, -0.1, 0.0);       // приклад
     // целик: планка с прорезью
     box(0.026, 0.014, 0.03, BLK, 0, -0.016, -0.24);
     box(0.0075, 0.009, 0.006, BLK, -0.0052, -0.0045, -0.24); box(0.0075, 0.009, 0.006, BLK, 0.0052, -0.0045, -0.24);
+    box(0.008, 0.012, 0.016, BLK, -0.014, -0.012, -0.245); box(0.008, 0.012, 0.016, BLK, 0.014, -0.012, -0.245); // плечи целика
+    box(0.02, 0.004, 0.06, 0x2b2b2a, 0, -0.019, -0.265).rotation.x = -0.05;   // планка целика
     // мушка с намушником
     const fz = -L + 0.03;
     box(0.026, 0.03, 0.03, BLK, 0, -0.03, fz);
@@ -808,6 +822,11 @@ function buildIron(look) {
     box(0.034, 0.11, 0.045, BLK, 0, -0.12, -0.1).rotation.x = 0.3;
     box(0.045, 0.08, 0.2, 0x2b2c2a, 0, -0.11, 0.0);
     box(0.03, 0.16, 0.06, 0x3a3a36, 0, -0.15, -0.28).rotation.x = 0.1;
+    for (let i = 0; i < 6; i++) box(0.03, 0.004, 0.008, 0x1a1a1a, 0, -0.0415, -0.2 - i * 0.05);  // пазы планки
+    box(0.012, 0.03, 0.03, 0x2b2c2a, 0.034, -0.06, -0.3);                 // толкатель затвора
+    box(0.062, 0.058, 0.01, 0x222322, 0, -0.055, -0.4); box(0.062, 0.058, 0.01, 0x222322, 0, -0.055, -0.62);  // тепловые накладки
+    cyl(0.013, 0.013, 0.07, BLK, 0, -0.06, -0.92);                        // пламегаситель
+    box(0.05, 0.016, 0.07, 0x33342f, 0, -0.04, -0.2);                     // ручка-переноска (основание)
     // диоптр
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0045, 0.0018, 6, 18), M(BLK)); ring.position.set(0, 0, -0.2); g.add(ring);
     box(0.016, 0.03, 0.01, BLK, 0, -0.021, -0.2);
@@ -1008,13 +1027,48 @@ function sndImpact(kind, delay, dist) {
 }
 function sndBeep() { if (!AC || !S.sound) return; tone(AC.currentTime, 2400, 0.08, 0.12, 'square'); }
 
+/* ---------------- лазерный целеуказатель на оружии игрока ---------------- */
+function initLaser() {
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  LASER.line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xff2a18, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
+  LASER.line.frustumCulled = false; LASER.line.visible = false; scene.add(LASER.line);
+  LASER.dot = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff3020, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
+  LASER.dot.visible = false; scene.add(LASER.dot);
+}
+function toggleLaser() { LASER.on = !LASER.on; $('bLaser').classList.toggle('on', LASER.on); if (HOOK.toast) HOOK.toast('Лазер ' + (LASER.on ? 'включён' : 'выключен')); }
+HOOK.laserOn = () => LASER.on && !HOOK.dead;
+const _ld = new V3(), _lo = new V3(), _lr = new V3(), _lu = new V3();
+function updateLaserBeam() {
+  if (!LASER.line) initLaser();
+  const rf = curRifle();
+  const vis = LASER.on && !HOOK.dead && started && (AIM.mode === 'hip' || (AIM.mode === 'scope' && curScope().iron)) && !rf.mounted && rf.type !== 'mortar';
+  LASER.line.visible = LASER.dot.visible = vis; if (!vis) return;
+  const q = camera.quaternion, p = camera.position;
+  _ld.set(0, 0, -1).applyQuaternion(q); _lr.set(1, 0, 0).applyQuaternion(q); _lu.set(0, 1, 0).applyQuaternion(q);
+  if ((LASER.f++ & 1) === 0) {
+    let best = HOOK.rayUnits ? HOOK.rayUnits(p, _ld, 500) : Infinity;
+    const tr = marchTerrain(p, _ld, Math.min(best, 500)); if (tr < best) best = tr;
+    LASER.d = best < 500 ? best : 500;
+  }
+  const k = 1 - AIM.blend * 0.85;
+  _lo.copy(p).addScaledVector(_ld, 0.6).addScaledVector(_lr, 0.1 * k).addScaledVector(_lu, -0.11 * k);
+  const hx = p.x + _ld.x * LASER.d, hy = p.y + _ld.y * LASER.d, hz = p.z + _ld.z * LASER.d;
+  const a = LASER.line.geometry.attributes.position.array; a[0] = _lo.x; a[1] = _lo.y; a[2] = _lo.z; a[3] = hx; a[4] = hy; a[5] = hz;
+  LASER.line.geometry.attributes.position.needsUpdate = true;
+  const night = !!(WEATHER[S.weather] && WEATHER[S.weather].night);
+  LASER.line.material.opacity = night ? 0.8 : 0.22; LASER.dot.material.opacity = night ? 1 : 0.85;
+  LASER.dot.position.set(hx - _ld.x * 0.05, hy - _ld.y * 0.05, hz - _ld.z * 0.05);
+  const sz = 0.05 + LASER.d * 0.0065; LASER.dot.scale.set(sz, sz, 1);
+}
+
 /* ---------------- игрок ---------------- */
+let landDip = 0;
 const P = { x: 0, z: 0.6, yaw: 0, pitch: 0.01, stance: 0, eye: 1.62, moving: 0, bob: 0, jy: 0, vy: 0, runLock: false, lean: 0, leanV: 0 };
 function setLean(d) { P.lean = P.lean === d ? 0 : d; $('bLeanL').classList.toggle('on', P.lean === -1); $('bLeanR').classList.toggle('on', P.lean === 1); }
 function jump() {
   if (HOOK.dead || P.jy > 0.01 || P.stance === 2 || AIM.mode !== 'hip' || curRifle().mounted || (HOOK.noJump && HOOK.noJump())) return;
   if (P.stance === 1) { setStance(1); return; }
-  P.vy = P.robot ? 6.2 : 4.4; P.jy = 0.001;
+  P.vy = P.robot ? 9.6 : 6.9; P.jy = 0.001;
 }
 const STANCE = [
   { eye: 1.62, speed: 3.6, sway: 3.0, tremor: 0.55, kick: 1.6, name: 'Стоя' },
@@ -1053,6 +1107,7 @@ function setAim(mode) {
   if (mode === 'scope') { const st = curTur(); AIM.zoom = st.zoom || sc.min; }
   $('bScope').classList.toggle('on', mode === 'scope'); $('bScopeL').classList.toggle('on', mode === 'scope');
   $('bBino').classList.toggle('on', mode === 'bino');
+  document.body.classList.toggle('aiming', mode !== 'hip');
   rifleHolder.visible = mode === 'hip' || (mode === 'scope' && sc.iron);
   if (sc.thermal && mode === 'scope') { VIS.prev = VIS.mode; setVision('thermal'); }
   else if (VIS.prev != null && mode !== 'scope') { setVision(VIS.prev); VIS.prev = null; }
@@ -1126,10 +1181,36 @@ function updateWeaponUI() {
   const rf = curRifle(), st = curTur();
   $('wName').textContent = rf.name;
   $('wCal').textContent = rf.cal + ' · ' + scopeOf(rf).name;
-  $('wAmmo').textContent = reloadT > 0 ? '···' : rf.type === 'rocket' ? st.ammo + ' + ' + (st.reserve == null ? '∞' : st.reserve) : st.ammo + '/' + rf.mag;
+  $('wAmmo').textContent = reloadT > 0 ? '···' : ammoText(rf, st);
+  if (!$('wList').hidden) renderWeaponList();
 }
+function ammoText(rf, st) { return rf.type === 'rocket' ? st.ammo + ' + ' + (st.reserve == null ? '∞' : st.reserve) : st.ammo + '/' + rf.mag + (st.mags != null ? ' · ' + st.mags : ''); }
+let wlT = 0;
+function weaponChoices() {
+  const l = HOOK.weapons ? HOOK.weapons() : null; if (l) return l;
+  const a = []; RIFLES.forEach((r, i) => { if (!r.mounted && r.org !== 'BOT') a.push(i); }); return a;
+}
+function renderWeaponList() {
+  const el = $('wList'); el.innerHTML = '';
+  weaponChoices().forEach((i, n) => {
+    const r = RIFLES[i], st = TUR[r.id], b = document.createElement('button'); b.type = 'button'; b.className = 'wi' + (i === S.rifle ? ' on' : '');
+    b.innerHTML = '<span class="k">' + (n + 1) + '</span><span class="n">' + r.name + '</span><span class="s">' + scopeOf(r).name + '</span><span class="a">' + ammoText(r, st) + '</span>';
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); selectRifle(i); el.hidden = true; });
+    el.appendChild(b);
+  });
+}
+function toggleWeaponList() {
+  const el = $('wList'); if (!el.hidden) { el.hidden = true; return; }
+  if (HOOK.canSwitch && !HOOK.canSwitch()) return;
+  renderWeaponList(); el.hidden = false; clearTimeout(wlT); wlT = setTimeout(() => { el.hidden = true; }, 7000);
+}
+document.addEventListener('pointerdown', (e) => {
+  if (!$('wList').hidden && !e.target.closest('#wList,#weapon')) $('wList').hidden = true;
+  if (!$('morePanel').hidden && !e.target.closest('#morePanel,#bMore')) $('morePanel').hidden = true;
+}, true);
 function selectRifle(i) {
   if (HOOK.dead) return;
+  if (HOOK.canSwitch && !HOOK.canSwitch()) return;
   if (i === S.rifle && rifleModels[curRifle().look]) return;
   S.rifle = (i + RIFLES.length) % RIFLES.length; save();
   cycleT = 0.6; reloadT = 0;
@@ -1140,6 +1221,7 @@ function reload() {
   const rf = curRifle(), st = curTur();
   if (reloadT > 0 || st.ammo === rf.mag || HOOK.dead) return;
   if (st.reserve === 0) return;
+  if (st.mags === 0) { if (HOOK.noAmmo) HOOK.noAmmo(); return; }
   reloadT = rf.type === 'rocket' ? 3.6 : rf.id === 'pkm' ? 5.5 : rf.type === 'auto' ? 2.4 : rf.semi ? 2.6 : 3.2;
   if (AC && S.sound) { const t = AC.currentTime; noiseHit(t + 0.3, 0.07, 'bandpass', 1500, 0.4, 2); noiseHit(t + reloadT - 0.6, 0.08, 'bandpass', 2000, 0.45, 2); }
   updateWeaponUI();
@@ -1191,7 +1273,7 @@ function fire() {
   const q = camera.quaternion;
   const dir = new V3(0, 0, -1).applyQuaternion(q), up = new V3(0, 1, 0).applyQuaternion(q), right = new V3(1, 0, 0).applyQuaternion(q);
   const origin = camera.position.clone().addScaledVector(up, -rf.sh).addScaledVector(dir, 0.5);
-  const hipK = AIM.mode === 'hip' ? (rf.type === 'sniper' ? 3 : 2.2) : 1;
+  const hipK = AIM.mode === 'hip' ? (rf.type === 'sniper' ? 3 : 2.2) * (LASER.on ? 0.62 : 1) : 1;
   const disp = rf.disp * hipK * (rf.type === 'auto' && P.stance === 2 ? 0.6 : 1) * 0.001 * (HOOK.dispMul || 1);
   if (S.vibro && navigator.vibrate) { try { navigator.vibrate(rf.type === 'auto' ? 7 : 18); } catch (e) { /* ignore */ } }
   const d = dir.clone();
@@ -1515,15 +1597,17 @@ tapButton($('bCrouch'), () => setStance(1));
 tapButton($('bProne'), () => setStance(2));
 tapButton($('bReload'), reload);
 tapButton($('bJump'), jump);
+tapButton($('bLaser'), toggleLaser);
 tapButton($('bLeanL'), () => setLean(-1));
 tapButton($('bLeanR'), () => setLean(1));
 tapButton($('bGren'), () => { if (HOOK.grenade) HOOK.grenade(); });
-tapButton($('bRun'), () => { P.runLock = !P.runLock; $('bRun').classList.toggle('on', P.runLock); });
 tapButton($('bVision'), () => setVision(VIS.mode === 'off' ? 'nvg' : VIS.mode === 'nvg' ? 'thermal' : 'off'));
 tapButton($('bSquad'), () => { if (HOOK.squadMenu) HOOK.squadMenu(); });
 tapButton($('bMed'), () => { if (HOOK.medkit) HOOK.medkit(); });
 tapButton($('bUse'), () => { if (HOOK.use) HOOK.use(); });
-tapButton($('weapon'), () => { if (HOOK.nextWeapon) HOOK.nextWeapon(); else selectRifle(S.rifle + 1); });
+tapButton($('weapon'), toggleWeaponList);
+tapButton($('bMore'), () => { $('morePanel').hidden = !$('morePanel').hidden; });
+$('morePanel').addEventListener('pointerup', () => { setTimeout(() => { $('morePanel').hidden = true; }, 160); });
 const bBreath = $('bBreath');
 bBreath.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); BR.hold = true; bBreath.classList.add('on'); try { bBreath.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } });
 const brUp = () => { BR.hold = false; bBreath.classList.remove('on'); };
@@ -1573,8 +1657,9 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'KeyX') turretStep('0');
   else if (k === 'Tab') { e.preventDefault(); if ($('card').hidden) openCard(); else $('card').hidden = true; }
   else if (k === 'KeyM' || k === 'Escape') openMenu();
-  else if (/^Digit[0-9]$/.test(k) && !HOOK.battle) { const i = (+k.slice(5) + 9) % 10; if (!RIFLES[i].mounted) selectRifle(i); }
+  else if (/^Digit[0-9]$/.test(k)) { if (HOOK.canSwitch && !HOOK.canSwitch()) return; if (HOOK.battle) { const l = weaponChoices(), i = l[(+k.slice(5) + 9) % 10]; if (i != null) selectRifle(i); } else { const i = (+k.slice(5) + 9) % 10; if (!RIFLES[i].mounted) selectRifle(i); } }
   else if (k === 'KeyG' && HOOK.callArt) HOOK.callArt();
+  else if (k === 'KeyL') toggleLaser();
 });
 window.addEventListener('keyup', (e) => { input.keys[e.code] = false; if (e.code === 'Space') fireHeld = false; if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') BR.hold = false; });
 
@@ -1593,11 +1678,11 @@ function updatePlayer(dt) {
   P.x += (mx * cy - my * sy) * sp * dt;
   P.z += (-mx * sy - my * cy) * sp * dt;
   if (HOOK.battle) { P.x = clamp(P.x, -700, 700); P.z = clamp(P.z, -2300, 560); } else { P.x = clamp(P.x, -160, 160); P.z = clamp(P.z, -320, 90); }
-  if (HOOK.chute) { P.vy = -5.5; P.jy = Math.max(0, P.jy - 5.5 * dt); if (P.jy <= 0) { P.vy = 0; if (HOOK.land) HOOK.land(); } }
-  else if (P.jy > 0 || P.vy > 0) { P.vy -= 9.8 * dt; P.jy += P.vy * dt; if (P.jy <= 0) { P.jy = 0; P.vy = 0; if (HOOK.land) HOOK.land(); } }
+  if (HOOK.chute) { P.vy = -5.5; P.jy = Math.max(0, P.jy - 5.5 * dt); if (P.jy <= 0) { landDip = 0.22; P.vy = 0; if (HOOK.land) HOOK.land(); } }
+  else if (P.jy > 0 || P.vy > 0) { P.vy -= (P.vy > 0 ? 24 : 38) * dt; P.jy += P.vy * dt; if (P.jy <= 0) { landDip = clamp(-P.vy * 0.022, 0.05, 0.24); SHAKE.a += 0.012; P.jy = 0; P.vy = 0; if (HOOK.land) HOOK.land(); } }
   if (HOOK.move) HOOK.move();
   P.moving = lerp(P.moving, Math.min(1, Math.hypot(mx, my)), dt * 6);
-  P.eye = lerp(P.eye, st.eye, dt * 5);
+  P.eye = lerp(P.eye, st.eye, Math.min(1, dt * (st.eye < P.eye ? 16 : 9)));
   P.bob += dt * sp * 2.2 * P.moving;
 }
 function updateSway(dt) {
@@ -1624,7 +1709,7 @@ function updateSway(dt) {
   REC.v += (-120 * REC.k - 19 * REC.v) * dt;
   REC.k += REC.v * dt;
   cycleT = Math.max(0, cycleT - dt);
-  if (reloadT > 0) { reloadT -= dt; if (reloadT <= 0) { reloadT = 0; const st = curTur(); st.ammo = curRifle().mag; if (st.reserve != null) st.reserve = Math.max(0, st.reserve - 1); updateWeaponUI(); } }
+  if (reloadT > 0) { reloadT -= dt; if (reloadT <= 0) { reloadT = 0; const st = curTur(); st.ammo = curRifle().mag; if (st.reserve != null) st.reserve = Math.max(0, st.reserve - 1); else if (st.mags != null) st.mags = Math.max(0, st.mags - 1); updateWeaponUI(); } }
 }
 function applyCamera(dt) {
   const gy = terrainH(P.x, P.z);
@@ -1638,7 +1723,8 @@ function applyCamera(dt) {
   const shx = (vnoise(simT * 23, 3.1) - 0.5) * shk, shy = (vnoise(simT * 23, 8.7) - 0.5) * shk;
   P.leanV += ((P.stance === 2 || curRifle().mounted ? 0 : P.lean) - P.leanV) * Math.min(1, dt * 8);
   const lx = Math.cos(P.yaw) * 0.38 * P.leanV, lz = -Math.sin(P.yaw) * 0.38 * P.leanV;
-  camera.position.set(P.x + lx, gy + P.eye + bob + P.jy - Math.abs(P.leanV) * 0.06 + (HOOK.camDY || 0) + (HOOK.climbY ? HOOK.climbY(P.x, P.z) : 0), P.z + lz);
+  landDip *= Math.exp(-dt * 13);
+  camera.position.set(P.x + lx, gy + P.eye + bob + P.jy - landDip - Math.abs(P.leanV) * 0.06 + (HOOK.camDY || 0) + (HOOK.climbY ? HOOK.climbY(P.x, P.z) : 0), P.z + lz);
   camera.rotation.y = P.yaw - SW.x * 0.001 + shx;
   camera.rotation.x = P.pitch + SW.y * 0.001 + REC.k + shy;
   camera.rotation.z = (HOOK.camRoll || 0) - P.leanV * 0.17;
@@ -1647,6 +1733,7 @@ function applyCamera(dt) {
   if (Math.abs(camera.fov - fov) > 1e-4) { camera.fov = fov; camera.updateProjectionMatrix(); }
   const hip = rf.type === 'sniper' ? HIP_S : rf.type === 'rocket' ? HIP_R : HIP_I;
   const k = AIM.blend, mv = P.moving * (1 - k) * run;
+  if (AIM.mode === 'scope' && sc.iron && !sc.dot) rifleHolder.visible = AIM.blend < 0.8;
   rifleHolder.position.set(
     lerp(hip.x, ADS.x, k) + Math.sin(P.bob) * 0.012 * mv,
     lerp(hip.y, ADS.y, k) + Math.abs(Math.cos(P.bob)) * 0.012 * mv - (P.sprint ? 0.06 : 0),
@@ -1769,11 +1856,12 @@ function drawReticle(type, cx, cy, k, R) {
   const lw = 1.2 * OVD;
   o.lineWidth = lw; o.strokeStyle = 'rgba(8,8,8,.95)'; o.fillStyle = 'rgba(8,8,8,.95)'; o.textAlign = 'center'; o.textBaseline = 'middle';
   const E = R / k + 5;  // до края поля зрения, мрад
-  if (type === 'mildot') {
+  if (type === 'mildot' || type === 'lpvo') {
     line(cx, cy, k, -E, 0, E, 0); line(cx, cy, k, 0, -E, 0, E);
     o.lineWidth = Math.max(lw, 0.5 * k);
     line(cx, cy, k, -E, 0, -5, 0); line(cx, cy, k, 5, 0, E, 0); line(cx, cy, k, 0, 5, 0, E); line(cx, cy, k, 0, -E, 0, -5);
     for (let i = -4; i <= 4; i++) if (i) { dot(cx, cy, k, i, 0, 0.125); dot(cx, cy, k, 0, i, 0.125); }
+    if (type === 'lpvo') { o.fillStyle = 'rgba(255,50,30,.95)'; o.shadowColor = 'rgba(255,50,30,.8)'; o.shadowBlur = 5 * OVD; o.beginPath(); o.arc(cx, cy, Math.max(1.6 * OVD, 0.18 * k), 0, TAU); o.fill(); o.shadowBlur = 0; }
   } else if (type === 'moa') {
     const m = UNIT.moa / 0.001;
     line(cx, cy, k, -E, 0, E, 0); line(cx, cy, k, 0, -E, 0, E);
@@ -1798,6 +1886,19 @@ function drawReticle(type, cx, cy, k, R) {
     for (let r = 1; r <= 10; r++) { const n = Math.min(r + 1, 7); for (let j = -n; j <= n; j++) if (j) dot(cx, cy, k, j, r, 0.06); }
     o.lineWidth = Math.max(lw * 2.5, 0.35 * k);
     line(cx, cy, k, -E, 0, -12, 0); line(cx, cy, k, 12, 0, E, 0); line(cx, cy, k, 0, 12, 0, E); line(cx, cy, k, 0, -E, 0, -7);
+  } else if (type === 'acog') {
+    const rf = curRifle(), st = curTur(), base = stdElev(rf, st.drum * 100);
+    o.lineWidth = Math.max(lw * 2.4, 0.3 * k); line(cx, cy, k, -E, 0, -7, 0); line(cx, cy, k, 7, 0, E, 0); line(cx, cy, k, 0, 7, 0, E);
+    o.lineWidth = lw; line(cx, cy, k, -7, 0, -1.6, 0); line(cx, cy, k, 1.6, 0, 7, 0); line(cx, cy, k, 0, 1.6, 0, 7);
+    for (let i = 1; i <= 6; i++) { line(cx, cy, k, i, -0.35, i, 0.35); line(cx, cy, k, -i, -0.35, -i, 0.35); }
+    // отметки превышения для следующих сотен метров от выставленной дальности
+    for (let n = 1; n <= 4; n++) {
+      const D = (st.drum + n) * 100; if (st.drum + n > (curScope().drumMax || 8)) break;
+      const off = (stdElev(rf, D) - base) * 1000 + 1.6; line(cx, cy, k, -1.1, off, 1.1, off);
+      o.font = Math.max(9, 10 * OVD) + 'px sans-serif'; o.fillText(String(st.drum + n), cx + 2.2 * k, cy + off * k);
+    }
+    o.strokeStyle = 'rgba(255,60,30,.97)'; o.shadowColor = 'rgba(255,60,30,.9)'; o.shadowBlur = 7 * OVD; o.lineWidth = Math.max(lw * 1.8, 0.28 * k);
+    o.beginPath(); o.moveTo(cx - 1.5 * k, cy + 1.9 * k); o.lineTo(cx, cy); o.lineTo(cx + 1.5 * k, cy + 1.9 * k); o.stroke(); o.shadowBlur = 0;
   } else if (type === 'pso') {
     const t = UNIT.thou / 0.001; // тысячная в мрад
     // боковая шкала поправок
@@ -1867,22 +1968,78 @@ function drawHolo(W, H, k) {
   o.fillText(AIM.zoom.toFixed(1).replace('.0', '') + '×   ' + (reloadT > 0 ? 'ПЕРЕЗАРЯДКА' : st.ammo + '/' + rf.mag), cx, H - 34 * OVD);
   o.font = 11 * OVD + 'px monospace'; o.fillText('БАЛЛИСТИЧЕСКИЙ ВЫЧИСЛИТЕЛЬ · ◆ — точка попадания', cx, 70 * OVD);
 }
+function rrPath(x, y, w, h, r) { o.moveTo(x + r, y); o.arcTo(x + w, y, x + w, y + h, r); o.arcTo(x + w, y + h, x, y + h, r); o.arcTo(x, y + h, x, y, r); o.arcTo(x, y, x + w, y, r); o.closePath(); }
+// настоящий коллиматор: корпус с окном, стекло с бликом, подсвеченная марка с параллаксом
+function drawCollimator(W, H) {
+  const a = clamp((AIM.blend - 0.3) / 0.7, 0, 1); if (a < 0.02) return;
+  const sc = curScope(), holo = !!sc.holo, cx = W / 2, cy = H / 2;
+  const ww = H * (holo ? 0.92 : 0.78), wh = H * (holo ? 0.52 : 0.44), f = H * 0.016, r = H * 0.045;
+  const night = !!(WEATHER[S.weather] && WEATHER[S.weather].night);
+  o.save(); o.globalAlpha = a;
+  o.beginPath(); rrPath(cx - ww / 2 - f, cy - wh / 2 - f, ww + 2 * f, wh + 2 * f, r + f); rrPath(cx - ww / 2, cy - wh / 2, ww, wh, r);
+  const mg = o.createLinearGradient(0, cy - wh / 2 - f, 0, cy + wh / 2 + f); mg.addColorStop(0, '#34373b'); mg.addColorStop(0.5, '#151618'); mg.addColorStop(1, '#26282b');
+  o.fillStyle = mg; o.fill('evenodd');
+  o.beginPath(); rrPath(cx - ww / 2, cy - wh / 2, ww, wh, r); o.strokeStyle = 'rgba(170,180,190,.3)'; o.lineWidth = 1.3 * OVD; o.stroke();
+  o.fillStyle = 'rgba(110,150,200,.05)'; o.fill();
+  o.save(); o.clip(); const gl = o.createLinearGradient(cx - ww / 2, cy - wh / 2, cx - ww * 0.1, cy + wh / 2); gl.addColorStop(0, 'rgba(255,255,255,.13)'); gl.addColorStop(0.35, 'rgba(255,255,255,0)'); o.fillStyle = gl; o.fillRect(cx - ww / 2, cy - wh / 2, ww, wh); o.restore();
+  // марка: небольшой параллакс от отдачи и тряски
+  const px = cx + SW.x * 0.06 * OVD, py = cy - REC.k * 260 * OVD + SW.y * 0.06 * OVD;
+  o.shadowColor = 'rgba(255,40,28,.95)'; o.shadowBlur = (night ? 12 : 7) * OVD; o.fillStyle = 'rgba(255,48,32,.97)'; o.strokeStyle = 'rgba(255,48,32,.95)';
+  o.beginPath(); o.arc(px, py, (holo ? 2.2 : 3.8) * OVD, 0, TAU); o.fill();
+  if (holo) {
+    const rr = H * 0.085; o.lineWidth = 2 * OVD; o.beginPath(); o.arc(px, py, rr, 0, TAU); o.stroke();
+    o.lineWidth = 2 * OVD; [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([x, y]) => { o.beginPath(); o.moveTo(px + x * rr, py + y * rr); o.lineTo(px + x * (rr + H * 0.028), py + y * (rr + H * 0.028)); o.stroke(); });
+  }
+  o.restore();
+}
+// открытый прицел: размытый целик крупным планом и чёткая мушка с намушником
+function drawIronSights(W, H) {
+  const a = clamp((AIM.blend - 0.35) / 0.65, 0, 1); if (a < 0.02) return;
+  const id = curScope().id, cx = W / 2, cy = H / 2 + REC.k * 120 * OVD, u = H / 100;
+  const night = !!(WEATHER[S.weather] && WEATHER[S.weather].night), lit = night ? 0.55 : 1;
+  o.save(); o.globalAlpha = a;
+  const shade = (y0, y1) => { const g = o.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgb(' + (46 * lit | 0) + ',' + (45 * lit | 0) + ',' + (43 * lit | 0) + ')'); g.addColorStop(0.18, 'rgb(' + (24 * lit | 0) + ',' + (24 * lit | 0) + ',' + (23 * lit | 0) + ')'); g.addColorStop(1, 'rgb(10,10,10)'); return g; };
+  if (id === 'iron_m4') {
+    // диоптр: кольцо вокруг отверстия, мушка в треугольном щитке
+    const R0 = 3.3 * u, R1 = 17 * u;
+    const rg = o.createRadialGradient(cx, cy, R0 * 0.8, cx, cy, R1); rg.addColorStop(0, 'rgba(8,8,8,0)'); rg.addColorStop(0.2, 'rgba(8,8,8,.5)'); rg.addColorStop(0.3, 'rgba(10,10,10,.96)'); rg.addColorStop(1, 'rgba(14,14,14,.98)');
+    o.fillStyle = rg; o.beginPath(); o.arc(cx, cy, R1, 0, TAU); o.fill();
+    o.fillStyle = shade(cy, cy + 30 * u); o.beginPath(); rrPath(cx - 14 * u, cy + 12 * u, 28 * u, 30 * u, 4 * u); o.fill();
+    o.fillStyle = '#0b0b0b'; o.fillRect(cx - 0.55 * u, cy - 0.2 * u, 1.1 * u, 6.5 * u);
+    o.fillRect(cx - 3.3 * u, cy - 3 * u, 1.1 * u, 9 * u); o.fillRect(cx + 2.2 * u, cy - 3 * u, 1.1 * u, 9 * u);
+    o.fillStyle = 'rgba(190,190,180,.25)'; o.fillRect(cx - 0.55 * u, cy - 0.2 * u, 0.25 * u, 6 * u);
+  } else {
+    const hood = id === 'iron_pkm' || id === 'iron_kord';
+    const sh = 12.5 * u, nw = 3.1 * u, nd = 5.4 * u;
+    o.shadowColor = 'rgba(0,0,0,.8)'; o.shadowBlur = 5 * OVD;
+    o.fillStyle = shade(cy, H);
+    o.beginPath(); o.moveTo(cx - sh, cy); o.lineTo(cx - nw, cy); o.lineTo(cx - nw * 0.55, cy + nd); o.lineTo(cx + nw * 0.55, cy + nd); o.lineTo(cx + nw, cy); o.lineTo(cx + sh, cy); o.lineTo(cx + sh + 0.8 * u, cy + 1.2 * u); o.lineTo(cx + sh * 1.5, H); o.lineTo(cx - sh * 1.5, H); o.lineTo(cx - sh - 0.8 * u, cy + 1.2 * u); o.closePath(); o.fill();
+    o.shadowBlur = 0;
+    // блик на кромке и риски шкалы дальности
+    o.strokeStyle = 'rgba(200,200,190,.28)'; o.lineWidth = 1.2 * OVD; o.beginPath(); o.moveTo(cx - sh, cy + 0.4 * u); o.lineTo(cx - nw, cy + 0.4 * u); o.moveTo(cx + nw, cy + 0.4 * u); o.lineTo(cx + sh, cy + 0.4 * u); o.stroke();
+    o.strokeStyle = 'rgba(230,230,220,.16)'; o.lineWidth = 1 * OVD;
+    for (let i = 0; i < 6; i++) { const x = cx + (nw + 2.2 * u + i * 2 * u); o.beginPath(); o.moveTo(x, cy + 2.2 * u); o.lineTo(x, cy + (i % 2 ? 3.2 : 4.2) * u); o.moveTo(2 * cx - x, cy + 2.2 * u); o.lineTo(2 * cx - x, cy + (i % 2 ? 3.2 : 4.2) * u); o.stroke(); }
+    // мушка и намушник
+    o.fillStyle = '#0a0a0a'; o.fillRect(cx - 0.65 * u, cy, 1.3 * u, nd + 0.5 * u);
+    o.fillStyle = 'rgba(200,200,190,.3)'; o.fillRect(cx - 0.65 * u, cy, 0.25 * u, nd);
+    o.fillStyle = '#0d0d0d'; o.fillRect(cx - 2.9 * u, cy - 2.2 * u, 1.0 * u, nd + 2.2 * u); o.fillRect(cx + 1.9 * u, cy - 2.2 * u, 1.0 * u, nd + 2.2 * u);
+    if (hood) { o.strokeStyle = '#0b0b0b'; o.lineWidth = 1.2 * u; o.beginPath(); o.arc(cx, cy + 2.4 * u, 3.5 * u, Math.PI * 1.05, Math.PI * 1.95); o.stroke(); }
+  }
+  o.restore();
+}
 function drawOverlay() {
   const W = ov.width, H = ov.height;
   o.clearRect(0, 0, W, H);
   const k = mrPx();
   const isc = curScope();
-  if (AIM.mode === 'scope' && isc.iron && isc.dot && AIM.blend > 0.6) {
-    o.fillStyle = 'rgba(255,40,30,.95)'; o.shadowColor = 'rgba(255,40,30,.9)'; o.shadowBlur = 6 * OVD;
-    o.beginPath(); o.arc(W / 2, H / 2, 2.2 * OVD, 0, TAU); o.fill(); o.shadowBlur = 0;
-    o.strokeStyle = 'rgba(20,20,20,.55)'; o.lineWidth = 10 * OVD; o.beginPath(); o.arc(W / 2, H / 2, Math.min(W, H) * 0.2, 0, TAU); o.stroke();
-  }
+  if (AIM.mode === 'scope' && isc.iron && isc.dot) drawCollimator(W, H);
+  else if (AIM.mode === 'scope' && isc.iron) drawIronSights(W, H);
   if (AIM.mode === 'scope' && isc.iron) {
     // открытый прицел: только лёгкое затемнение краёв
     const vg = o.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.7);
-    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,' + (0.45 * AIM.blend).toFixed(3) + ')'); o.fillStyle = vg; o.fillRect(0, 0, W, H);
-    const st = curTur(); o.fillStyle = 'rgba(242,169,59,.95)'; o.textAlign = 'center'; o.font = '600 ' + 12 * OVD + 'px monospace';
-    o.fillText('ПРИЦЕЛ ' + st.drum + ' (' + st.drum * 100 + ' м)   ' + (reloadT > 0 ? 'перезарядка' : st.ammo + '/' + curRifle().mag), W / 2, H - 30 * OVD);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,' + ((isc.dot ? 0.18 : 0.3) * AIM.blend).toFixed(3) + ')'); o.fillStyle = vg; o.fillRect(0, 0, W, H);
+    const st = curTur(); o.textAlign = 'center'; o.font = '600 ' + 11 * OVD + 'px monospace';
+    { const tx = (isc.dot ? '' : 'ПРИЦЕЛ ' + st.drum + ' (' + st.drum * 100 + ' м)   ') + (reloadT > 0 ? 'перезарядка' : st.ammo + '/' + curRifle().mag + (st.mags != null ? ' · ' + st.mags : '')), tw = o.measureText(tx).width + 20 * OVD, ty = H - 20 * OVD; o.fillStyle = 'rgba(8,10,6,.5)'; o.beginPath(); rrPath(W / 2 - tw / 2, ty - 10 * OVD, tw, 20 * OVD, 10 * OVD); o.fill(); o.fillStyle = 'rgba(242,169,59,.95)'; o.textBaseline = 'middle'; o.fillText(tx, W / 2, ty); }
   } else if (AIM.mode === 'scope' && isc.ret === 'holo') {
     drawHolo(W, H, k);
   } else if (AIM.mode === 'scope') {
@@ -1892,15 +2049,24 @@ function drawOverlay() {
     o.globalCompositeOperation = 'destination-out'; o.beginPath(); o.arc(cx, cy, R, 0, TAU); o.fill(); o.globalCompositeOperation = 'source-over';
     const vg = o.createRadialGradient(cx, cy, R * 0.78, cx, cy, R);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.85)'); o.fillStyle = vg; o.beginPath(); o.arc(cx, cy, R, 0, TAU); o.fill();
+    // обод окуляра, блик и лёгкий оттенок линзы
+    { const rimW = R * 0.07, rg = o.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+      rg.addColorStop(0, '#41454b'); rg.addColorStop(0.5, '#141518'); rg.addColorStop(1, '#2d3035');
+      o.strokeStyle = rg; o.lineWidth = rimW; o.beginPath(); o.arc(cx, cy, R + rimW / 2 - 1, 0, TAU); o.stroke();
+      o.strokeStyle = 'rgba(175,185,200,.38)'; o.lineWidth = 1.5 * OVD; o.beginPath(); o.arc(cx, cy, R - 1, 0, TAU); o.stroke();
+      const gl = o.createRadialGradient(cx - R * 0.45, cy - R * 0.5, 1, cx - R * 0.45, cy - R * 0.5, R * 0.55); gl.addColorStop(0, 'rgba(255,255,255,.11)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+      o.fillStyle = gl; o.beginPath(); o.arc(cx, cy, R, 0, TAU); o.fill();
+      o.fillStyle = 'rgba(120,170,210,.035)'; o.beginPath(); o.arc(cx, cy, R, 0, TAU); o.fill(); }
     o.save(); o.beginPath(); o.arc(cx, cy, R, 0, TAU); o.clip();
     if (isc.ret === 'pgo') drawPGO(W / 2, H / 2, k); else drawReticle(isc.ret, W / 2, H / 2, k, R);
     o.restore();
     // подписи под окуляром
     const sc = curScope(), st = curTur();
-    o.fillStyle = 'rgba(242,169,59,.95)'; o.textAlign = 'center'; o.font = '600 ' + 12 * OVD + 'px monospace'; o.shadowColor = 'rgba(0,0,0,.9)'; o.shadowBlur = 4 * OVD;
+    o.textAlign = 'center'; o.font = '600 ' + 12 * OVD + 'px monospace';
     const ev = sc.rocket ? 'ПГО-7' : sc.unit === 'thou' ? 'ПРИЦЕЛ ' + st.drum : '▲' + fmt(st.e * sc.click, sc.unit === 'moa' ? 2 : 1);
-    const am = reloadT > 0 ? 'перезарядка' : st.ammo + '/' + curRifle().mag;
-    o.fillText(am + '   ' + AIM.zoom.toFixed(1).replace('.0', '') + '×   ' + ev + '   ◀▶' + fmt(st.w * sc.click, 1) + ' ' + UNAME[sc.unit], W / 2, cy + R * 0.86); o.shadowBlur = 0;
+    const am = reloadT > 0 ? 'перезарядка' : st.ammo + '/' + curRifle().mag + (st.mags != null ? ' · ' + st.mags : '');
+    const tx = am + '   ' + AIM.zoom.toFixed(1).replace('.0', '') + '×   ' + ev + (sc.maxW ? '   ◀▶' + fmt(st.w * sc.click, 1) + ' ' + UNAME[sc.unit] : '');
+    { const tw = o.measureText(tx).width + 22 * OVD, ty = cy + R * 0.88; o.fillStyle = 'rgba(8,10,6,.6)'; o.beginPath(); rrPath(W / 2 - tw / 2, ty - 11 * OVD, tw, 22 * OVD, 11 * OVD); o.fill(); o.fillStyle = 'rgba(242,169,59,.97)'; o.textBaseline = 'middle'; o.fillText(tx, W / 2, ty); }
   } else if (AIM.mode === 'bino') {
     const R = Math.min(W * 0.3, H * 0.47), dx = R * 0.62, cx = W / 2, cy = H / 2;
     o.fillStyle = '#000'; o.fillRect(0, 0, W, H);
@@ -2012,13 +2178,16 @@ function renderMenu() {
   else chips($('mScopes'), [[scopeOf(rf).id, scopeOf(rf).name + ' — штатный']], scopeOf(rf).id, () => {});
   chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Бой: высота против роботов']], S.gmode, (id) => { if (id === S.gmode) return; S.gmode = id; S.autostart = true; save(); location.reload(); });
   $('teamRow').hidden = S.gmode !== 'battle';
-  chips($('mSide'), [['h', 'Играть за людей'], ['r', 'Играть за роботов']], S.side, (id) => { S.side = id; save(); renderMenu(); });
-  chips($('mScen'), [['def', 'Люди обороняют высоту'], ['att', 'Люди штурмуют (десант за 500 м)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
-  const roles = S.side === 'r' ? [['assault', 'Штурмовик'], ['heavy', 'Тяжёлый пулемётчик'], ['rocket', 'Ракетчик'], ['scout', 'Разведчик-снайпер']] : [['rifle', 'Стрелок'], ['mg', 'Пулемётчик'], ['sniper', 'Снайпер'], ['rpg', 'Гранатомётчик'], ['medic', 'Санитар'], ['mortar', 'Миномётчик'], ['lead', 'Командир тройки']];
+  chips($('mFoe'), [['bot', 'Люди против роботов'], ['man', 'Люди против людей']], S.foe || 'bot', (id) => { S.foe = id; save(); renderMenu(); });
+  const pvp = S.foe === 'man';
+  chips($('mSide'), pvp ? [['h', 'Играть за зелёных'], ['r', 'Играть за серых']] : [['h', 'Играть за людей'], ['r', 'Играть за роботов']], S.side, (id) => { S.side = id; save(); renderMenu(); });
+  chips($('mScen'), [['def', pvp ? 'Зелёные обороняют высоту' : 'Люди обороняют высоту'], ['att', pvp ? 'Зелёные штурмуют (десант за 500 м)' : 'Люди штурмуют (десант за 500 м)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
+  const roles = S.side === 'r' && S.foe !== 'man' ? [['assault', 'Штурмовик'], ['heavy', 'Тяжёлый пулемётчик'], ['rocket', 'Ракетчик'], ['scout', 'Разведчик-снайпер']] : [['rifle', 'Стрелок'], ['mg', 'Пулемётчик'], ['sniper', 'Снайпер'], ['rpg', 'Гранатомётчик'], ['medic', 'Санитар'], ['mortar', 'Миномётчик'], ['lead', 'Командир тройки']];
   if (!roles.some((r) => r[0] === S.role)) S.role = roles[0][0];
   chips($('mRole'), roles, S.role, (id) => { S.role = id; save(); renderMenu(); });
   $('mRoleNote').textContent = HOOK.roleInfo ? HOOK.roleInfo(S.side, S.role) : '';
   $('mNH').value = S.nH || 18; $('mNR').value = S.nR || 6;
+  if ($('mNH').previousSibling) $('mNH').previousSibling.textContent = pvp ? 'Зелёных ' : 'Людей '; if ($('mNR').previousSibling) $('mNR').previousSibling.textContent = pvp ? 'Серых ' : 'Роботов ';
   $('gmodeNote').textContent = S.gmode === 'battle'
     ? 'Высота с траншеями, лагерь, «Корды» и миномёты. Оборона: тревога, люди бегут из лагеря по позициям, роботы подходят из-за холмов в 2 км под дымом. Штурм: артподготовка, дымовая стена и десант людей в 500 м. Выберите сторону, численность (до 50) и роль со своей задачей.'
     : 'Мишени от 100 до 1500 м, разбор каждого выстрела.';
@@ -2089,6 +2258,7 @@ function loop(now) {
   if (HOOK.update) HOOK.update(dt, sdt);
   updateSway(dt);
   applyCamera(dt);
+  updateLaserBeam();
   updateBullets(sdt);
   updateEffects(sdt);
   updateEnv(dt);
