@@ -218,3 +218,11 @@ body.battle #tur{left:calc(210px + var(--sl));bottom:calc(92px + var(--sb))}
 /* чат боя — внизу по центру, над оружием, не закрывает прицел */
 body.battle #feed{top:auto;bottom:calc(90px + var(--sb));flex-direction:column-reverse;max-width:min(42vw,380px);gap:2px}
 body.battle #feed div{font-size:10px;line-height:1.25;background:rgba(14,18,11,.42);border-color:rgba(255,255,255,.06);padding:2px 6px}
+/* без подписей — крупнее значки */
+body.nolabels .rb span:not([id]){display:none}
+body.nolabels .rb svg{transform:scale(1.25)}
+#fpsBox{position:fixed;left:calc(12px + var(--sl));bottom:calc(30px + var(--sb));font:10px var(--f-mono);color:#9fdc7a;background:rgba(0,0,0,.4);padding:1px 6px;border-radius:3px;z-index:40;pointer-events:none}
+/* лёгкая виньетка в бою — атмосфера и фокус на центре */
+body.battle #vign{display:block}
+#vign{display:none;position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(0,0,0,.28) 100%)}
+body.battle #feed{bottom:calc(100px + var(--sb))}

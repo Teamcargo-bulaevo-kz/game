@@ -48,11 +48,32 @@ const arcPt = (r, th) => [r * Math.sin(th) / 0.85, HILL.cz - r * Math.cos(th)];
 const PH = 1.15;
 const fieldGroup = new THREE.Group(); fieldGroup.visible = false; scene.add(fieldGroup);
 const parapets = [], slots = { front: [], rear: [] }, nests = [], mortars = [];
-const bagMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.56, 0.2, 0.34), new THREE.MeshLambertMaterial({ color: 0xa08f6a }), 2600);
+const bagTex = (function () {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  x.fillStyle = '#a8977a'; x.fillRect(0, 0, 64, 64);
+  for (let i = 0; i < 64; i += 2) { x.fillStyle = 'rgba(60,45,25,.12)'; x.fillRect(i, 0, 1, 64); x.fillRect(0, i, 64, 1); }
+  for (let i = 0; i < 160; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(40,30,15,.18)' : 'rgba(255,245,220,.12)'; x.fillRect(Math.random() * 64, Math.random() * 64, 2 + Math.random() * 3, 1 + Math.random() * 2); }
+  const g = x.createRadialGradient(32, 32, 10, 32, 32, 46); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(30,20,10,.45)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  x.strokeStyle = 'rgba(50,35,20,.5)'; x.lineWidth = 2; x.beginPath(); x.moveTo(4, 8); x.lineTo(60, 8); x.stroke();
+  return new THREE.CanvasTexture(c);
+})();
+const bagMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.56, 0.2, 0.34), new THREE.MeshLambertMaterial({ color: 0xe8e0d0, map: bagTex }), 2600);
 bagMesh.count = 0; bagMesh.castShadow = SHD; bagMesh.receiveShadow = SHD; fieldGroup.add(bagMesh);
 let nBags = 0;
 const dummy = new THREE.Object3D();
-function bag(x, y, z, yaw) { if (nBags >= 2600) return; dummy.position.set(x, y, z); dummy.rotation.set(0, yaw + gauss() * 0.08, gauss() * 0.03); dummy.updateMatrix(); bagMesh.setMatrixAt(nBags++, dummy.matrix); }
+const _bc = new THREE.Color();
+function bag(x, y, z, yaw) { if (nBags >= 2600) return; dummy.position.set(x, y, z); dummy.rotation.set(0, yaw + gauss() * 0.08, gauss() * 0.03); dummy.scale.set(1 + gauss() * 0.05, 1 + gauss() * 0.08, 1); dummy.updateMatrix(); bagMesh.setMatrixAt(nBags, dummy.matrix); const k = 0.82 + Math.random() * 0.2; _bc.setRGB(k, k * (0.97 + Math.random() * 0.05), k * (0.92 + Math.random() * 0.08)); nBags++; }
+// процедурная текстура земли: комья, трещины, следы лопаты
+function earthTex(base, seed) {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  x.fillStyle = base; x.fillRect(0, 0, 128, 128);
+  let r = seed || 1; const R = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+  for (let i = 0; i < 900; i++) { const v = Math.floor(R() * 60 - 30); x.fillStyle = 'rgba(' + (v > 0 ? '255,240,210,' + v / 300 : '20,12,6,' + -v / 160) + ')'; const s = 1 + R() * 4; x.fillRect(R() * 128, R() * 128, s, s * (0.5 + R())); }
+  x.strokeStyle = 'rgba(25,16,8,.35)'; x.lineWidth = 1;
+  for (let i = 0; i < 14; i++) { x.beginPath(); let px = R() * 128, py = R() * 128; x.moveTo(px, py); for (let k = 0; k < 4; k++) { px += R() * 16 - 8; py += R() * 10; x.lineTo(px, py); } x.stroke(); }
+  for (let i = 0; i < 40; i++) { x.fillStyle = 'rgba(70,90,40,' + (0.25 + R() * 0.3) + ')'; x.fillRect(R() * 128, R() * 30, 1, 2 + R() * 5); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+}
 const kordGeo = merge([BX(0.12, 0.16, 0.9, 0, 0, -0.2, 0x262a24), CY(0.03, 0.03, 1.1, 0, 0.02, -1.1, 0x161816, Math.PI / 2), BX(0.06, 0.06, 0.12, 0, 0.02, -1.66, 0x161816), BX(0.16, 0.18, 0.2, 0.14, -0.06, -0.15, 0x3d4a2c),
   BX(0.04, 0.12, 0.04, 0, 0.12, -0.05, 0x111111), BX(0.3, 0.04, 0.04, 0, -0.05, 0.32, 0x222222)]);
 const tripodGeo = merge([BX(0.08, 0.5, 0.08, 0, 0.75, 0, 0x222622), BX(0.05, 0.9, 0.05, -0.4, 0.4, 0.3, 0x222622, 0.4, 0, -0.45), BX(0.05, 0.9, 0.05, 0.4, 0.4, 0.3, 0x222622, 0.4, 0, 0.45), BX(0.05, 0.9, 0.05, 0, 0.4, -0.45, 0x222622, -0.5)]);
@@ -61,8 +82,10 @@ let CAMPFIRE = null;
 const tentGeo = merge([BX(3.4, 0.05, 2.1, 0, 0.78, 0.66, 0x55603c, -0.78), BX(3.4, 0.05, 2.1, 0, 0.78, -0.66, 0x4e5937, 0.78), BX(0.06, 1.5, 0.06, 1.6, 0.75, 0, 0x4a3a28), BX(0.06, 1.5, 0.06, -1.6, 0.75, 0, 0x4a3a28)]);
 const logGeo = merge([CY(0.09, 0.09, 1.1, 0, 0.09, 0, 0x3a2a1c, 0, 0, Math.PI / 2), CY(0.09, 0.09, 1.1, 0, 0.12, 0, 0x33251a, 0, Math.PI / 2, Math.PI / 2), CY(0.2, 0.25, 0.08, 0, 0.03, 0, 0x2a2622)]);
 if (BATTLE_MAP) (function buildHill() {
-  const earthM = new THREE.MeshLambertMaterial({ color: 0x6e5c3f });
-  const floorM = new THREE.MeshLambertMaterial({ color: 0x45392a });
+  const et = earthTex('#7a664a', 7); et.repeat.set(0.45, 0.45);
+  const earthM = new THREE.MeshLambertMaterial({ color: 0xd8d0c0, map: et });
+  const ft = earthTex('#4f4130', 13); ft.repeat.set(0.4, 0.8);
+  const floorM = new THREE.MeshLambertMaterial({ color: 0xc8c0b0, map: ft });
   const postM = new THREE.MeshLambertMaterial({ color: 0x5f4a32 });
   const shape = new THREE.Shape();
   shape.moveTo(-1.3, -0.6); shape.lineTo(1.05, -0.6); shape.lineTo(0.35, PH); shape.lineTo(-0.5, PH); shape.lineTo(-1.3, -0.6);

@@ -13,6 +13,7 @@
 </head>
 <body>
 <canvas id="gl"></canvas>
+<div id="vign"></div>
 <canvas id="ov"></canvas>
 <div id="touch"></div>
 
@@ -128,9 +129,15 @@
       <section><h3>Режим</h3><div id="mMode" class="chips"></div><p class="note" id="modeNote"></p></section>
       <section><h3>Графика</h3><div id="mQual" class="chips"></div><p class="note">Для Redmi Note 8 оптимально «Средняя».</p></section>
     </div>
-    <section><h3>Опции</h3><div id="mOpts" class="chips"></div>
-      <label class="sens">Чувствительность <input id="mSens" type="range" min="0.3" max="2.5" step="0.05"><output id="mSensV"></output></label>
+    <section><h3>Управление и звук</h3>
+      <label class="sens">Обзор пальцем <input id="mSens" type="range" min="0.3" max="2.5" step="0.05"><output id="mSensV"></output></label>
+      <label class="sens">В прицеле <input id="mSensS" type="range" min="0.3" max="2" step="0.05"><output id="mSensSV"></output></label>
+      <div id="mGyro" class="chips" style="margin-top:8px"></div>
+      <label class="sens">Гироскоп <input id="mGyroS" type="range" min="0.3" max="3" step="0.05"><output id="mGyroSV"></output></label>
+      <label class="sens">Угол обзора <input id="mFov" type="range" min="55" max="90" step="1"><output id="mFovV"></output></label>
+      <label class="sens">Громкость <input id="mVol" type="range" min="0" max="1" step="0.05"><output id="mVolV"></output></label>
     </section>
+    <section><h3>Опции и интерфейс</h3><div id="mOpts" class="chips"></div></section>
     <section class="rowbtns">
       <button class="sbtn" id="bResetT" type="button">Заклеить мишени</button>
       <button class="sbtn" id="bNewWind" type="button">Новый ветер</button>

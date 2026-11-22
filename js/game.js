@@ -215,7 +215,7 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
-const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
+const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
 if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
@@ -942,7 +942,7 @@ function syncPS(cam) {
 }
 
 /* ---------------- звук (синтез WebAudio) ---------------- */
-let AC = null, noiseBuf = null, windGain = null, rainGain = null, rumbleGain = null, OUT = null, voices = 0;
+let AC = null, noiseBuf = null, windGain = null, rainGain = null, rumbleGain = null, OUT = null, MASTER = null, voices = 0;
 const MAXV = IS_TOUCH ? 18 : 32;
 function audioInit() {
   if (!S.sound) return;
@@ -952,7 +952,7 @@ function audioInit() {
       try { AC = new ACtx({ latencyHint: 'balanced' }); } catch (e) { AC = new ACtx(); }
       // общий компрессор: без хрипа и перегрузки, когда стреляют все сразу
       OUT = AC.createDynamicsCompressor(); OUT.threshold.value = -18; OUT.knee.value = 12; OUT.ratio.value = 6; OUT.attack.value = 0.004; OUT.release.value = 0.2;
-      const mg = AC.createGain(); mg.gain.value = 0.85; OUT.connect(mg); mg.connect(AC.destination);
+      MASTER = AC.createGain(); MASTER.gain.value = S.vol != null ? S.vol : 0.85; OUT.connect(MASTER); MASTER.connect(AC.destination);
       noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       const mk = (type, f, q) => { const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = AC.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(OUT); src.start(); return g; };
@@ -1043,7 +1043,7 @@ function setStance(s) {
 function fovFor(mode) {
   if (mode === 'scope') return 30 / AIM.zoom;
   if (mode === 'bino') return 70 / AIM.binoZoom;
-  return 65;
+  return S.fov || 65;
 }
 function setAim(mode) {
   if (AIM.mode === mode) mode = 'hip';
@@ -1438,8 +1438,27 @@ const joyEl = $('joy'), knob = $('knob');
 const JOY = { id: null, ox: 0, oy: 0 };
 const LOOK = { id: null, x: 0, y: 0 };
 const MDRAG = { id: null, x: 0, y: 0 };
+// гироскоп: поворот телефона = поворот взгляда (как в PUBG Mobile)
+const GYRO = { yaw: 0, pitch: 0, seen: false };
+window.addEventListener('devicemotion', (e) => {
+  const r = e.rotationRate; if (!r || r.beta == null || S.gyro === 'off') return;
+  GYRO.seen = true;
+  let it = e.interval || 16; if (it < 1) it *= 1000;
+  const dt = Math.min(0.1, it / 1000);
+  const ang = (screen.orientation && screen.orientation.angle != null) ? screen.orientation.angle : (window.orientation || 90);
+  const sg = (ang === 270 || ang === -90) ? -1 : 1, inv = S.gyroInv ? -1 : 1;
+  GYRO.yaw += r.beta * sg * dt * inv; GYRO.pitch += -r.gamma * sg * dt * inv;
+});
+function applyGyro() {
+  const on = S.gyro === 'always' || (S.gyro === 'scope' && AIM.mode !== 'hip');
+  if (on && !HOOK.dead) {
+    const k = DEG * (S.gyroS || 1) * (0.35 + 0.65 * camera.fov / 65);
+    P.yaw += GYRO.yaw * k; P.pitch = clamp(P.pitch + GYRO.pitch * k, -1.4, 1.4);
+  }
+  GYRO.yaw = 0; GYRO.pitch = 0;
+}
 function lookDelta(dx, dy, kind) {
-  const k = (kind === 'mouse' ? 0.0022 : 0.0046) * S.sens * (camera.fov / 65) * (AIM.mode === 'hip' ? 1 : 0.85) * (HOOK.lookScale ? HOOK.lookScale() : 1);
+  const k = (kind === 'mouse' ? 0.0022 : 0.0046) * S.sens * (camera.fov / 65) * (AIM.mode === 'hip' ? 1 : 0.85 * (S.sensS || 1)) * (HOOK.lookScale ? HOOK.lookScale() : 1);
   P.yaw -= dx * k; P.pitch = clamp(P.pitch - dy * k, -1.4, 1.4);
 }
 function joyStart(e) {
@@ -1615,7 +1634,8 @@ function applyCamera(dt) {
   const ironT = AIM.mode === 'scope' && sc.iron ? 1 : 0;
   AIM.blend += (ironT - AIM.blend) * Math.min(1, dt * 11);
   SHAKE.a *= Math.exp(-dt * 3.5);
-  const shx = (vnoise(simT * 23, 3.1) - 0.5) * SHAKE.a, shy = (vnoise(simT * 23, 8.7) - 0.5) * SHAKE.a;
+  const shk = S.shake === false ? 0 : SHAKE.a;
+  const shx = (vnoise(simT * 23, 3.1) - 0.5) * shk, shy = (vnoise(simT * 23, 8.7) - 0.5) * shk;
   P.leanV += ((P.stance === 2 || curRifle().mounted ? 0 : P.lean) - P.leanV) * Math.min(1, dt * 8);
   const lx = Math.cos(P.yaw) * 0.38 * P.leanV, lz = -Math.sin(P.yaw) * 0.38 * P.leanV;
   camera.position.set(P.x + lx, gy + P.eye + bob + P.jy - Math.abs(P.leanV) * 0.06 + (HOOK.camDY || 0) + (HOOK.climbY ? HOOK.climbY(P.x, P.z) : 0), P.z + lz);
@@ -1623,7 +1643,7 @@ function applyCamera(dt) {
   camera.rotation.x = P.pitch + SW.y * 0.001 + REC.k + shy;
   camera.rotation.z = (HOOK.camRoll || 0) - P.leanV * 0.17;
   let fov = fovFor(AIM.mode);
-  if (sc.iron && (AIM.mode === 'scope' || AIM.blend > 0.01)) fov = lerp(65, sc.fov, AIM.blend);
+  if (sc.iron && (AIM.mode === 'scope' || AIM.blend > 0.01)) fov = lerp(S.fov || 65, sc.fov, AIM.blend);
   if (Math.abs(camera.fov - fov) > 1e-4) { camera.fov = fov; camera.updateProjectionMatrix(); }
   const hip = rf.type === 'sniper' ? HIP_S : rf.type === 'rocket' ? HIP_R : HIP_I;
   const k = AIM.blend, mv = P.moving * (1 - k) * run;
@@ -2011,12 +2031,18 @@ function renderMenu() {
     : 'Ветер читайте по флажкам и траве, дистанцию — дальномером, попадания ищите в бинокль.';
   chips($('mQual'), Object.entries(QUALITY).map(([k, q]) => [k, q.name]), S.quality, (id) => { if (id === S.quality) return; S.quality = id; save(); location.reload(); });
   $('bVision').hidden = false;
-  chips($('mOpts'), [['tracers', 'Трассеры ' + (S.tracers ? 'вкл' : 'выкл')], ['bcam', 'Камера пули ' + (S.bcam ? 'вкл' : 'выкл')], ['sound', 'Звук ' + (S.sound ? 'вкл' : 'выкл')], ['vibro', 'Вибро ' + (S.vibro ? 'вкл' : 'выкл')], ['assist', 'Помощник прицеливания ' + (S.assist ? 'вкл' : 'выкл')]], null, (id) => { S[id] = !S[id]; save(); renderMenu(); });
-  $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', [S.tracers, S.bcam, S.sound, S.vibro, S.assist][i]));
+  const OPT = [['tracers', 'Трассеры'], ['bcam', 'Камера пули'], ['sound', 'Звук'], ['vibro', 'Вибро'], ['assist', 'Помощник прицеливания'], ['labels', 'Подписи кнопок'], ['shake', 'Тряска камеры'], ['dynres', 'Авто-разрешение'], ['cap30', 'Экономия: 30 к/с'], ['fps', 'Показывать FPS'], ['gyroInv', 'Инверсия гироскопа']];
+  chips($('mOpts'), OPT.map(([k, n]) => [k, n + ' ' + (S[k] !== false && S[k] ? 'вкл' : 'выкл')]), null, (id) => { S[id] = !(S[id] !== false && S[id]); save(); applyUiPrefs(); renderMenu(); });
+  $('mOpts').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('on', !!(S[OPT[i][0]] !== false && S[OPT[i][0]])));
+  chips($('mGyro'), [['off', 'Гироскоп выкл'], ['scope', 'Гироскоп в прицеле'], ['always', 'Гироскоп всегда']], S.gyro || 'off', (id) => { S.gyro = id; save(); renderMenu(); });
+  [['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0]].forEach(([el, k, d]) => { $(el).value = S[k]; $(el + 'V').textContent = (+S[k]).toFixed(d); });
   $('mSens').value = S.sens; $('mSensV').textContent = (+S.sens).toFixed(2);
 }
 ['mNH', 'mNR'].forEach((id) => $(id).addEventListener('change', (e) => { const v = Math.max(1, Math.min(50, Math.round(+e.target.value || 1))); e.target.value = v; S[id === 'mNH' ? 'nH' : 'nR'] = v; save(); }));
 $('mSens').addEventListener('input', (e) => { S.sens = +e.target.value; $('mSensV').textContent = S.sens.toFixed(2); save(); });
+[['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0]].forEach(([el, k, d]) => $(el).addEventListener('input', (e) => { S[k] = +e.target.value; $(el + 'V').textContent = S[k].toFixed(d); save(); if (k === 'vol' && MASTER) MASTER.gain.value = S.vol; }));
+function applyUiPrefs() { document.body.classList.toggle('nolabels', S.labels === false); }
+applyUiPrefs();
 function applyMode() { signs.forEach((s) => { s.visible = S.mode === 'train' && !HOOK.battle; }); if (S.mode !== 'train') $('toast').classList.remove('show'); }
 function openMenu() {
   fireHeld = false;
@@ -2047,9 +2073,13 @@ $('joy').hidden = !IS_TOUCH; $('bFireL').hidden = !IS_TOUCH;
 
 /* ---------------- главный цикл ---------------- */
 let lastT = performance.now();
+const FPSC = { n: 0, t: 0, el: null };
 function loop(now) {
   requestAnimationFrame(loop);
+  if (S.cap30 && now - lastT < 30) return;
   const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000)); lastT = now;
+  applyGyro();
+  if (S.fps) { FPSC.n++; FPSC.t += dt; if (FPSC.t > 0.5) { if (!FPSC.el) { FPSC.el = document.createElement('div'); FPSC.el.id = 'fpsBox'; document.body.appendChild(FPSC.el); } FPSC.el.hidden = false; FPSC.el.textContent = Math.round(FPSC.n / FPSC.t) + ' к/с · ' + Math.round(DR.pr * 100) / 100 + 'x'; FPSC.n = 0; FPSC.t = 0; } } else if (FPSC.el) FPSC.el.hidden = true;
   const ts = BCAM.b ? 0.3 : 1, sdt = dt * ts;
   simT += sdt;
   sndBudget = Math.max(0, sndBudget - dt * 14);
