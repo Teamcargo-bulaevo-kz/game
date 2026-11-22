@@ -896,7 +896,7 @@ function makePS(tex, additive, cap) {
   ps.pts = new THREE.Points(geo, mat); ps.pts.frustumCulled = false; ps.pts.renderOrder = additive ? 4 : 3; scene.add(ps.pts);
   return ps;
 }
-const PSY = { puff: makePS(puffTex, false, IS_TOUCH ? 1800 : 3000), glow: makePS(glowTex, true, IS_TOUCH ? 1400 : 2200) };
+const PSY = { puff: makePS(puffTex, false, IS_TOUCH ? 1100 : 3000), glow: makePS(glowTex, true, IS_TOUCH ? 1000 : 2200) };
 const _pc = new THREE.Color();
 function emit(ps, x, y, z, vx, vy, vz, s0, s1, life, color, a0, grav, floor, minPx) {
   const i = ps.head; ps.head = (ps.head + 1) % ps.cap;
@@ -942,29 +942,39 @@ function syncPS(cam) {
 }
 
 /* ---------------- звук (синтез WebAudio) ---------------- */
-let AC = null, noiseBuf = null, windGain = null, rainGain = null;
+let AC = null, noiseBuf = null, windGain = null, rainGain = null, rumbleGain = null, OUT = null, voices = 0;
+const MAXV = IS_TOUCH ? 18 : 32;
 function audioInit() {
   if (!S.sound) return;
   try {
     if (!AC) {
-      AC = new (window.AudioContext || window.webkitAudioContext)();
+      const ACtx = window.AudioContext || window.webkitAudioContext;
+      try { AC = new ACtx({ latencyHint: 'balanced' }); } catch (e) { AC = new ACtx(); }
+      // общий компрессор: без хрипа и перегрузки, когда стреляют все сразу
+      OUT = AC.createDynamicsCompressor(); OUT.threshold.value = -18; OUT.knee.value = 12; OUT.ratio.value = 6; OUT.attack.value = 0.004; OUT.release.value = 0.2;
+      const mg = AC.createGain(); mg.gain.value = 0.85; OUT.connect(mg); mg.connect(AC.destination);
       noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      const mk = (type, f, q) => { const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = AC.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(AC.destination); src.start(); return g; };
-      windGain = mk('bandpass', 420, 0.6); rainGain = mk('highpass', 2500, 0.5);
+      const mk = (type, f, q) => { const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = AC.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(OUT); src.start(); return g; };
+      windGain = mk('bandpass', 420, 0.6); rainGain = mk('highpass', 2500, 0.5); rumbleGain = mk('lowpass', 75, 0.7);
+      document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) AC.suspend(); else AC.resume(); });
     } else if (AC.state === 'suspended') AC.resume();
   } catch (e) { AC = null; }
 }
+// ограничение голосов: тихие звуки отбрасываются первыми, чтобы не было заиканий
+function voiceOk(gain) { if (voices >= MAXV || (voices > MAXV * 0.6 && gain < 0.12)) return false; voices++; return true; }
 function noiseHit(t0, dur, type, f, gain, q) {
+  if (!voiceOk(gain)) return;
   const src = AC.createBufferSource(); src.buffer = noiseBuf;
   const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q;
   const g = AC.createGain(); g.gain.setValueAtTime(gain, t0); g.gain.exponentialRampToValueAtTime(0.0005, t0 + dur);
-  src.connect(fl); fl.connect(g); g.connect(AC.destination); src.start(t0, Math.random()); src.stop(t0 + dur + 0.05);
+  src.connect(fl); fl.connect(g); g.connect(OUT); src.onended = () => { voices--; }; src.start(t0, Math.random()); src.stop(t0 + dur + 0.05);
 }
 function tone(t0, f, dur, gain, type, f2) {
+  if (!voiceOk(gain)) return;
   const o = AC.createOscillator(); o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
   const g = AC.createGain(); g.gain.setValueAtTime(gain, t0); g.gain.exponentialRampToValueAtTime(0.0005, t0 + dur);
-  o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+  o.connect(g); g.connect(OUT); o.onended = () => { voices--; }; o.start(t0); o.stop(t0 + dur + 0.05);
 }
 let sndBudget = 0;
 function sndShot(power, auto) {
@@ -976,8 +986,10 @@ function sndShot(power, auto) {
 }
 // выстрел где-то на поле: громкость и задержка по расстоянию
 function sndShotFar(dist, heavy, robot) {
-  if (!AC || !S.sound || sndBudget > 14) return; sndBudget++;
+  if (!AC || !S.sound || sndBudget > 7) return;
   const v = clamp(30 / (dist + 30), 0.03, 0.8), t = AC.currentTime + dist / 343;
+  if (v < 0.05 && Math.random() < 0.6) return;
+  sndBudget++;
   noiseHit(t, 0.05, 'highpass', 1200, 0.6 * v * (dist < 80 ? 1 : 0.4));
   noiseHit(t, 0.25 + Math.min(0.6, dist / 600), 'lowpass', clamp(1600 - dist, 250, 1400), (heavy ? 1.1 : 0.8) * v);
   if (robot) tone(t, heavy ? 420 : 640, 0.08, 0.12 * v, 'square', heavy ? 200 : 300);
@@ -2040,7 +2052,7 @@ function loop(now) {
   const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000)); lastT = now;
   const ts = BCAM.b ? 0.3 : 1, sdt = dt * ts;
   simT += sdt;
-  sndBudget = Math.max(0, sndBudget - dt * 30);
+  sndBudget = Math.max(0, sndBudget - dt * 14);
   if (started && $('menu').hidden) updatePlayer(dt);
   if (fireHeld && curRifle().type === 'auto' && started && $('menu').hidden) fire();
   if (HM.t > 0) HM.t -= dt;
@@ -2081,6 +2093,7 @@ function loop(now) {
 window.SS = {
   THREE, V3, scene, camera, terrainH, S, P, AIM, STANCE, HOOK, SHAKE, HM, LRF, COND, RIFLES, TUR, STATS, UNIT, BR,
   clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
+  setRumble: (v) => { if (AC && rumbleGain) rumbleGain.gain.setTargetAtTime(S.sound ? v : 0, AC.currentTime, 1.5); },
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,
   curRifle, curTur, scopeOf, selectRifle, setAim, setStance, updateWeaponUI, setRangeVisible, openMenu, renderMenu, targetSeg, paintRing, paintSteel, inPoly, SIL,
   IS_TOUCH, getSimT: () => simT, reload, rifleHolder, report, updateStats,
