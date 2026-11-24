@@ -380,6 +380,23 @@ defPart('h_head3', merge([PR(gS(0.104, 10, 8), 0x2a2b26, [0, 0.12, -0.005], [0.9
   PR(gB(0.03, 0.012, 0.01), 0x1a1612, [-0.03, 0.146, -0.107]), PR(gB(0.03, 0.012, 0.01), 0x1a1612, [0.03, 0.146, -0.107]),
   PR(new THREE.SphereGeometry(0.115, 10, 5, 0, TAU, 0, Math.PI * 0.5), 0x3e4a2c, [0, 0.165, 0], [1, 0.7, 1.05]), PR(gB(0.16, 0.015, 0.1), 0x3e4a2c, [0, 0.17, -0.12]),
 ]));
+// разгрузка без рюкзака
+defPart('h_torso2', merge([
+  PR(gC(0.15, 0.16, 0.27, 10), HC.uni, [0, 0.135, 0], [1.12, 1, 0.74]), PR(gC(0.2, 0.155, 0.3, 10), HC.uni, [0, 0.4, 0], [1.08, 1, 0.7]),
+  PR(gS(0.1), HC.uni, [-0.21, 0.51, 0], [1, 0.75, 1]), PR(gS(0.1), HC.uni, [0.21, 0.51, 0], [1, 0.75, 1]),
+  PR(gB(0.36, 0.2, 0.07), 0x4b5233, [0, 0.27, -0.13]), ...[-0.12, -0.04, 0.04, 0.12].map((x) => PR(gB(0.07, 0.13, 0.06), 0x56603d, [x, 0.28, -0.18])),
+  PR(gB(0.05, 0.36, 0.03), 0x3d4630, [-0.11, 0.42, -0.12], null, [0, 0, 0.15]), PR(gB(0.05, 0.36, 0.03), 0x3d4630, [0.11, 0.42, -0.12], null, [0, 0, -0.15]),
+  PR(gB(0.05, 0.36, 0.03), 0x3d4630, [-0.11, 0.4, 0.12]), PR(gB(0.05, 0.36, 0.03), 0x3d4630, [0.11, 0.4, 0.12]), PR(gB(0.1, 0.12, 0.06), 0x2a2a28, [0.12, 0.45, -0.16]),
+  PR(gC(0.055, 0.062, 0.1, 8), HC.skin, [0, 0.6, 0]), PR(gC(0.075, 0.07, 0.04, 8), HC.uni, [0, 0.555, 0]), PR(gB(0.14, 0.18, 0.08), 0x4a5236, [0, 0.36, 0.17]),
+]));
+// «горка»: куртка с капюшоном за спиной, рация
+defPart('h_torso3', merge([
+  PR(gC(0.16, 0.17, 0.28, 10), 0x6b6a4a, [0, 0.135, 0], [1.12, 1, 0.76]), PR(gC(0.215, 0.165, 0.31, 10), 0x6b6a4a, [0, 0.4, 0], [1.08, 1, 0.74]),
+  PR(gS(0.105), 0x6b6a4a, [-0.21, 0.51, 0], [1, 0.75, 1]), PR(gS(0.105), 0x6b6a4a, [0.21, 0.51, 0], [1, 0.75, 1]),
+  PR(gS(0.12, 8, 6), 0x5f5e42, [0, 0.55, 0.11], [1.1, 0.7, 0.8]), PR(gB(0.34, 0.28, 0.06), HC.vest, [0, 0.36, -0.14]),
+  ...[-0.1, 0, 0.1].map((x) => PR(gB(0.07, 0.11, 0.05), HC.pouch, [x, 0.27, -0.185])), PR(gB(0.09, 0.15, 0.06), 0x2a2a28, [-0.17, 0.4, 0.06]), PR(gC(0.005, 0.005, 0.4, 4), 0x111111, [-0.18, 0.62, 0.06]),
+  PR(gC(0.055, 0.062, 0.1, 8), HC.skin, [0, 0.6, 0]), PR(gB(0.26, 0.28, 0.12), HC.pack, [0, 0.33, 0.21]),
+]));
 defPart('h_uarm', merge([PR(gS(0.07), HC.uni, [0, -0.01, 0]), PR(gC(0.058, 0.05, 0.3, 8), HC.uni, [0, -0.15, 0]), PR(gB(0.03, 0.08, 0.05), 0x55603b, [-0.055, -0.1, 0]), PR(gS(0.05), 0x2b2b25, [0, -0.3, 0.01], [1, 0.8, 1])]), 2);
 defPart('h_farm', merge([PR(gC(0.05, 0.042, 0.26, 8), HC.uni, [0, -0.13, 0]), PR(gC(0.045, 0.045, 0.04, 8), HC.uniD, [0, -0.24, 0]),
   PR(gB(0.065, 0.08, 0.085), HC.glove, [0, -0.3, -0.005]), PR(gB(0.02, 0.05, 0.03), HC.glove, [-0.04, -0.29, -0.03])]), 2);
@@ -428,7 +445,8 @@ const HB = {
 function mkPart(key, o, zone) {
   const raw = HB[key] || HB[key.replace(/\d$/, '')] || null;
   const hbs = raw ? (Array.isArray(raw[0]) ? raw : [raw]) : null;
-  return { key, o, zone, hb: hbs ? hbs[0] : null, hbs, lod: PT[key + '_l'] ? key + '_l' : (key.startsWith('h_head') ? 'h_head_l' : null) };
+  const base = key.replace(/\d$/, '');
+  return { key, o, zone, hb: hbs ? hbs[0] : null, hbs, lod: PT[key + '_l'] ? key + '_l' : PT[base + '_l'] ? base + '_l' : null };
 }
 function J(parent, x, y, z) { const o = new THREE.Object3D(); o.position.set(x, y, z); if (parent) parent.add(o); return o; }
 const GUNKEY = { lead: 'h_ak', rifle: 'h_ak', medic: 'h_ak', mg: 'h_pkm', sniper: 'h_svd', rpg: 'h_rpg', hmg: 'h_ak', mortar: 'h_ak' };
@@ -439,8 +457,8 @@ function rigHuman(cls) {
   const thL = J(hips, -0.1, -0.05, 0), thR = J(hips, 0.1, -0.05, 0), snL = J(thL, 0, -0.46, 0), snR = J(thR, 0, -0.46, 0);
   const gun = cls === 'rpg' ? J(torso, 0.16, 0.62, 0.05) : J(torso, 0.12, 0.36, -0.16);
   const P_ = mkPart;
-  const hk = ['h_head', 'h_head', 'h_head2', 'h_head3'][(uid * 7 + 3) % 4];
-  const parts = [P_('h_pelvis', hips, 'pelvis'), P_('h_torso', torso, 'torso'), P_(hk, head, 'head'), P_('h_uarm', shL, 'uarmL'), P_('h_uarm', shR, 'uarmR'),
+  const hk = ['h_head', 'h_head', 'h_head2', 'h_head3'][(uid * 7 + 3) % 4], tk = cls === 'medic' || cls === 'lead' ? 'h_torso' : ['h_torso', 'h_torso2', 'h_torso3', 'h_torso'][(uid * 5 + 1) % 4];
+  const parts = [P_('h_pelvis', hips, 'pelvis'), P_(tk, torso, 'torso'), P_(hk, head, 'head'), P_('h_uarm', shL, 'uarmL'), P_('h_uarm', shR, 'uarmR'),
     P_('h_farm', faL, 'farmL'), P_('h_farm', faR, 'farmR'), P_('h_thigh', thL, 'thighL'), P_('h_thigh', thR, 'thighR'), P_('h_shin', snL, 'shinL'), P_('h_shin', snR, 'shinR'), P_(GUNKEY[cls], gun, 'gun')];
   if (cls === 'medic') { const mb = J(hips, -0.2, 0.0, 0.08); parts.push(P_('h_medbag', mb, 'pelvis')); }
   return { root, tilt, hips, torso, head, shL, shR, faL, faR, thL, thR, snL, snR, gun, parts };
@@ -468,8 +486,8 @@ const ZNAME = { head: 'голова', torso: 'корпус', pelvis: 'таз', u
 
 /* ================= юниты ================= */
 const RW = {
-  assault: { id: 'r_assault', mv: 840, bc: 0.21, g: 9.5, sh: 0, sg: 1.5, rpm: 650, burst: [3, 7], pause: [0.25, 0.6], spread: 1.05, mag: 40 },
-  heavy:   { id: 'r_heavy',   mv: 860, bc: 0.25, g: 12, sh: 0, sg: 1.5, rpm: 780, burst: [12, 22], pause: [0.4, 0.9], spread: 2.1, mag: 150 },
+  assault: { id: 'r_assault', mv: 840, bc: 0.21, g: 9.5, sh: 0, sg: 1.5, rpm: 650, burst: [3, 6], pause: [0.35, 0.8], spread: 1.25, mag: 40 },
+  heavy:   { id: 'r_heavy',   mv: 860, bc: 0.25, g: 12, sh: 0, sg: 1.5, rpm: 780, burst: [10, 18], pause: [0.55, 1.1], spread: 2.5, mag: 150 },
   scout:   { id: 'r_scout',   mv: 950, bc: 0.32, g: 13, sh: 0, sg: 1.8, rpm: 60, burst: [1, 1], pause: [2.0, 3.5], spread: 0.35, mag: 8 },
 };
 RW.rocket = RW.assault; RW.mortar = RW.assault;
@@ -779,6 +797,7 @@ function humanDamage(zone, E) {
 function hurtHuman(u, dmg, by, dir, blast) {
   dmg *= dmgK(u.team);
   if (!u.alive) return;
+  u.flinch = 1; u.flinchS = Math.random() < 0.5 ? -1 : 1;
   u.hp -= dmg; u.supp += 2.5; u.hitT = B.t; u.cause = blast ? "blast" : "bullet";
   if (u.hp <= 0) downHuman(u, by, dir, blast);
   else if (isFriend(u.team) && Math.random() < 0.5) vSay(pickR(['Санитар!', 'Меня зацепило!', 'Ранен!', 'А-а, чёрт!']), u);
@@ -854,8 +873,31 @@ function playerZoneHit(p0, p1) {
 }
 
 /* ================= взрыв ================= */
+const fxLight = new THREE.PointLight(0xffa046, 0, 140, 2); fxLight.visible = (SS.Q && SS.Q.sh) ? true : false; scene.add(fxLight);
+let fxL = 0;
+function flashLight(p, k) { if (!fxLight.visible) return; if (k >= fxL || p.distanceTo(camera.position) < fxLight.position.distanceTo(camera.position)) fxLight.position.copy(p); fxL = Math.max(fxL, k); }
+// очаги огня после взрывов
+const fires = [];
+function updateFires(dt) {
+  for (let i = fires.length - 1; i >= 0; i--) {
+    const f = fires[i]; f.t -= dt; f.acc += dt;
+    if (f.t <= 0) { fires.splice(i, 1); continue; }
+    if (f.acc > 0.09) { f.acc = 0; const k = Math.min(1, f.t / 4);
+      SS.fxGlow(_v.set(f.pos.x + gauss() * 0.6, f.pos.y + 0.2, f.pos.z + gauss() * 0.6), Math.random() < 0.5 ? 0xff7a26 : 0xffb347, 0.7 * k, 0.15, 0.6, _v2.set(gauss() * 0.3, 1.6, gauss() * 0.3), 0.95, 0, 0, 0);
+      if (Math.random() < 0.18) SS.fxPuff(_v.set(f.pos.x, f.pos.y + 1, f.pos.z), 0x2e2a26, 0.8, 4, 5, _v2.set(0, 1.4, 0), 0.5 * k); }
+    for (const u of units) if (u.alive && !isBot(u) && Math.abs(u.pos.x - f.pos.x) < 1.8 && Math.abs(u.pos.z - f.pos.z) < 1.8) { hurtHuman(u, 4 * dt, '', null, true); if (u.state !== 'move') { const d = _v.set(u.pos.x - f.pos.x, 0, u.pos.z - f.pos.z); if (d.lengthSq() < 0.01) d.set(1, 0, 0); d.normalize(); sendTo(u, null, 0, u.pos.clone().addScaledVector(d, 4.5)); u.run = true; } }
+    if (PL.alive && !PL.robot && Math.abs(PL.pos.x - f.pos.x) < 1.4 && Math.abs(PL.pos.z - f.pos.z) < 1.4) hurtPlayer(7 * dt, f.pos);
+  }
+}
 function explode(pt, power, opts) {
   opts = opts || {};
+  flashLight(_v.copy(pt).setY(pt.y + 1.5), 3.5 * power);
+  if (opts.ground !== false && power >= 1.1 && Math.random() < 0.2 && fires.length < 12 && terrainH(pt.x, pt.z) > -0.5 && !inTrench(pt)) fires.push({ pos: pt.clone(), t: rnd(14, 26), acc: 0 });
+  if (opts.ground !== false) {
+    // кольцо пыли и столб дыма
+    for (let i = 0; i < 9; i++) { const a = i / 9 * TAU + Math.random() * 0.3; SS.fxPuff(pt, 0x9a8a68, 0.8 * power, 3.4 * power, rnd(1.4, 2.4), _v2.set(Math.cos(a) * 8 * power, 0.5, Math.sin(a) * 8 * power), 0.65, 0, 0, 0); }
+    SS.fxPuff(_v.copy(pt).setY(pt.y + 1.5), 0x2b2622, 2 * power, 7 * power, 5.5, _v2.set(0, 2.2, 0), 0.7);
+  }
   const dist = pt.distanceTo(camera.position);
   const up = _v.copy(pt); up.y += 0.4 * power;
   SS.fxGlow(up, 0xfff0c8, 2.5 * power, 6 * power, 0.18, null, 1, 0, 0, 6);
@@ -1250,6 +1292,13 @@ function gridQuery(p0, p1, pad, out) {
 }
 const attTeam = () => (B.scen === 'att' ? 'h' : 'r');
 const WALL = () => B.scen === 'wall';
+const WMAPS = {
+  field:    { name: 'Поле за рекой', h: [0, -880], r: [0, -1460] },
+  crossing: { name: 'Переправа', h: [0, -640], r: [0, -1080], hold: 'h' },
+  kurgans:  { name: 'Курганы', h: [470, -960], r: [520, -1390] },
+  forest:   { name: 'Лесополоса', h: [-250, -1290], r: [-260, -1760] },
+};
+HOOK.wmaps = WMAPS;
 const defTeam = () => (B.scen === 'att' ? 'r' : 'h');
 
 /* ================= командир: квадраты, приказы ================= */
@@ -1657,7 +1706,8 @@ function moveUnit(u, dt, speed) {
   d.normalize();
   const gy = terrainH(u.pos.x, u.pos.z);
   const wade = gy < -0.6 ? 0.6 : 1;
-  u.vel.set(d.x * speed * wade, 0, d.z * speed * wade);
+  u.cs = lerp(u.cs || 0, speed * wade, Math.min(1, dt * 3.5));
+  u.vel.set(d.x * u.cs, 0, d.z * u.cs);
   u.pos.x += u.vel.x * dt; u.pos.z += u.vel.z * dt;
   const cy = climbY(u.pos.x, u.pos.z);
   u.pos.y = terrainH(u.pos.x, u.pos.z) + cy * (isBot(u) ? 1.25 : 1);
@@ -2017,11 +2067,16 @@ function brainAttack(team) {
     if (WALL()) {
       const ks = [...TK[team].values()].filter((q) => B.t - q.t < 25);
       if (ks.length) { const gx = ks.reduce((s, q) => s + q.pos.x, 0) / ks.length, gz = ks.reduce((s, q) => s + q.pos.z, 0) / ks.length; g.goal = new V3(gx, 0, gz); }
-      else if (!g.goal) g.goal = new V3(c.x, 0, team === 'h' ? -1460 : -880);
+      else if (!g.goal) { const en = B.wm[enemyTeam(team)]; g.goal = new V3(en[0], 0, en[1]); }
       g.route = [[g.goal.x, g.goal.z]]; g.wi = 0;
     }
     const goal = g.goal || HILLV;
     const toHill = Math.hypot(c.x - goal.x, c.z - goal.z);
+    if (g.holdLine) {
+      if (!g.dug) { g.dug = true; al.forEach((m, i) => { const sp = spotNear(team, m.pos, goal, -40, 45, m.pos.x); if (sp) sendTo(m, sp, i * 0.4); }); }
+      const close = units.some((e) => e.team !== team && e.alive && e.pos.distanceTo(c) < 170) || (PL.alive && PL.team !== team && PL.pos.distanceTo(c) < 170);
+      if (!close) continue;
+    }
     if (g.phase === 'wait') { if (B.t > g.release || attAlive < B.NA * 0.55) { g.phase = 'march'; if (B.wave < 2) { B.wave = 2; feed(me ? 'Второй эшелон выдвигается!' : 'Новая волна ' + TN(team) + ' выходит на рубеж!', me ? 'me' : 'bad'); } } continue; }
     const spotted = al.some((m) => { const k = TK[foe].get(m); return k && B.t - k.t < 6; });
     const sees = [...TK[team].values()].some((q) => B.t - q.t < 8 && q.pos.distanceTo(c) < 900);
@@ -2141,6 +2196,34 @@ function assaultWall(g, al, team, manT) {
     if (sp) sendTo(m, sp, Math.random() * 0.4); else sendTo(m, null, Math.random() * 0.4, m.pos.clone().lerp(t, Math.min(0.9, 36 / bd)).add(_v.set(gauss() * 3, 0, gauss() * 3)));
     if (manT) m.run = true;
   });
+}
+function reinforce(team, n, msg) {
+  const man = team === 'h' || B.pvp, comp = man ? ['lead', 'rifle', 'mg', 'rifle', 'rpg', 'medic'] : ['assault', 'heavy', 'assault', 'rocket'];
+  B.rfN = (B.rfN || 0) + 1;
+  let base, phase = 'march', route = null, wi = 1;
+  if (WALL()) { const own = B.wm[team], en = B.wm[enemyTeam(team)]; base = new V3(own[0], 0, own[1] + (team === 'h' ? 150 : -150)); route = [[en[0], en[1]]]; wi = 0; }
+  else if (team === attTeam()) { if (team === 'r') { route = ROUTES[B.rfN % ROUTES.length]; base = new V3(route[0][0], 0, route[0][1]); } else { route = HROUTES[B.rfN % HROUTES.length]; base = new V3(route[0][0], 0, route[0][1] - 130); } }
+  else { base = team === 'h' ? new V3(0, 0, 135) : new V3(0, 0, HILL.cz + 70); phase = 'hold'; }
+  const g = { id: 'rf' + B.rfN, team, name: 'Подкрепление ' + B.rfN, members: [], phase, route, wi, turn: 0, smoked: false, order: 'hold', tactic: ['front', 'flankL', 'flankR'][B.rfN % 3] };
+  for (let i = 0; i < n; i++) {
+    const x = base.x + (i - n / 2) * 5, z = base.z + (i % 2) * 4;
+    const u = makeUnit(team, comp[i % comp.length], new V3(x, terrainH(x, z), z), team === 'h' ? 0 : Math.PI); u.squad = g; g.members.push(u);
+    if (phase === 'hold') { const s = slots.front.filter((q) => !q.used).sort((a, b) => a.pos.distanceTo(u.pos) - b.pos.distanceTo(u.pos))[0] || slots.rear.find((q) => !q.used); if (s) { sendTo(u, s, i * 0.3); u.run = true; u.home = s; } }
+  }
+  squads.push(g);
+  if (isFriend(team)) cmdSay('Подкрепление прибыло: ' + n + (man ? ' бойцов' : ' роботов') + (msg ? '. ' + msg : ''));
+  else feed('К противнику подошло подкрепление: ' + n + (man ? ' бойцов' : ' роботов') + (msg ? '. ' + msg : ''), 'bad');
+}
+function campaignTick() {
+  for (const e of B.campEv) {
+    if (e.done) continue;
+    const ok = e.t != null ? B.t >= e.t : e.low != null ? aliveN(e.lowTeam) < e.low * (B.n0 ? B.n0[e.lowTeam] : 1) : false;
+    if (!ok) continue;
+    e.done = true;
+    if (e.type === 'reinf') reinforce(e.team, e.n, e.msg);
+    else if (e.type === 'weather') { SS.setWeather(e.to); if (isNight() && SS.VIS.mode === 'off' && PL.robot) SS.setVision('thermal'); cmdSay(e.msg || 'Погода меняется'); }
+    else if (e.type === 'msg') cmdSay(e.msg);
+  }
 }
 function brainDefend(team) {
   const foe = enemyTeam(team);
@@ -2298,7 +2381,7 @@ HOOK.move = function () {
   if (B.mounted) { const n = B.mounted; const back = _v.set(Math.sin(n.yaw), 0, Math.cos(n.yaw)); P.x = n.pos.x + back.x * 0.9; P.z = n.pos.z + back.z * 0.9; P.yaw = n.yaw + clamp(angDiff(P.yaw, n.yaw), -1.2, 1.2); }
   if (B.mortarMode) { const m = B.mortarMode; P.x = m.pos.x; P.z = m.pos.z + 1.2; }
 };
-HOOK.fired = function (silent) { PL.firedT = silent ? B.t - 2.1 : B.t; };
+HOOK.fired = function (silent) { PL.firedT = silent ? B.t - 2.1 : B.t; if (!silent && isNight() && B.active) flashLight(camera.position, 1.3); };
 // помощник: если прицел почти на известном враге — сам добавляет возвышение на падение пули
 HOOK.autoElev = function (dir, rf) {
   if (!B.active || !(S.assist || PL.robot) || rf.type === 'rocket' || rf.type === 'mortar') return 0;
@@ -2328,7 +2411,8 @@ function poseHuman(u, dt) {
     blendPV(u, PV_H, dt * 3);
   } else {
     u.crouch = lerp(u.crouch, u.crouchT, Math.min(1, dt * 6));
-    const c = u.crouch, run = Math.min(1, u.mv);
+    const c = u.crouch, run = Math.min(1, u.mv), sprint = u.run && run > 0.6 ? 1 : 0, limp = u.hp < 50 ? 1 : 0;
+    u.flinch = (u.flinch || 0) * Math.exp(-dt * 7);
     u.ph += dt * (2.6 + run * 7);
     const sw = Math.sin(u.ph) * run;
     T.hipsY = lerp(0.95, 0.42, c) - run * 0.06 + Math.abs(Math.sin(u.ph)) * 0.05 * run;
@@ -2338,10 +2422,14 @@ function poseHuman(u, dt) {
     u.kick *= Math.exp(-dt * 12);
     T.torX = -0.5 * c - 0.3 * run + (1 - run) * u.pitch * 0.5 + u.kick * 0.08;
     T.torY = Math.sin(u.ph) * 0.12 * run + u.head * 0.25; T.headX = u.pitch * 0.3 * (1 - run) + run * 0.25; T.headY = u.head * 0.75;
+    T.torX -= sprint * 0.28; T.torX += u.flinch * 0.42; T.torY += u.flinch * 0.38 * (u.flinchS || 1); T.headX += u.flinch * 0.3;
+    if (limp && run > 0.1) { T.thR *= 0.5; T.snR *= 0.55; T.hipsY -= Math.max(0, Math.sin(u.ph)) * 0.06; T.torY += Math.sin(u.ph) * 0.08; }
     if (u.cls === 'rpg') { T.shRx = 2.4; T.shRz = 0.2; T.faR = 1.2; T.shLx = 1.3; T.shLz = -0.3; T.faL = 0.4; T.gunX = u.pitch * 0.4; }
     else if (run > 0.3) { T.shRx = 0.9; T.shRz = 0; T.faR = 1.1; T.shLx = 1.1; T.shLz = -0.4; T.faL = 0.9; T.gunX = 0.7; }
     else { T.shRx = 1.3 + u.pitch * 0.5; T.shRz = 0; T.faR = 0.35; T.shLx = 1.45 + u.pitch * 0.5; T.shLz = -0.35; T.faL = 0.2; T.gunX = u.pitch * 0.5 - c * 0.6 + u.kick * 0.05; }
-    if (u.reloadT > 0) { T.shLx = 0.7; T.faL = 1.4; T.gunX -= 0.4; }
+    T.shRx += u.kick * 0.18;
+    if (u.reloadT > 0) { const rp = Math.sin(B.t * 3.4 + u.id); T.shLx = 0.5 + rp * 0.35; T.shLz = -0.15; T.faL = 1.55 + rp * 0.3; T.gunX -= 0.55; T.headX += 0.35; T.torY += 0.15; }
+    else if (u.hp < 45 && run < 0.2 && !u.target) { T.shLx = 0.45; T.shLz = 0.35; T.faL = 1.9; T.torX -= 0.15; }
     if (u.healing) { T.hipsY = 0.5; T.thL = 1.5; T.snL = -1.6; T.thR = 0.2; T.snR = -1.7; T.torX = -0.7; T.shLx = 1.1; T.shRx = 1.0; T.faL = 0.6 + Math.sin(B.t * 6) * 0.3; T.faR = 0.8; T.gunX = -0.9; }
     if (u.chute) { T.hipsY = 0.95; T.thL = 0.15; T.thR = 0.05; T.snL = -0.35; T.snR = -0.2; T.torX = 0; T.shLx = 2.9; T.shLz = -0.35; T.shRx = 2.9; T.shRz = 0.35; T.faL = 0.4; T.faR = 0.4; T.gunX = -1.3; T.headX = 0.3; }
     if (u.mortar) { T.shLx = 0.9 + u.kick * 0.8; T.shRx = 0.9 + u.kick * 0.8; T.faL = 0.8; T.faR = 0.8; T.gunX = -0.9; }
@@ -2461,7 +2549,7 @@ function clearBattle() {
   rockets.forEach((r) => scene.remove(r.mesh)); rockets.length = 0;
   craters.forEach((c) => scene.remove(c)); craters.length = 0;
   debris.forEach((d) => scene.remove(d.g)); debris.length = 0;
-  grenades.forEach((g) => scene.remove(g.mesh)); grenades.length = 0;
+  grenades.forEach((g) => scene.remove(g.mesh)); grenades.length = 0; fires.length = 0; fxL = 0;
   for (let i = crates.length - 1; i >= 0; i--) if (crates[i].dyn) { scene.remove(crates[i].mesh); crates.splice(i, 1); }
   drops.forEach((d) => scene.remove(d.mesh)); drops.length = 0;
   smokes.length = 0;
@@ -2489,6 +2577,8 @@ function startBattle() {
   B.side = S.side === 'r' ? 'r' : 'h';
   B.pvp = S.foe === 'man';
   B.scen = S.scen === 'att' ? 'att' : S.scen === 'wall' ? 'wall' : 'def';
+  B.wm = WMAPS[S.map] || WMAPS.field;
+  B.camp = window.CAMPAIGN ? window.CAMPAIGN.current() : null; B.campEv = B.camp ? B.camp.events.map((e) => Object.assign({ done: false }, e)) : [];
   const nHt = clamp(Math.round(+S.nH || 18), 1, 100), nRt = clamp(Math.round(+S.nR || 6), 1, 100);
   const AT = attTeam(), DT = defTeam();
   Object.assign(B, { N: nRt, NA: AT === 'h' ? nHt : nRt, ND: DT === 'h' ? nHt : nRt, active: true, over: false, t: 0, rumbleT: 6, kills: 0, lost: 0, robotsKilled: 0, humansDown: 0, hitsE: 0, wave: 1, contactT: -99, rContactT: -99, lullSaid: false,
@@ -2583,23 +2673,23 @@ function startBattle() {
       const comp = man ? ['lead', 'rifle', 'mg', 'rifle', 'rpg', 'medic', 'rifle', 'sniper'] : ['assault', 'heavy', 'assault', 'rocket', 'scout', 'assault'];
       const per = man ? 6 : 4, gN = Math.max(1, Math.ceil(n / per)); let k = 0;
       for (let gi = 0; gi < gN && n > 0; gi++) {
-        const x0 = (gi - (gN - 1) / 2) * Math.min(70, 640 / gN);
-        const g = { id: team + 'w' + gi, team, name: (team === 'h' ? SQN : RSQN)[gi] || 'Группа ' + (gi + 1), members: [], phase: 'march', route: [[x0, team === 'h' ? -1460 : -880]], wi: 0, turn: 0, smoked: false, order: 'hold' };
+        const own = B.wm[team], en = B.wm[enemyTeam(team)], dx = (gi - (gN - 1) / 2) * Math.min(70, 640 / gN), x0 = own[0] + dx;
+        const g = { id: team + 'w' + gi, team, name: (team === 'h' ? SQN : RSQN)[gi] || 'Группа ' + (gi + 1), members: [], phase: 'march', route: [[en[0] + dx, en[1]]], wi: 0, turn: 0, smoked: false, order: 'hold', holdLine: B.wm.hold === team };
         for (let i = 0; i < per && n > 0; i++) { const x = x0 + (i - per / 2) * 6, z = z0 + (i % 2) * (team === 'h' ? 5 : -5); const u = makeUnit(team, comp[(k++) % comp.length], new V3(x, terrainH(x, z), z), team === 'h' ? 0 : Math.PI); u.squad = g; g.members.push(u); n--; }
         squads.push(g);
       }
     };
     if (B.side === 'h') {
-      ppos = new V3(0, 0, -868);
-      if (nH >= 3) { const trio = { id: 'trio', team: 'h', name: 'Тройка', members: [], order: 'follow', player: true, orderT: 0 }; ['rifle', 'mg', 'medic'].forEach((c, i) => { const x = (i - 1) * 4, z = -864; const u = makeUnit('h', c, new V3(x, terrainH(x, z), z), 0); u.squad = trio; trio.members.push(u); nH--; }); squads.push(trio); PL.squad = trio; }
+      ppos = new V3(B.wm.h[0], 0, B.wm.h[1] + 12);
+      if (nH >= 3) { const trio = { id: 'trio', team: 'h', name: 'Тройка', members: [], order: 'follow', player: true, orderT: 0 }; ['rifle', 'mg', 'medic'].forEach((c, i) => { const x = B.wm.h[0] + (i - 1) * 4, z = B.wm.h[1] + 16; const u = makeUnit('h', c, new V3(x, terrainH(x, z), z), 0); u.squad = trio; trio.members.push(u); nH--; }); squads.push(trio); PL.squad = trio; }
     }
-    line('h', nH, -880); line('r', nR, -1460);
-    if (B.side === 'r') { const g = squads.find((q) => q.team === 'r' && !q.static); ppos = new V3(g.route[0][0] + 8, 0, -1466); PL.squad = g; }
+    line('h', nH, B.wm.h[1]); line('r', nR, B.wm.r[1]);
+    if (B.side === 'r') { const g = squads.find((q) => q.team === 'r' && !q.static); ppos = new V3(B.wm.r[0] + 8, 0, B.wm.r[1] - 6); PL.squad = g; }
     if (S.mortars !== false) {
-      if (nH >= 12) { const m = addMortar(-30, -790, 'h'); for (let j = 0; j < 2; j++) { const p = m.pos.clone().add(_v.set(j ? 1.1 : -1.1, 0, -0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('h', 'mortar', p, 0); u.mortar = m; m.crew.push(u); } }
-      if (nR >= 8) { const m = addMortar(30, -1550, 'r'); const p = m.pos.clone().add(_v.set(1.1, 0, 0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('r', B.pvp ? 'mortar' : 'mortar', p, Math.PI); if (B.pvp) u.mortar = m; else u.mortarU = m; m.crew.push(u); }
+      if (nH >= 12) { const m = addMortar(B.wm.h[0] - 30, B.wm.h[1] + 90, 'h'); for (let j = 0; j < 2; j++) { const p = m.pos.clone().add(_v.set(j ? 1.1 : -1.1, 0, -0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('h', 'mortar', p, 0); u.mortar = m; m.crew.push(u); } }
+      if (nR >= 8) { const m = addMortar(B.wm.r[0] + 30, B.wm.r[1] - 90, 'r'); const p = m.pos.clone().add(_v.set(1.1, 0, 0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('r', B.pvp ? 'mortar' : 'mortar', p, Math.PI); if (B.pvp) u.mortar = m; else u.mortarU = m; m.crew.push(u); }
     }
-    addCrate(-12, -868, 0, true); addCrate(14, -872, 0, true); addCrate(-10, -1466, 0, true); addCrate(12, -1470, 0, true);
+    { const a = B.wm.h, c = B.wm.r; addCrate(a[0] - 12, a[1] + 12, 0, true); addCrate(a[0] + 14, a[1] + 8, 0, true); addCrate(c[0] - 10, c[1] - 6, 0, true); addCrate(c[0] + 12, c[1] - 10, 0, true); }
   } else {
     // ===== люди штурмуют: роботы держат траншеи, люди десантируются в ~500 м
     const rcomp = B.pvp ? ['rifle', 'mg', 'rifle', 'rpg', 'sniper'] : ['assault', 'heavy', 'assault', 'rocket', 'scout'];
@@ -2699,6 +2789,8 @@ function startBattle() {
   feed(intro, 'me');
   cmdSay('Задача: ' + R.obj + '.');
   if (B.taskMsg) setTimeout(() => { if (B.active) cmdSay('Взвод: ' + B.taskMsg + '.'); }, 3500);
+  B.n0 = { h: aliveN('h'), r: aliveN('r') };
+  if (B.camp) feed('Кампания · миссия ' + (S.campaign + 1) + ': «' + B.camp.title + '»', 'me');
   SS.updateWeaponUI();
 }
 function stopBattle() {
@@ -2731,6 +2823,8 @@ function endBattle(win, why, final) {
     '<br>Задача «' + R.obj + '»: ' + (v >= R.need ? '<b style="color:#9fdc7a">выполнена</b>' : v + ' из ' + R.need) + (final ? '' : '<br><br>Бой продолжается без вас.');
   if (B.pvp) { const ee = units.filter((u) => u.team === enemyTeam(B.side)), me2 = units.filter((u) => u.team === B.side); $('endP').innerHTML = 'Длительность: ' + mm + ' мин ' + ss + ' с<br>Противников выведено: ' + ee.filter((u) => !u.alive).length + ' из ' + ee.length + '<br>Ваши потери: ' + me2.filter((u) => !u.alive).length + ' из ' + me2.length + ' (+ вы)<br>Лично вами: ' + B.kills + (B.healed ? ', перевязано: ' + B.healed : '') + '<br>Ваши выстрелы: ' + shots + ', попаданий: ' + B.hitsE + (shots ? ' (' + Math.round(B.hitsE / shots * 100) + '%)' : '') + '<br>Задача «' + R.obj + '»: ' + (v >= R.need ? '<b style="color:#9fdc7a">выполнена</b>' : v + ' из ' + R.need) + (final ? '' : '<br><br>Бой продолжается без вас.'); }
   $('endWatch').hidden = !!final;
+  if ($('endNext')) $('endNext').hidden = true;
+  if (final && B.camp && window.CAMPAIGN) { window.CAMPAIGN.onEnd(win); $('endP').innerHTML += '<br><br><b>' + (win ? 'Миссия «' + B.camp.title + '» выполнена!' : 'Миссия провалена — попробуйте ещё раз.') + '</b>'; }
   setTimeout(() => { $('endScr').hidden = false; try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ } }, win ? 1500 : 400);
 }
 $('endAgain').addEventListener('click', () => { $('endScr').hidden = true; startBattle(); SS.setAim('hip'); });
@@ -2776,6 +2870,8 @@ HOOK.update = function (dt, sdt) {
     updateMortars(sdt);
     updateChutes(sdt);
     updateGrenades(sdt);
+    updateFires(sdt);
+    if (B.campEv && B.campEv.length) campaignTick();
     atmosphere(dt);
     if (B.scen === 'def' && !B.alarm) { for (const u of units) if (u.team === 'r' && u.alive && !u.mortarU && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 1300) { raiseAlarm('Роботы в квадрате ' + grid(u.pos) + ', ' + Math.round(Math.hypot(u.pos.x, u.pos.z - HILL.cz)) + ' м'); break; } }
     if (PL.alive && PL.team === attTeam() && Math.hypot(PL.pos.x, PL.pos.z - HILL.cz) < 158) B.reachedTrench = true;
@@ -2807,8 +2903,10 @@ HOOK.update = function (dt, sdt) {
   for (let i = smokers.length - 1; i >= 0; i--) {
     const s = smokers[i]; s.t -= dt; s.acc += dt;
     if (s.t <= 0) { smokers.splice(i, 1); continue; }
+    if (s.big && s.t > 12 && (s.facc = (s.facc || 0) + dt) > 0.1) { s.facc = 0; const fp = zonePoint(s.u, 'torso', new V3()); SS.fxGlow(fp.add(_v2.set(gauss() * 0.2, 0.3, gauss() * 0.2)), 0xff7a26, 0.45, 0.12, 0.5, _v3.set(gauss() * 0.2, 1.3, gauss() * 0.2), 0.9, 0, 0, 0); }
     if (s.acc > (s.big ? 0.22 : 0.45)) { s.acc = 0; const p = zonePoint(s.u, s.zone, new V3()); SS.spawnPuff(p, s.big ? 0x2b2926 : 0x4a4744, s.big ? 1.6 : 0.7, s.big ? 5 : 3, 1, s.big ? 1.6 : 0.9, 0.1); if (s.big && Math.random() < 0.2) sparks(p, 2, 0.25); }
   }
+  fxL *= Math.exp(-dt * 13); fxLight.intensity = fxL;
   renderUnits(dt);
   if (S.assist && PL.alive && !PL.robot && !B.mounted && !B.mortarMode && AIM.mode !== 'bino' && B.active) {
     const cd = _v.set(0, 0, -1).applyQuaternion(camera.quaternion); let bw = null, ba = 0.075;

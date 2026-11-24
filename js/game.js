@@ -1309,12 +1309,14 @@ function selectRifle(i) {
   const m = AIM.mode; AIM.mode = 'hip'; showRifleModel(); if (m !== 'hip') setAim(m); else setAim('hip');
   updateWeaponUI(); updateTurUI();
 }
+let reloadDur = 1;
 function reload() {
   const rf = curRifle(), st = curTur();
   if (reloadT > 0 || st.ammo === rf.mag || HOOK.dead) return;
   if (st.reserve === 0) return;
   if (st.mags === 0) { if (HOOK.noAmmo) HOOK.noAmmo(); return; }
   reloadT = rf.type === 'rocket' ? 3.6 : rf.id === 'pkm' ? 5.5 : rf.type === 'auto' ? 2.4 : rf.semi ? 2.6 : 3.2;
+  reloadDur = reloadT;
   if (AC && S.sound) { const t = AC.currentTime; noiseHit(t + 0.3, 0.07, 'bandpass', 1500, 0.4, 2); noiseHit(t + reloadT - 0.6, 0.08, 'bandpass', 2000, 0.45, 2); }
   updateWeaponUI();
 }
@@ -1842,6 +1844,12 @@ function applyCamera(dt) {
     lerp(hip.y, ADS.y, k) + Math.abs(Math.cos(P.bob)) * 0.012 * mv - (P.sprint ? 0.06 : 0),
     lerp(hip.z, ADS.z, k) + REC.k * (k > 0.5 ? 0.25 : 0.6));
   rifleHolder.rotation.set(REC.k * (k > 0.5 ? 0.6 : 2) + (P.sprint ? -0.5 : 0), P.sprint ? 0.6 : 0, 0);
+  { // перезарядка: оружие уходит вниз и набок, магазин меняется; у магазинных винтовок — ход затвора
+    const rl = reloadT > 0 ? Math.sin(Math.PI * clamp(1 - reloadT / reloadDur, 0, 1)) : 0;
+    const bolt = rf.type === 'sniper' && !rf.semi && cycleT > 0 && rf.cycle ? Math.sin(Math.PI * clamp(1 - cycleT / rf.cycle, 0, 1)) : 0;
+    rifleHolder.rotation.z += rl * 0.6 + bolt * 0.25; rifleHolder.rotation.x -= rl * 0.4 + bolt * 0.08;
+    rifleHolder.position.y -= rl * 0.08; rifleHolder.position.x -= rl * 0.035;
+  }
 }
 
 /* ---------------- окружение ---------------- */
@@ -2300,6 +2308,7 @@ function renderMenu() {
   chips($('mFoe'), [['bot', 'Люди против роботов'], ['man', 'Люди против людей']], S.foe || 'bot', (id) => { S.foe = id; save(); renderMenu(); });
   const pvp = S.foe === 'man';
   chips($('mSide'), pvp ? [['h', 'Играть за зелёных'], ['r', 'Играть за серых']] : [['h', 'Играть за людей'], ['r', 'Играть за роботов']], S.side, (id) => { S.side = id; save(); renderMenu(); });
+  if ($('mMap')) { $('mMap').hidden = S.scen !== 'wall'; if (HOOK.wmaps) chips($('mMap'), Object.entries(HOOK.wmaps).map(([k, v]) => [k, 'Карта: ' + v.name]), S.map || 'field', (id) => { S.map = id; save(); renderMenu(); }); }
   chips($('mScen'), [['def', pvp ? 'Зелёные обороняют высоту' : 'Люди обороняют высоту'], ['att', pvp ? 'Зелёные штурмуют (десант за 500 м)' : 'Люди штурмуют (десант за 500 м)'], ['wall', 'Стенка на стенку (поле)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
   const roles = S.side === 'r' && S.foe !== 'man' ? [['assault', 'Штурмовик'], ['heavy', 'Тяжёлый пулемётчик'], ['rocket', 'Ракетчик'], ['scout', 'Разведчик-снайпер']] : [['rifle', 'Стрелок'], ['mg', 'Пулемётчик'], ['sniper', 'Снайпер'], ['rpg', 'Гранатомётчик'], ['medic', 'Санитар'], ['mortar', 'Миномётчик'], ['lead', 'Командир тройки'], ['captain', 'Капитан взвода']];
   if (!roles.some((r) => r[0] === S.role)) S.role = roles[0][0];
@@ -2420,6 +2429,7 @@ window.SS = {
   THREE, V3, scene, camera, terrainH, S, P, AIM, STANCE, HOOK, SHAKE, HM, LRF, COND, RIFLES, TUR, STATS, UNIT, BR,
   clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
   say,
+  setWeather: (id) => { if (!WEATHER[id]) return; S.weather = id; applyConditions(); applyWeatherVisuals(); },
   setRumble: (v) => { if (AC && rumbleGain) rumbleGain.gain.setTargetAtTime(S.sound ? v : 0, AC.currentTime, 1.5); },
   obstHit, addObst, KURGANS,
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,

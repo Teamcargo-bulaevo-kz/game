@@ -94,7 +94,7 @@
 </div>
 
 <div id="dmg"></div>
-<div id="endScr" hidden><div class="panel endbox"><div class="eyebrow" id="endE">Бой окончен</div><h2 id="endT"></h2><p id="endP"></p><div class="rowbtns"><button class="sbtn" id="endWatch" type="button">Наблюдать бой</button><button class="go" id="endAgain" type="button">Ещё бой</button><button class="sbtn" id="endMenu" type="button">Меню</button></div></div></div>
+<div id="endScr" hidden><div class="panel endbox"><div class="eyebrow" id="endE">Бой окончен</div><h2 id="endT"></h2><p id="endP"></p><div class="rowbtns"><button class="sbtn" id="endWatch" type="button">Наблюдать бой</button><button class="go" id="endNext" type="button" hidden>Следующая миссия</button><button class="go" id="endAgain" type="button">Ещё бой</button><button class="sbtn" id="endMenu" type="button">Меню</button></div></div></div>
 <div id="rotate">Поверните телефон горизонтально</div>
 
 <div id="card" hidden>
@@ -120,8 +120,9 @@
       </div>
     </header>
 
+    <section id="secCamp"><h3>Кампания «Степной фронт»</h3><div id="mCamp" class="chips"></div><p class="note" id="mCampNote"></p></section>
     <section><h3>Режим игры</h3><div id="mGmode" class="chips"></div><p class="note" id="gmodeNote"></p>
-      <div id="teamRow"><h3 style="margin-top:10px">Противник</h3><div id="mFoe" class="chips"></div><h3 style="margin-top:10px">Сценарий</h3><div id="mScen" class="chips"></div><h3 style="margin-top:10px">Сторона</h3><div id="mSide" class="chips"></div>
+      <div id="teamRow"><h3 style="margin-top:10px">Противник</h3><div id="mFoe" class="chips"></div><h3 style="margin-top:10px">Сценарий</h3><div id="mScen" class="chips"></div><div id="mMap" class="chips" style="margin-top:6px"></div><h3 style="margin-top:10px">Сторона</h3><div id="mSide" class="chips"></div>
       <h3 style="margin-top:10px">Численность (до 100 с каждой стороны)</h3><div class="nums"><label>Людей <input id="mNH" type="number" min="1" max="100" inputmode="numeric"></label><label>Роботов <input id="mNR" type="number" min="1" max="100" inputmode="numeric"></label></div>
       <h3 style="margin-top:10px">Ваша роль</h3><div id="mRole" class="chips"></div><p class="note" id="mRoleNote"></p></div>
     </section>
@@ -167,6 +168,7 @@
 
 <script src="js/three.min.js"></script>
 <script src="js/game.js"></script>
+<script src="js/campaign.js"></script>
 <script src="js/battle.js"></script>
 <script src="js/hud.js"></script>
 <script>

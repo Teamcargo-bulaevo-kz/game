@@ -270,3 +270,6 @@ body.captain #sqPanel button.cap{display:block}
 body.captain #sqPanel .sqh.cap{display:block}
 
 #bGren.on{background:rgba(242,169,59,.45);transition:background .3s}
+
+#mCamp .chip.lock{opacity:.45}
+#mCampNote{max-width:720px}
