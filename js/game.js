@@ -207,6 +207,7 @@ RIFLES.push(
   { id: 'ksvk', name: 'КСВК', full: 'Крупнокалиберная снайперская винтовка', org: 'RU', type: 'sniper', cal: '12,7×108 · 7Н34, 59 г', mv: 840, bc: 0.36, g: 59, sh: 0.075, mag: 5, cycle: 1.4, semi: false, recoil: 2.3, sg: 2.0, scope: 'posp', disp: 0.3, look: 'ksvk' },
   { id: 'rpk', name: 'РПК-16', full: 'Ручной пулемёт', org: 'RU', type: 'auto', cal: '5,45×39 · 7Н24, барабан 95', mv: 930, bc: 0.17, g: 3.6, sh: 0.05, mag: 95, rpm: 700, recoil: 0.3, sg: 1.4, scope: 'iron_ak', disp: 0.8, look: 'rpk' },
 );
+RIFLES.push({ id: 'rpgs', name: 'РПГ-26 «Дым»', full: 'Одноразовый гранатомёт с дымовой гранатой', org: 'RU', type: 'rocket', smoke: true, cal: 'дымовая граната · завеса 30 м', mv: 117, bc: 0.1, g: 2600, sh: 0, mag: 1, recoil: 0.5, sg: 0, scope: 'pgo', disp: 1.2, look: 'rpg' });
 RIFLES.push({ id: 'm82', name: 'Миномёт 82 мм', full: 'Батальонный миномёт', org: 'RU', type: 'mortar', mounted: true, cal: 'осколочная мина 3,1 кг', mv: 211, bc: 1, g: 3100, sh: 0, mag: 1, cycle: 3, recoil: 0, sg: 0, scope: 'iron_ak', disp: 0, look: 'm82' });
 RIFLES.push({ id: 'kord', name: '«Корд» 12,7', full: 'Станковый крупнокалиберный пулемёт', org: 'RU', type: 'auto', mounted: true, cal: '12,7×108 · Б-32, 48 г', mv: 820, bc: 0.33, g: 48, sh: 0.1, mag: 150, rpm: 650, recoil: 0.18, sg: 1.8, scope: 'iron_kord', disp: 0.55, look: 'kord' });
 Object.assign(SCOPES, {
@@ -216,12 +217,12 @@ Object.assign(SCOPES, {
   lpvo: { id: 'lpvo', name: 'Оптика 2–6×', min: 2, max: 6, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, ret: 'lpvo' },
   posp:   { id: 'posp',   name: 'ПОСП 8×42', min: 8, max: 8, unit: 'thou', click: 0.5, maxW: 10, ret: 'pso' },
   thermo: { id: 'thermo', name: 'Тепловизор 3–12×', min: 3, max: 12, unit: 'mrad', click: 0.1, maxE: 25, maxW: 10, ret: 'mildot', thermal: true },
-  iron_kord: { id: 'iron_kord', name: 'Прицел «Корда» 1–20', iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 20, fov: 31 },
+  iron_kord: { id: 'iron_kord', name: 'Прицел «Корда» 1–20', iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 20, fov: 26 },
   holo:    { id: 'holo',    name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 20, maxW: 5, ret: 'holo' },
   holo_rk: { id: 'holo_rk', name: 'Цифровой прицел 2–6×', min: 2, max: 6, unit: 'mrad', click: 0.1, maxE: 0, maxW: 0, ret: 'holo', rocket: true },
-  iron_ak:  { id: 'iron_ak',  name: 'Открытый прицел 1–10',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 37 },
-  iron_pkm: { id: 'iron_pkm', name: 'Открытый прицел 1–15',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 15, fov: 35 },
-  iron_m4:  { id: 'iron_m4',  name: 'Диоптр 1–6',            iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 6,  fov: 38 },
+  iron_ak:  { id: 'iron_ak',  name: 'Открытый прицел 1–10',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 10, fov: 28 },
+  iron_pkm: { id: 'iron_pkm', name: 'Открытый прицел 1–15',  iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 15, fov: 27 },
+  iron_m4:  { id: 'iron_m4',  name: 'Диоптр 1–6',            iron: true, min: 1, max: 1, unit: 'thou', click: 0.5, maxW: 0, drumMax: 6,  fov: 29 },
   pgo:      { id: 'pgo',      name: 'ПГО-7 2,7×', rocket: true, min: 2.7, max: 2.7, unit: 'thou', click: 0.5, maxW: 0, ret: 'pgo' },
 });
 const WEATHER = {
@@ -1371,7 +1372,7 @@ function fire() {
   const ae = HOOK.autoElev ? HOOK.autoElev(dir, rf) : 0;
   if (rf.type === 'rocket') {
     d.applyAxisAngle(right, gauss() * disp + ae); d.applyAxisAngle(up, gauss() * disp);
-    if (HOOK.launchRocket) HOOK.launchRocket(camera.position.clone().addScaledVector(up, -0.07).addScaledVector(dir, 0.9), d, HOOK.playerTeam || 'h', true);
+    if (HOOK.launchRocket) HOOK.launchRocket(camera.position.clone().addScaledVector(up, -0.07).addScaledVector(dir, 0.9), d, HOOK.playerTeam || 'h', true, !!rf.smoke);
     REC.v += 0.5 * rf.recoil;
     flash.material.opacity = 1;
     updateWeaponUI();
@@ -2107,7 +2108,7 @@ function drawCollimator(W, H) {
 // открытый прицел: размытый целик крупным планом и чёткая мушка с намушником
 function drawIronSights(W, H) {
   const a = clamp((AIM.blend - 0.35) / 0.65, 0, 1); if (a < 0.02) return;
-  const id = curScope().id, cx = W / 2, cy = H / 2 + REC.k * 120 * OVD, u = H / 100;
+  const id = curScope().id, cx = W / 2, cy = H / 2 + REC.k * 120 * OVD, u = H / 78;
   const night = !!(WEATHER[S.weather] && WEATHER[S.weather].night), lit = night ? 0.55 : 1;
   o.save(); o.globalAlpha = a;
   const shade = (y0, y1) => { const g = o.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgb(' + (46 * lit | 0) + ',' + (45 * lit | 0) + ',' + (43 * lit | 0) + ')'); g.addColorStop(0.18, 'rgb(' + (24 * lit | 0) + ',' + (24 * lit | 0) + ',' + (23 * lit | 0) + ')'); g.addColorStop(1, 'rgb(10,10,10)'); return g; };
@@ -2293,7 +2294,7 @@ function renderMenu() {
   chips($('mFoe'), [['bot', 'Люди против роботов'], ['man', 'Люди против людей']], S.foe || 'bot', (id) => { S.foe = id; save(); renderMenu(); });
   const pvp = S.foe === 'man';
   chips($('mSide'), pvp ? [['h', 'Играть за зелёных'], ['r', 'Играть за серых']] : [['h', 'Играть за людей'], ['r', 'Играть за роботов']], S.side, (id) => { S.side = id; save(); renderMenu(); });
-  chips($('mScen'), [['def', pvp ? 'Зелёные обороняют высоту' : 'Люди обороняют высоту'], ['att', pvp ? 'Зелёные штурмуют (десант за 500 м)' : 'Люди штурмуют (десант за 500 м)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
+  chips($('mScen'), [['def', pvp ? 'Зелёные обороняют высоту' : 'Люди обороняют высоту'], ['att', pvp ? 'Зелёные штурмуют (десант за 500 м)' : 'Люди штурмуют (десант за 500 м)'], ['wall', 'Стенка на стенку (поле)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
   const roles = S.side === 'r' && S.foe !== 'man' ? [['assault', 'Штурмовик'], ['heavy', 'Тяжёлый пулемётчик'], ['rocket', 'Ракетчик'], ['scout', 'Разведчик-снайпер']] : [['rifle', 'Стрелок'], ['mg', 'Пулемётчик'], ['sniper', 'Снайпер'], ['rpg', 'Гранатомётчик'], ['medic', 'Санитар'], ['mortar', 'Миномётчик'], ['lead', 'Командир тройки'], ['captain', 'Капитан взвода']];
   if (!roles.some((r) => r[0] === S.role)) S.role = roles[0][0];
   chips($('mRole'), roles, S.role, (id) => { S.role = id; save(); renderMenu(); });
@@ -2324,7 +2325,7 @@ function renderMenu() {
     if (bat) { const cur = S.scopes.ak || 'iron'; chips($('mScopes'), [['iron', 'Мушка (открытый)']].concat(AUTO_SC.map((k) => [k, SCOPES[k].name])), cur, (id) => { ['ak', 'm4', 'rpk'].forEach((w) => { S.scopes[w] = id === 'iron' ? null : id; }); save(); renderMenu(); }); } }
   $('mSens').value = S.sens; $('mSensV').textContent = (+S.sens).toFixed(2);
 }
-['mNH', 'mNR'].forEach((id) => $(id).addEventListener('change', (e) => { const v = Math.max(1, Math.min(50, Math.round(+e.target.value || 1))); e.target.value = v; S[id === 'mNH' ? 'nH' : 'nR'] = v; save(); }));
+['mNH', 'mNR'].forEach((id) => $(id).addEventListener('change', (e) => { const v = Math.max(1, Math.min(100, Math.round(+e.target.value || 1))); e.target.value = v; S[id === 'mNH' ? 'nH' : 'nR'] = v; save(); }));
 $('mSens').addEventListener('input', (e) => { S.sens = +e.target.value; $('mSensV').textContent = S.sens.toFixed(2); save(); });
 [['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0], ['mDmgE', 'dmgE', 0], ['mDmgF', 'dmgF', 0]].forEach(([el, k, d]) => $(el).addEventListener('input', (e) => { S[k] = +e.target.value; $(el + 'V').textContent = S[k].toFixed(d); save(); if (k === 'vol' && MASTER) MASTER.gain.value = S.vol * 1.35; }));
 function applyUiPrefs() { document.body.classList.toggle('nolabels', S.labels === false); }

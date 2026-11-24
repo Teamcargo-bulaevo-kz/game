@@ -66,8 +66,10 @@
   <div id="feed" hidden></div>
   <button class="rb sm" id="bGren" type="button" hidden><svg viewBox="0 0 32 32"><ellipse cx="16" cy="19" rx="7" ry="8"/><path d="M13 11h6v-3h-6zM19 9l5-3"/></svg><span id="grenTxt">ГРАНАТА</span></button>
   <button class="rb sm" id="bMore" type="button"><svg viewBox="0 0 32 32"><circle cx="8" cy="16" r="2.4"/><circle cx="16" cy="16" r="2.4"/><circle cx="24" cy="16" r="2.4"/></svg><span>ЕЩЁ</span></button>
-  <div id="morePanel" hidden><button class="rb sm" id="bVision" type="button" hidden><svg viewBox="0 0 32 32"><circle cx="10" cy="16" r="6"/><circle cx="22" cy="16" r="6"/><path d="M16 16h0M4 16h-1M29 16h1"/></svg><span>ОПТИКА</span></button><button class="rb sm" id="bLaser" type="button"><svg viewBox="0 0 32 32"><path d="M4 22h10l4-5h10M14 22l-2 5M8 16l4 3M22 9l5-3M25 14l4 1M20 5l1 5"/></svg><span>ЛАЗЕР</span></button><button class="rb sm" id="bLeanL" type="button"><svg viewBox="0 0 32 32"><path d="M20 26l-6-20M14 6l-4 4M8 14h6"/></svg><span>НАКЛОН</span></button><button class="rb sm" id="bLeanR" type="button"><svg viewBox="0 0 32 32"><path d="M12 26l6-20M18 6l4 4M24 14h-6"/></svg><span>НАКЛОН</span></button><button class="rb sm" id="bSquad" type="button" hidden><svg viewBox="0 0 32 32"><circle cx="16" cy="8" r="3"/><circle cx="7" cy="12" r="2.5"/><circle cx="25" cy="12" r="2.5"/><path d="M10 26v-6a6 6 0 0 1 12 0v6M3 26v-4a4 4 0 0 1 6-3M29 26v-4a4 4 0 0 0-6-3"/></svg><span>ОТДЕЛЕНИЕ</span></button></div>
+  <div id="morePanel" hidden><button class="rb sm" id="bVision" type="button" hidden><svg viewBox="0 0 32 32"><circle cx="10" cy="16" r="6"/><circle cx="22" cy="16" r="6"/><path d="M16 16h0M4 16h-1M29 16h1"/></svg><span>ОПТИКА</span></button><button class="rb sm" id="bLaser" type="button"><svg viewBox="0 0 32 32"><path d="M4 22h10l4-5h10M14 22l-2 5M8 16l4 3M22 9l5-3M25 14l4 1M20 5l1 5"/></svg><span>ЛАЗЕР</span></button><button class="rb sm" id="bSquad" type="button" hidden><svg viewBox="0 0 32 32"><circle cx="16" cy="8" r="3"/><circle cx="7" cy="12" r="2.5"/><circle cx="25" cy="12" r="2.5"/><path d="M10 26v-6a6 6 0 0 1 12 0v6M3 26v-4a4 4 0 0 1 6-3M29 26v-4a4 4 0 0 0-6-3"/></svg><span>ОТДЕЛЕНИЕ</span></button></div>
   <div id="wList" hidden></div>
+  <button class="rb sm" id="bLeanL" type="button"><svg viewBox="0 0 32 32"><path d="M20 26l-6-20M14 6l-4 4M8 14h6"/></svg><span>НАКЛОН</span></button>
+  <button class="rb sm" id="bLeanR" type="button"><svg viewBox="0 0 32 32"><path d="M12 26l6-20M18 6l4 4M24 14h-6"/></svg><span>НАКЛОН</span></button>
   <canvas id="minimap" width="300" height="300" hidden></canvas>
   <div id="obj" class="panel" hidden></div>
   <button class="rb sm" id="bJump" type="button"><svg viewBox="0 0 32 32"><path d="M16 4l-7 9h5v8h4v-8h5z"/><path d="M8 27h16"/></svg><span>ПРЫЖОК</span></button>
@@ -85,6 +87,8 @@
     <button type="button" class="cap" data-c="p_adv">Взвод — вперёд!</button>
     <button type="button" class="cap" data-c="p_hold">Взвод — держать рубеж</button>
     <button type="button" class="cap" data-c="p_back">Взвод — отход</button>
+    <button type="button" class="cap" data-c="p_flankL">Взвод — левый фланг</button>
+    <button type="button" class="cap" data-c="p_flankR">Взвод — правый фланг</button>
   </div>
   <button class="rb sm" id="bReload" type="button"><svg viewBox="0 0 32 32"><path d="M25 11a10 10 0 1 0 1 9"/><path d="M26 4v7h-7"/></svg><span>ПЕРЕЗ.</span></button>
 </div>
@@ -118,7 +122,7 @@
 
     <section><h3>Режим игры</h3><div id="mGmode" class="chips"></div><p class="note" id="gmodeNote"></p>
       <div id="teamRow"><h3 style="margin-top:10px">Противник</h3><div id="mFoe" class="chips"></div><h3 style="margin-top:10px">Сценарий</h3><div id="mScen" class="chips"></div><h3 style="margin-top:10px">Сторона</h3><div id="mSide" class="chips"></div>
-      <h3 style="margin-top:10px">Численность (до 50 с каждой стороны)</h3><div class="nums"><label>Людей <input id="mNH" type="number" min="1" max="50" inputmode="numeric"></label><label>Роботов <input id="mNR" type="number" min="1" max="50" inputmode="numeric"></label></div>
+      <h3 style="margin-top:10px">Численность (до 100 с каждой стороны)</h3><div class="nums"><label>Людей <input id="mNH" type="number" min="1" max="100" inputmode="numeric"></label><label>Роботов <input id="mNR" type="number" min="1" max="100" inputmode="numeric"></label></div>
       <h3 style="margin-top:10px">Ваша роль</h3><div id="mRole" class="chips"></div><p class="note" id="mRoleNote"></p></div>
     </section>
     <section id="secRifles"><h3>Оружие</h3><div id="mRifles" class="rgrid"></div></section>
