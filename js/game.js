@@ -1365,7 +1365,7 @@ function fire() {
   const q = camera.quaternion;
   const dir = new V3(0, 0, -1).applyQuaternion(q), up = new V3(0, 1, 0).applyQuaternion(q), right = new V3(1, 0, 0).applyQuaternion(q);
   const origin = camera.position.clone().addScaledVector(up, -rf.sh).addScaledVector(dir, 0.5);
-  const hipK = AIM.mode === 'hip' ? (rf.type === 'sniper' ? 3 : 2.2) * (LASER.on ? 0.62 : 1) : 1;
+  const hipK = AIM.mode === 'hip' ? (rf.type === 'sniper' ? 3 : 1.6) * (LASER.on ? 0.65 : 1) : 1;
   const disp = rf.disp * hipK * (rf.type === 'auto' && P.stance === 2 ? 0.6 : 1) * 0.001 * (HOOK.dispMul || 1);
   if (S.vibro && navigator.vibrate) { try { navigator.vibrate(rf.type === 'auto' ? 7 : 18); } catch (e) { /* ignore */ } }
   const d = dir.clone();
@@ -1692,7 +1692,13 @@ tapButton($('bJump'), jump);
 tapButton($('bLaser'), toggleLaser);
 tapButton($('bLeanL'), () => setLean(-1));
 tapButton($('bLeanR'), () => setLean(1));
-tapButton($('bGren'), () => { if (HOOK.grenade) HOOK.grenade(); });
+// граната: нужно удержать кнопку ~0,3 с — случайно не бросишь
+(function () {
+  const el = $('bGren'); let tm = null;
+  const cancel = () => { if (tm) { clearTimeout(tm); tm = null; } el.classList.remove('on'); };
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); audioInit(); cancel(); el.classList.add('on'); tm = setTimeout(() => { tm = null; el.classList.remove('on'); if (HOOK.grenade) HOOK.grenade(); }, 320); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => el.addEventListener(ev, cancel));
+})();
 tapButton($('bVision'), () => setVision(VIS.mode === 'off' ? 'nvg' : VIS.mode === 'nvg' ? 'thermal' : 'off'));
 tapButton($('bSquad'), () => { if (HOOK.squadMenu) HOOK.squadMenu(); });
 tapButton($('bMed'), () => { if (HOOK.medkit) HOOK.medkit(); });

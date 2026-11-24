@@ -268,3 +268,5 @@ body.captain #sqPanel .cap{display:block}
 #sqPanel button{padding:7px 8px;font-size:12px;margin:0}
 body.captain #sqPanel button.cap{display:block}
 body.captain #sqPanel .sqh.cap{display:block}
+
+#bGren.on{background:rgba(242,169,59,.45);transition:background .3s}

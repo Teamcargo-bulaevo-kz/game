@@ -1560,11 +1560,13 @@ function perceive(u, dt) {
   }
 }
 // цель: кого вижу сейчас из известных, с учётом угрозы и распределения по отделению
+// игрок на бегу, пригнувшись, лёжа или в наклоне — по нему труднее попасть
+const pEvade = () => 1 + 0.9 * P.moving + (P.sprint ? 0.6 : 0) + (P.stance === 2 ? 0.35 : P.stance === 1 ? 0.15 : 0) + (Math.abs(P.leanV) > 0.3 ? 0.3 : 0);
 function threat(t, from) {
   const p = t.isPlayer ? PL.pos : t.pos;
   const d = p.distanceTo(from.pos);
   let s = (1500 - d) / 1500;
-  if (t.isPlayer) return s + 0.3;
+  if (t.isPlayer) return s;
   if (isBot(t)) { s += t.cls === 'rocket' ? 0.4 : t.cls === 'heavy' ? 0.35 : t.cls === 'scout' ? 0.3 : 0; s += (1 - t.Z.torso.int) * 0.6; if (d < 200) s += 0.8; }
   else { s += t.cls === 'hmg' ? 1.4 : t.cls === 'mg' ? 0.6 : t.cls === 'rpg' ? 0.5 : t.cls === 'sniper' ? 0.45 : 0; if (t.crouch < 0.5) s += 0.4; }
   return s;
@@ -1757,6 +1759,15 @@ function updateHuman(u, dt) {
     const sp = u.speed * (u.run ? 1.5 : 1) * (u.hp < 40 ? 0.45 : 1) * (u.supp > 1.5 ? 0.7 : 1);
     if (moveUnit(u, dt, sp)) { u.st = rnd(0.3, 1); u.crouchT = 1; u.run = false; }
     u.mv = lerp(u.mv, 1, dt * 5);
+    // огонь на ходу в ближнем бою (неприцельно, короткими)
+    const mt = u.target && u.target.alive ? u.target : null;
+    if (mt && u.cls !== 'sniper' && u.cls !== 'rpg' && u.cls !== 'medic' && u.reloadT <= 0 && u.mag > 0) {
+      u.cool -= 0; if (u.cool <= 0) {
+        const tq = aimPointOf(mt, 'torso', new V3()), Dm = tq.distanceTo(u.pos);
+        if (Dm < 60 && visibleNow(u, mt)) { if (u.burst <= 0) u.burst = Math.round(rnd(2, 4)); npcFireAt(u, tq, mt.isPlayer ? PL.vel : mt.vel, 7 * (1 + Dm / 60) * (mt.isPlayer ? pEvade() : 1), S.tracers && Math.random() < 0.25 ? 0xff9a3c : 0); u.burst--; u.cool = u.burst > 0 ? 60 / u.wp.rpm : rnd(0.35, 0.7); }
+        else u.cool = 0.3;
+      }
+    }
     return;
   }
   u.mv = lerp(u.mv, 0, dt * 6); u.vel.set(0, 0, 0);
@@ -1804,18 +1815,32 @@ function updateHuman(u, dt) {
     u.grenT = rnd(5, 9);
     if (Math.random() < 0.7) { const from = u.pos.clone().add(_v.set(0, 1.7, 0)); const to = (t.isPlayer ? PL.pos : t.pos).clone(); to.x += gauss() * 1.5; to.z += gauss() * 1.5; throwGrenade(from, lobVel(from, to, 0.9 + D / 30), u.team, false, u); u.gren--; u.kick = 1; u.cool = 1; if (isFriend(u.team)) vSay('Граната!', u, { force: true }); if (isFriend(u.team) && Math.random() < 0.5) feed(clsName(u.cls) + ': граната!'); return; }
   }
+  // ближний бой (до 50 м): не стоять в открытую, обходить, раненым — назад
+  if (D < 50 && u.state !== 'move' && B.t > (u.cqbT || 0) && !u.nest && !u.mortar) {
+    u.cqbT = B.t + rnd(4, 7);
+    const tpc = tp.clone(), away = new V3(u.pos.x - tp.x, 0, u.pos.z - tp.z).normalize();
+    if (u.hp < 40) { const sp = spotNear(u.team, u.pos, tpc, -30, -6, u.pos.x); if (sp) sendTo(u, sp, 0); else sendTo(u, null, 0, u.pos.clone().addScaledVector(away, 16)); u.run = true; return; }
+    if (!u.spot) { const sp = spotNear(u.team, u.pos, tpc, -14, 12, u.pos.x); if (sp) { sendTo(u, sp, 0); u.run = true; return; } }
+    if (sq && !sq.player && u.cls === 'rifle' && B.t > (sq.flankT || 0) && sq.members.filter((m) => m.alive).length >= 3) {
+      sq.flankT = B.t + 9; const sd = Math.random() < 0.5 ? -1 : 1;
+      const p = u.pos.clone().add(new V3(-away.z * sd * 18 - away.x * 6, 0, away.x * sd * 18 - away.z * 6));
+      const sp = spotNear(u.team, p, tpc, -10, 10, p.x); if (sp) sendTo(u, sp, 0.2); else sendTo(u, null, 0.2, p); u.run = true;
+      if (isFriend(u.team) && Math.random() < 0.3) feed(clsName(u.cls) + ': обхожу сбоку!');
+      return;
+    }
+  }
   if (u.crouch > 0.3) return;
   u.aimT += dt; u.expT += dt;
   if (u.expT > (u.cls === 'mg' ? 6 : 4) && inCover) { u.expT = 0; u.st = rnd(1.5, 3.5); return; }
   const cqb = D < 60;
-  if (u.cool > 0 || u.aimT < (u.cls === 'sniper' ? 1.2 : cqb ? 0.22 : 0.45)) return;
+  if (u.cool > 0 || u.aimT < (u.cls === 'sniper' ? 1.2 : cqb ? (t.isPlayer ? 0.55 : 0.22) : t.isPlayer ? 0.7 : 0.45)) return;
   if (!visibleNow(u, t)) { u.cool = 0.5; u.target = null; return; }
   u.seenT = B.t;
   const acc = 1 + 1.6 * Math.exp(-u.aimT * 1.5);
   // стресс боя: в среднем ~70% от «тировой» меткости, под огнём хуже
   const stress = 1.25 * (1 + Math.min(4, u.supp) * 0.12) * (u.hp < 50 ? 1.2 : 1);
   const base = ({ rifle: 2.6, lead: 2.5, medic: 2.8, mg: 3.2, sniper: 0.55, rpg: 1 }[u.cls] || 2.6) * acc * (1 + D / 700) * stress;
-  const size = t.isPlayer ? 0.6 : isBot(t) ? 0.7 : 0.45;
+  const size = t.isPlayer ? 0.6 / pEvade() : isBot(t) ? 0.7 : 0.45;
   const pHit = Math.min(1, Math.pow(size / (base * 0.001 * D + 1e-3), 2));
   if (pHit < 0.035 && u.cls !== 'mg') { u.cool = 0.6; return; }
   const vel = t.isPlayer ? PL.vel : t.vel;
@@ -1826,7 +1851,7 @@ function updateHuman(u, dt) {
     npcFireAt(u, aimPointOf(t, u.aimZone, new V3()), vel, base, S.tracers && Math.random() < 0.5 ? 0xff9a3c : 0); u.cool = rnd(2.5, 4); u.aimT = 0.6;
   } else {
     if (u.burst <= 0) u.burst = u.cls === 'mg' ? Math.round(rnd(6, 12)) : cqb ? Math.round(rnd(3, 6)) : Math.round(rnd(2, 4));
-    npcFireAt(u, aimPointOf(t, u.aimZone, new V3()), vel, base, S.tracers && Math.random() < (u.cls === 'mg' ? 0.5 : 0.25) ? 0xff9a3c : 0);
+    npcFireAt(u, aimPointOf(t, u.aimZone, new V3()), vel, base * (t.isPlayer ? pEvade() : 1), S.tracers && Math.random() < (u.cls === 'mg' ? 0.5 : 0.25) ? 0xff9a3c : 0);
     u.burst--;
     u.cool = u.burst > 0 ? 60 / u.wp.rpm : (cqb ? rnd(0.12, 0.3) : rnd(0.25, 0.55)) * (u.cls === 'mg' ? 1.2 : 1);
   }
@@ -1936,12 +1961,19 @@ function updateRobot(u, dt) {
   if (B.scen === 'att' && u.spot && u.state === 'pos' && u.supp > (u.cls === 'heavy' ? 4 : 2.2)) { u.crouchT = 1; return; }
   if (u.cool > 0 || D > (EFF[u.cls] || 650) * (B.scen === 'att' ? 0.75 : 1)) return;
   if (u.state === 'move' && u.cls !== 'assault') return;
-  if (!visibleNow(u, t)) { u.cool = 0.35; return; }
+  if (u.lockT !== t) { u.lockT = t; u.raim = 0; }
+  if (!visibleNow(u, t)) { u.cool = 0.35; u.raim = 0; return; }
+  u.raim = (u.raim || 0) + Math.max(dt, 0.033);
+  if (u.raim < (t.isPlayer ? (D < 50 ? 0.6 : 0.8) : 0.3)) return;
+  if (D < 50 && u.state === 'pos' && !u.crawl && u.cls !== 'heavy' && B.t > (u.strafeT || 0)) {
+    u.strafeT = B.t + rnd(3.5, 6.5); const sd = Math.random() < 0.5 ? -1 : 1, ax = -(tp.z - u.pos.z) / D, az = (tp.x - u.pos.x) / D;
+    sendTo(u, null, 0, u.pos.clone().add(_v2.set(ax * sd * rnd(6, 11), 0, az * sd * rnd(6, 11))));
+  }
   const wp = u.wp;
   if (u.burst <= 0) u.burst = Math.round(rnd(wp.burst[0], wp.burst[1]));
   const moving = u.state === 'move' ? 1.7 : 1;
   const vel = t.isPlayer ? PL.vel : t.vel;
-  npcFireAt(u, tp.clone(), vel, wp.spread * (u.gone.has('head') ? 5 : 1) * (1 + D / 650) * moving, S.tracers && Math.random() < 0.6 ? 0x7dff86 : 0);
+  npcFireAt(u, tp.clone(), vel, wp.spread * (u.gone.has('head') ? 5 : 1) * (1 + D / 650) * moving * (t.isPlayer ? pEvade() : 1) * (D < 50 ? 1.25 : 1), S.tracers && Math.random() < 0.6 ? 0x7dff86 : 0);
   u.burst--;
   u.cool = u.burst > 0 ? 60 / wp.rpm : rnd(wp.pause[0], wp.pause[1]);
 }
@@ -2778,6 +2810,15 @@ HOOK.update = function (dt, sdt) {
     if (s.acc > (s.big ? 0.22 : 0.45)) { s.acc = 0; const p = zonePoint(s.u, s.zone, new V3()); SS.spawnPuff(p, s.big ? 0x2b2926 : 0x4a4744, s.big ? 1.6 : 0.7, s.big ? 5 : 3, 1, s.big ? 1.6 : 0.9, 0.1); if (s.big && Math.random() < 0.2) sparks(p, 2, 0.25); }
   }
   renderUnits(dt);
+  if (S.assist && PL.alive && !PL.robot && !B.mounted && !B.mortarMode && AIM.mode !== 'bino' && B.active) {
+    const cd = _v.set(0, 0, -1).applyQuaternion(camera.quaternion); let bw = null, ba = 0.075;
+    for (const [e, k] of TK[PL.team]) {
+      if (!e.alive || e.isPlayer || B.t - k.t > 1.5) continue;
+      const tp = aimPointOf(e, 'torso', _v2), d = _v3.copy(tp).sub(camera.position), L = d.length(); if (L > 50 || L < 2) continue;
+      d.divideScalar(L); const a = Math.acos(clamp(d.dot(cd), -1, 1)); if (a < ba) { ba = a; bw = [faceYaw(d.x, d.z), Math.asin(clamp(d.y, -1, 1))]; }
+    }
+    if (bw) { const k = Math.min(1, dt * 2.2); P.yaw += angDiff(bw[0], P.yaw) * k; P.pitch += (bw[1] - P.pitch) * k; }
+  }
   if (B.mounted) { const n = B.mounted; n.piv.rotation.y = P.yaw; n.piv.rotation.x = P.pitch; }
   // HUD
   B.dmgA = Math.max(0, B.dmgA - dt * 0.6);
