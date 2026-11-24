@@ -220,6 +220,16 @@ if (BATTLE_MAP) (function buildCovers() {
     cv.pts.h.concat(cv.pts.r).forEach((p) => { p.pos.y = terrainH(p.pos.x, p.pos.z); });
     covers.push(cv);
   }
+  // каменные россыпи и валуны — укрытие, пуля не пробивает
+  { const geo = new THREE.IcosahedronGeometry(1, 0), N = 260; const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
+    const im = new THREE.InstancedMesh(geo, mat, N); let k = 0; const col = new THREE.Color(), dm = new THREE.Object3D();
+    const put = (x, z, s) => { if (k >= N) return; const gy = terrainH(x, z); if (gy < -0.6) return; const sx = s * (0.8 + R() * 0.6), sy = s * (0.55 + R() * 0.4), sz = s * (0.8 + R() * 0.6);
+      dm.position.set(x, gy + sy * 0.35, z); dm.rotation.set(R() * 0.5, R() * TAU, R() * 0.5); dm.scale.set(sx, sy, sz); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix);
+      const v = 0.42 + R() * 0.22; col.setRGB(v * (0.98 + R() * 0.06), v * (0.95 + R() * 0.05), v * (0.88 + R() * 0.06)); im.setColorAt(k++, col);
+      SS.addObst({ x, z, r: Math.min(sx, sz) * 0.85, y0: gy - 0.5, y1: gy + sy * 1.2 }); };
+    for (let c = 0; c < 9; c++) { const cx = (R() - 0.5) * 1200, cz = -260 - R() * 1500; if (Math.abs(cz - SS.riverZ(cx)) < 50 || FOREST.some((f) => Math.hypot(cx - f.x, cz - f.z) < f.r + 8)) continue; for (let i = 0; i < 18; i++) put(cx + (R() - 0.5) * 60, cz + (R() - 0.5) * 40, 0.5 + R() * 1.1); }
+    for (let i = 0; i < 90; i++) { const x = (R() - 0.5) * 1300, z = -200 - R() * 1800; if (Math.abs(z - SS.riverZ(x)) < 40 || FOREST.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 4)) continue; put(x, z, 0.6 + R() * 1.2); }
+    im.count = k; im.castShadow = SHD; im.receiveShadow = SHD; fieldGroup.add(im); }
   // точки на южных опушках лесов — роботы прячутся за деревьями
   for (const f of FOREST) {
     if (f.belt) { if (Math.random() < 0.35) { const x = f.x, z = f.z + 4; forestSpots.push({ pos: new V3(x, terrainH(x, z), z), used: null, forest: true }); } continue; }
@@ -246,6 +256,7 @@ function staticHit(p0, p1) {
   let best = null;
   for (const pp of parapets) if (nearBox(pp, p0, p1, 2.5)) { const t = segBox(pp, p0, p1); if (t != null && (best == null || t < best)) best = t; }
   for (const cv of covers) if (nearBox(cv, p0, p1, 4)) { const t = segBox(cv, p0, p1); if (t != null && (best == null || t < best)) best = t; }
+  const ot = SS.obstHit(p0, p1); if (ot != null && (best == null || ot < best)) best = ot;
   return best;
 }
 // длина пути отрезка внутри круга (лес)
@@ -278,6 +289,7 @@ function los(a, b) {
   const x0 = Math.min(a.x, b.x) - 8, x1 = Math.max(a.x, b.x) + 8, z0 = Math.min(a.z, b.z) - 8, z1 = Math.max(a.z, b.z) + 8;
   for (const pp of parapets) { if (pp.c.x < x0 || pp.c.x > x1 || pp.c.z < z0 || pp.c.z > z1) continue; const t = segBox(pp, a, b); if (t != null && t * L > 1.2 && (1 - t) * L > 1.2) return false; }
   for (const cv of covers) { if (cv.c.x < x0 || cv.c.x > x1 || cv.c.z < z0 || cv.c.z > z1) continue; const t = segBox(cv, a, b); if (t != null && t * L > 1.2 && (1 - t) * L > 1.5) return false; }
+  { const ot = SS.obstHit(a, b); if (ot != null && ot * L > 1.2 && (1 - ot) * L > 1.2) return false; }
   const n = Math.min(14, 3 + Math.floor(L / 60));
   for (let i = 1; i < n; i++) { const f = i / n; const x = lerp(a.x, b.x, f), y = lerp(a.y, b.y, f), z = lerp(a.z, b.z, f); if (y < terrainH(x, z) + 0.2) return false; }
   return true;
@@ -2241,6 +2253,15 @@ function renderUnits(dt) {
       pt.n++;
     }
   }
+  // далёкие бойцы: если фигура меньше ~5 пикселей, рисуем тёмную точку-силуэт
+  { const H2 = innerHeight / 2 / Math.tan(camera.fov * Math.PI / 360);
+    for (const u of units) {
+      if (!u.alive && !u.down) continue;
+      const d = Math.hypot(u.pos.x - cx, u.pos.z - cz); if (d < 250) continue;
+      const px = 1.8 / d * H2; if (px > 6) continue;
+      const bot = isBot(u), ht = bot ? (u.crawl ? 0.5 : 1.25) : u.down ? 0.25 : u.crouch > 0.5 ? 0.65 : 1.0;
+      SS.emit(SS.PSY.puff, u.pos.x, u.pos.y + ht, u.pos.z, 0, 0, 0, bot ? 1.1 : 0.9, bot ? 1.1 : 0.9, 0.09, bot ? 0x4a4f56 : u.man && u.team === 'r' ? 0x3a3c40 : 0x30361f, 0.95, 0, 0, 1.6);
+    } }
   for (const k in PT) { const p = PT[k]; p.mesh.count = p.n; p.mesh.instanceMatrix.needsUpdate = true; p.mesh.instanceColor.needsUpdate = true; }
 }
 HOOK.onVision = function (m) {

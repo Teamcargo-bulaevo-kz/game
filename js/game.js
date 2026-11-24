@@ -38,11 +38,35 @@ function fbm(x, z) {
 let MAPM = 'range';
 // лесные массивы и лесополосы карты боя (круги: x, z, r)
 const FORESTS = [];
+// сетка препятствий (стволы, камни): вертикальные цилиндры {x, z, r, y0, y1}
+const OB = new Map(), OBC = 20, _obk = [];
+function addObst(o) {
+  for (let i = Math.floor((o.x - o.r) / OBC); i <= Math.floor((o.x + o.r) / OBC); i++) for (let j = Math.floor((o.z - o.r) / OBC); j <= Math.floor((o.z + o.r) / OBC); j++) { const k = i * 100003 + j; let a = OB.get(k); if (!a) OB.set(k, a = []); a.push(o); }
+}
+function obstHit(p0, p1) {
+  if (!OB.size) return null;
+  const dx = p1.x - p0.x, dz = p1.z - p0.z, A = dx * dx + dz * dz; if (A < 1e-8) return null;
+  const n = Math.max(1, Math.ceil(Math.sqrt(A) / 9)); let best = null; _obk.length = 0;
+  for (let i = 0; i <= n; i++) {
+    const k = Math.floor((p0.x + dx * i / n) / OBC) * 100003 + Math.floor((p0.z + dz * i / n) / OBC);
+    if (_obk.indexOf(k) >= 0) continue; _obk.push(k);
+    const a = OB.get(k); if (!a) continue;
+    for (const o of a) {
+      const fx = p0.x - o.x, fz = p0.z - o.z, Bq = 2 * (fx * dx + fz * dz), C = fx * fx + fz * fz - o.r * o.r, D = Bq * Bq - 4 * A * C;
+      if (D < 0) continue;
+      const t = (-Bq - Math.sqrt(D)) / (2 * A); if (t < 0 || t > 1) continue;
+      const y = p0.y + (p1.y - p0.y) * t; if (y < o.y0 || y > o.y1) continue;
+      if (best == null || t < best) best = t;
+    }
+  }
+  return best;
+}
 (function () {
   [[-430, -1120, 170], [-290, -520, 105], [390, -1320, 190], [540, -470, 120], [-120, -1720, 150], [160, 380, 130], [-260, 300, 90], [640, -900, 110], [-650, -820, 120]].forEach((f) => FORESTS.push({ x: f[0], z: f[1], r: f[2] }));
   for (let x = -700; x <= 650; x += 22) if (Math.abs(x - 40) > 60) FORESTS.push({ x, z: -1540 + Math.sin(x / 90) * 6, r: 13, belt: true });   // дальняя лесополоса
   for (let x = -640; x <= -160; x += 22) FORESTS.push({ x, z: -330 + Math.sin(x / 70) * 5, r: 12, belt: true });                     // ближняя лесополоса (запад)
 })();
+const KURGANS = [[-600, -430, 46, 5], [330, -600, 55, 6.5], [-160, -980, 40, 4.5], [520, -1150, 62, 7.5], [-600, -1450, 52, 6], [120, -1880, 46, 5], [680, -320, 40, 4], [-380, -700, 34, 3.5]];
 const riverZ = (x) => -760 + 70 * Math.sin(x / 310) + 25 * Math.sin(x / 97);
 const gullyX = (z) => 230 + 90 * Math.sin(z / 240);
 function battleH(x, z) {
@@ -55,6 +79,10 @@ function battleH(x, z) {
   h -= 7 * (1 - smooth(5, 36, Math.abs(x - gullyX(z)))) * gm;
   // дальние холмы, откуда выходят роботы
   h += 26 * smooth(1500, 2300, -z) * fbm(x * 0.002, z * 0.002 + 3);
+  // степь не плоская: увалы, гряды поперёк подхода (мёртвые зоны) и курганы
+  const far = smooth(620, 900, r);
+  h += far * ((fbm(x * 0.007 + 3, z * 0.007 - 4) - 0.5) * 7 + 3.6 * Math.pow(Math.max(0, Math.sin(z / 230 + Math.sin(x / 420) * 1.3)), 3));
+  for (const k of KURGANS) { const dd = Math.hypot(x - k[0], z - k[1]); if (dd < k[2]) h += k[3] * Math.pow(1 - smooth(0, k[2], dd), 1.4); }
   // река
   const d = Math.abs(z - riverZ(x));
   h = lerp(-2.7, h, smooth(8, 42, d));
@@ -498,6 +526,7 @@ if (MAPM === 'battle') (function buildForests() {
       if (gy < -0.8) continue;
       const h = 7 + Math.random() * 9, pine = Math.random() < 0.45;
       _m4.makeScale(1, h * (pine ? 0.45 : 0.6), 1); _m4.setPosition(x, gy - 0.2, z); trunks.setMatrixAt(nt++, _m4);
+      addObst({ x, z, r: 0.24, y0: gy - 0.5, y1: gy - 0.2 + h * (pine ? 0.45 : 0.6) });
       col.setRGB(0.75 + Math.random() * 0.35, 0.8 + Math.random() * 0.35, 0.75 + Math.random() * 0.3);
       if (pine) { const w = 2 + Math.random() * 1.6; _m4.makeScale(w, h * 0.8, w); _m4.setPosition(x, gy + h * 0.25, z); pines.setMatrixAt(np, _m4); pines.setColorAt(np++, col); }
       else { const w = 2.6 + Math.random() * 2.2; _m4.makeScale(w, w * 0.85, w); _m4.setPosition(x, gy + h * 0.62, z); leaves.setMatrixAt(nl, _m4); leaves.setColorAt(nl++, col); }
@@ -971,7 +1000,7 @@ function audioInit() {
       try { AC = new ACtx({ latencyHint: 'balanced' }); } catch (e) { AC = new ACtx(); }
       // общий компрессор: без хрипа и перегрузки, когда стреляют все сразу
       OUT = AC.createDynamicsCompressor(); OUT.threshold.value = -18; OUT.knee.value = 12; OUT.ratio.value = 6; OUT.attack.value = 0.004; OUT.release.value = 0.2;
-      MASTER = AC.createGain(); MASTER.gain.value = S.vol != null ? S.vol : 0.85; OUT.connect(MASTER); MASTER.connect(AC.destination);
+      MASTER = AC.createGain(); MASTER.gain.value = (S.vol != null ? S.vol : 0.85) * 1.35; OUT.connect(MASTER); MASTER.connect(AC.destination);
       noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       const mk = (type, f, q) => { const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = AC.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(OUT); src.start(); return g; };
@@ -1001,7 +1030,61 @@ function tone(t0, f, dur, gain, type, f2, rev) {
   o.connect(g); g.connect(OUT); if (rev && REVIN) { const sg = AC.createGain(); sg.gain.value = rev; g.connect(sg); sg.connect(REVIN); } o.onended = () => { voices--; }; o.start(t0); o.stop(t0 + dur + 0.05);
 }
 let sndBudget = 0;
+// параметры «голоса» оружия: ударная волна, тело, низкий гул, шипение, механика
+const SHOTK = {
+  ak:      { dur: 0.42, n: 0.0011, fc: 2100, tau: 0.045, f: 120, ftau: 0.05, body: 1.0, low: 0.55, hiss: 0.55, mech: 0.035 },
+  mg:      { dur: 0.5,  n: 0.0014, fc: 1600, tau: 0.065, f: 92,  ftau: 0.07, body: 1.1, low: 0.75, hiss: 0.5,  mech: 0.04 },
+  sniper:  { dur: 0.7,  n: 0.0018, fc: 1300, tau: 0.09,  f: 72,  ftau: 0.1,  body: 1.15, low: 0.95, hiss: 0.45, mech: 0 },
+  big:     { dur: 0.95, n: 0.0024, fc: 950,  tau: 0.13,  f: 54,  ftau: 0.14, body: 1.25, low: 1.2, hiss: 0.4,  mech: 0 },
+  silent:  { dur: 0.2,  n: 0,      fc: 900,  tau: 0.018, f: 190, ftau: 0.02, body: 0.45, low: 0.2, hiss: 0.25, mech: 0.03 },
+  robot:   { dur: 0.45, n: 0.0012, fc: 2400, tau: 0.04,  f: 140, ftau: 0.05, body: 0.9, low: 0.5, hiss: 0.6,  mech: 0, ring: 1750 },
+  robotmg: { dur: 0.5,  n: 0.0014, fc: 1700, tau: 0.06,  f: 100, ftau: 0.07, body: 1.0, low: 0.7, hiss: 0.5,  mech: 0, ring: 1250 },
+  rocket:  { dur: 1.3,  n: 0.002,  fc: 600,  tau: 0.45,  f: 60,  ftau: 0.2,  body: 1.0, low: 0.7, hiss: 0.9,  mech: 0 },
+};
+const SBUF = {};
+function mkBuf(dur, fill) {
+  const n = Math.floor(AC.sampleRate * dur), b = AC.createBuffer(1, n, AC.sampleRate), d = b.getChannelData(0);
+  fill(d, AC.sampleRate); let m = 1e-6; for (let i = 0; i < n; i++) m = Math.max(m, Math.abs(d[i]));
+  for (let i = 0; i < n; i++) d[i] /= m; return b;
+}
+function synthShot(P, seed) {
+  return mkBuf(P.dur, (d, sr) => {
+    let s0 = seed * 7919 + 13; const R = () => { s0 = (s0 * 16807) % 2147483647; return s0 / 1073741823.5 - 1; };
+    const a = 1 - Math.exp(-2 * Math.PI * P.fc / sr); let l1 = 0, l2 = 0, l3 = 0;
+    for (let i = 0; i < d.length; i++) {
+      const t = i / sr, w = R();
+      let s = P.n && t < P.n ? (1 - 2 * t / P.n) * 1.4 : 0;                            // N-волна
+      l1 += (w - l1) * a; l2 += (l1 - l2) * a; l3 += (l2 - l3) * a * 0.5;
+      s += (l2 * 2.6 + l3 * 3.5) * Math.exp(-t / P.tau) * (1 - Math.exp(-t / 0.0006)) * P.body;   // тело выстрела
+      s += Math.sin(2 * Math.PI * P.f * t * (1 - t * 0.9)) * Math.exp(-t / P.ftau) * P.low;          // низкий удар
+      s += w * Math.exp(-t / 0.005) * P.hiss;                                                        // шипение газов
+      if (P.ring) s += Math.sin(2 * Math.PI * P.ring * t) * Math.exp(-t / 0.05) * 0.18;              // металл робота
+      if (P.mech) { const tm = t - P.mech; if (tm > 0 && tm < 0.03) s += w * 0.3 * Math.exp(-tm / 0.004) + Math.sin(2 * Math.PI * 3100 * tm) * 0.12 * Math.exp(-tm / 0.006); }
+      // хвост: отражения от увалов степи
+      [0.18, 0.41, 0.77].forEach((e, k) => { const te = t - e; if (te > 0) s += l3 * 2.2 * Math.exp(-te / (0.12 + k * 0.08)) * (0.32 - k * 0.08) * P.body; });
+      d[i] = s;
+    }
+  });
+}
+function shotBuf(kind) {
+  if (!SBUF[kind]) SBUF[kind] = [0, 1, 2].map((k) => synthShot(SHOTK[kind], k + kind.length * 31));
+  const a = SBUF[kind]; return a[(Math.random() * a.length) | 0];
+}
+function playBuf(buf, t, gain, rate, lpF, rev) {
+  if (!voiceOk(gain)) return;
+  const s = AC.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate || 1; let node = s;
+  if (lpF && lpF < 16000) { const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lpF; s.connect(f); node = f; }
+  const gg = AC.createGain(); gg.gain.value = gain; node.connect(gg); gg.connect(OUT);
+  if (rev && REVIN) { const sg = AC.createGain(); sg.gain.value = rev; gg.connect(sg); sg.connect(REVIN); }
+  s.onended = () => { voices--; }; s.start(t);
+}
+const shotKind = (rf, heavy, robot) => (rf ? (rf.silent ? 'silent' : rf.type === 'rocket' ? 'rocket' : rf.org === 'BOT' ? (rf.id === 'rmg' ? 'robotmg' : 'robot') : rf.g > 40 ? 'big' : rf.type === 'sniper' ? 'sniper' : rf.id === 'pkm' || rf.id === 'rpk' ? 'mg' : 'ak') : robot ? (heavy ? 'robotmg' : 'robot') : heavy ? 'mg' : 'ak');
 function sndShot(power, auto) {
+  if (!AC || !S.sound) return; const t = AC.currentTime, rf = curRifle(), kind = shotKind(rf);
+  playBuf(shotBuf(kind), t, 1.5 * power, 0.96 + Math.random() * 0.08, null, kind === 'silent' ? 0.1 : 0.55);
+  if (rf.type !== 'rocket' && Math.random() < (auto ? 0.35 : 0.9)) { const tc = t + 0.38 + Math.random() * 0.2; tone(tc, 3800 + Math.random() * 900, 0.06, 0.06, 'triangle', 3000); tone(tc + 0.09, 4300, 0.04, 0.035, 'triangle'); }
+}
+function sndShotOld(power, auto) {
   if (!AC || !S.sound) return; const t = AC.currentTime, rf = curRifle();
   const sil = !!rf.silent, big = rf.g > 30;
   // хлопок дульной волны, «тело» выстрела, низкий удар, механика затвора, эхо
@@ -1019,9 +1102,7 @@ function sndShotFar(dist, heavy, robot) {
   const v = clamp(30 / (dist + 30), 0.03, 0.8), t = AC.currentTime + dist / 343;
   if (v < 0.05 && Math.random() < 0.6) return;
   sndBudget++;
-  noiseHit(t, 0.05, 'highpass', 1200, 0.6 * v * (dist < 80 ? 1 : 0.4));
-  noiseHit(t, 0.25 + Math.min(0.6, dist / 600), 'lowpass', clamp(1600 - dist, 250, 1400), (heavy ? 1.1 : 0.8) * v, 0, dist > 150 ? 0.8 : 0.35);
-  if (robot) tone(t, heavy ? 420 : 640, 0.08, 0.12 * v, 'square', heavy ? 200 : 300);
+  playBuf(shotBuf(shotKind(null, heavy, robot)), t, 1.35 * v, 0.94 + Math.random() * 0.1, clamp(12000 / (1 + dist / 70), 450, 14000), dist > 150 ? 0.9 : 0.4);
 }
 function sndCrack(v) { if (!AC || !S.sound) return; const t = AC.currentTime; noiseHit(t, 0.03, 'highpass', 3000, 0.9 * v); noiseHit(t + 0.01, 0.06, 'bandpass', 1800, 0.5 * v, 2); tone(t, 2600 + Math.random() * 1400, 0.16, 0.08 * v, 'sine', 700 + Math.random() * 300); }
 function sndBolt(delay) {
@@ -1061,8 +1142,8 @@ function updateLaserBeam() {
     const tr = marchTerrain(p, _ld, Math.min(best, 500)); if (tr < best) best = tr;
     LASER.d = best < 500 ? best : 500;
   }
-  const k = 1 - AIM.blend * 0.85;
-  _lo.copy(p).addScaledVector(_ld, 0.6).addScaledVector(_lr, 0.1 * k).addScaledVector(_lu, -0.11 * k);
+  rifleHolder.updateMatrixWorld(true); flash.getWorldPosition(_lo);
+  if (_lo.distanceTo(p) > 2) { const k = 1 - AIM.blend * 0.85; _lo.copy(p).addScaledVector(_ld, 0.6).addScaledVector(_lr, 0.1 * k).addScaledVector(_lu, -0.11 * k); }
   const hx = p.x + _ld.x * LASER.d, hy = p.y + _ld.y * LASER.d, hz = p.z + _ld.z * LASER.d;
   const a = LASER.line.geometry.attributes.position.array; a[0] = _lo.x; a[1] = _lo.y; a[2] = _lo.z; a[3] = hx; a[4] = hy; a[5] = hz;
   LASER.line.geometry.attributes.position.needsUpdate = true;
@@ -1763,9 +1844,9 @@ function ambience(dt) {
   AMB.t -= dt; if (AMB.t > 0) return;
   const W = WEATHER[S.weather] || {}, t = AC.currentTime;
   if (!W.night && !W.rain) {
-    AMB.t = 3 + Math.random() * 7;
+    AMB.t = 7 + Math.random() * 14;
     const f0 = 2600 + Math.random() * 1800, n = 2 + Math.floor(Math.random() * 4);
-    for (let i = 0; i < n; i++) tone(t + i * (0.09 + Math.random() * 0.05), f0 * (1 + (Math.random() - 0.5) * 0.15), 0.07, 0.025, 'sine', f0 * (0.75 + Math.random() * 0.5));
+    for (let i = 0; i < n; i++) tone(t + i * (0.09 + Math.random() * 0.05), f0 * (1 + (Math.random() - 0.5) * 0.15), 0.07, 0.014, 'sine', f0 * (0.75 + Math.random() * 0.5));
     if (Math.random() < 0.25) { const f = 1100 + Math.random() * 300; tone(t + 0.6, f, 0.35, 0.02, 'sine', f * 1.6); tone(t + 1.0, f * 1.5, 0.3, 0.015, 'sine', f); }
   } else if (W.night) {
     AMB.t = 0.8 + Math.random() * 2.2;
@@ -2245,7 +2326,7 @@ function renderMenu() {
 }
 ['mNH', 'mNR'].forEach((id) => $(id).addEventListener('change', (e) => { const v = Math.max(1, Math.min(50, Math.round(+e.target.value || 1))); e.target.value = v; S[id === 'mNH' ? 'nH' : 'nR'] = v; save(); }));
 $('mSens').addEventListener('input', (e) => { S.sens = +e.target.value; $('mSensV').textContent = S.sens.toFixed(2); save(); });
-[['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0], ['mDmgE', 'dmgE', 0], ['mDmgF', 'dmgF', 0]].forEach(([el, k, d]) => $(el).addEventListener('input', (e) => { S[k] = +e.target.value; $(el + 'V').textContent = S[k].toFixed(d); save(); if (k === 'vol' && MASTER) MASTER.gain.value = S.vol; }));
+[['mSensS', 'sensS', 2], ['mGyroS', 'gyroS', 2], ['mVol', 'vol', 2], ['mFov', 'fov', 0], ['mDmgE', 'dmgE', 0], ['mDmgF', 'dmgF', 0]].forEach(([el, k, d]) => $(el).addEventListener('input', (e) => { S[k] = +e.target.value; $(el + 'V').textContent = S[k].toFixed(d); save(); if (k === 'vol' && MASTER) MASTER.gain.value = S.vol * 1.35; }));
 function applyUiPrefs() { document.body.classList.toggle('nolabels', S.labels === false); }
 applyUiPrefs();
 function applyMode() { signs.forEach((s) => { s.visible = S.mode === 'train' && !HOOK.battle; }); if (S.mode !== 'train') $('toast').classList.remove('show'); }
@@ -2333,6 +2414,7 @@ window.SS = {
   clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
   say,
   setRumble: (v) => { if (AC && rumbleGain) rumbleGain.gain.setTargetAtTime(S.sound ? v : 0, AC.currentTime, 1.5); },
+  obstHit, addObst, KURGANS,
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,
   curRifle, curTur, scopeOf, selectRifle, setAim, setStance, updateWeaponUI, setRangeVisible, openMenu, renderMenu, targetSeg, paintRing, paintSteel, inPoly, SIL,
   IS_TOUCH, getSimT: () => simT, reload, rifleHolder, report, updateStats,
