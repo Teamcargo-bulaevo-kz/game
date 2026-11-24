@@ -333,15 +333,60 @@ function defPart(key, geo, mult, glow) {
   PT[key] = { mesh: m, n: 0, max, geo };
 }
 const HC = { uni: 0x5d6b40, uniD: 0x4c5834, vest: 0x3d4630, pouch: 0x4a5538, skin: 0xc79c7a, helm: 0x4d5733, boot: 0x2a2622, glove: 0x2f2e29, pack: 0x56603f, metal: 0x1f201f, wood: 0x4a2e22 };
-defPart('h_pelvis', merge([BX(0.34, 0.2, 0.22, 0, 0, 0, HC.uniD), BX(0.36, 0.05, 0.24, 0, 0.09, 0, 0x2b2b25), BX(0.07, 0.09, 0.05, 0.13, 0.02, -0.12, HC.pouch), BX(0.07, 0.09, 0.05, -0.13, 0.02, -0.12, HC.pouch)]));
-defPart('h_torso', merge([BX(0.36, 0.26, 0.2, 0, 0.12, 0, HC.uni), BX(0.4, 0.28, 0.22, 0, 0.38, 0, HC.uni), BX(0.42, 0.36, 0.28, 0, 0.32, 0, HC.vest), BX(0.09, 0.11, 0.06, -0.12, 0.22, -0.17, HC.pouch), BX(0.09, 0.11, 0.06, 0, 0.22, -0.17, HC.pouch), BX(0.09, 0.11, 0.06, 0.12, 0.22, -0.17, HC.pouch),
+defPart('h_pelvis_l', merge([BX(0.34, 0.2, 0.22, 0, 0, 0, HC.uniD), BX(0.36, 0.05, 0.24, 0, 0.09, 0, 0x2b2b25), BX(0.07, 0.09, 0.05, 0.13, 0.02, -0.12, HC.pouch), BX(0.07, 0.09, 0.05, -0.13, 0.02, -0.12, HC.pouch)]));
+defPart('h_torso_l', merge([BX(0.36, 0.26, 0.2, 0, 0.12, 0, HC.uni), BX(0.4, 0.28, 0.22, 0, 0.38, 0, HC.uni), BX(0.42, 0.36, 0.28, 0, 0.32, 0, HC.vest), BX(0.09, 0.11, 0.06, -0.12, 0.22, -0.17, HC.pouch), BX(0.09, 0.11, 0.06, 0, 0.22, -0.17, HC.pouch), BX(0.09, 0.11, 0.06, 0.12, 0.22, -0.17, HC.pouch),
   BX(0.22, 0.06, 0.2, 0, 0.53, 0, HC.vest), BX(0.32, 0.36, 0.15, 0, 0.32, 0.21, HC.pack), BX(0.3, 0.08, 0.17, 0, 0.52, 0.21, 0x4a5236), CY(0.006, 0.006, 0.45, 0.1, 0.64, 0.25, 0x111111), BX(0.14, 0.1, 0.08, -0.16, 0.12, 0.13, HC.pouch)]));
-defPart('h_head', merge([BX(0.09, 0.08, 0.09, 0, 0.02, 0, HC.skin), BX(0.16, 0.2, 0.18, 0, 0.13, 0, HC.skin), BX(0.03, 0.04, 0.03, 0, 0.11, -0.1, 0xb8896a), HS(0.14, 0, 0.16, 0, HC.helm, 1, 0.95, 1.05),
+defPart('h_head_l', merge([BX(0.09, 0.08, 0.09, 0, 0.02, 0, HC.skin), BX(0.16, 0.2, 0.18, 0, 0.13, 0, HC.skin), BX(0.03, 0.04, 0.03, 0, 0.11, -0.1, 0xb8896a), HS(0.14, 0, 0.16, 0, HC.helm, 1, 0.95, 1.05),
   BX(0.29, 0.03, 0.29, 0, 0.16, 0, HC.helm), BX(0.17, 0.035, 0.03, 0, 0.215, -0.13, 0x222222), BX(0.15, 0.025, 0.02, 0, 0.16, -0.095, 0x2a1f18), BX(0.04, 0.05, 0.06, 0.12, 0.2, -0.06, 0x1a1a1a)]));
-defPart('h_uarm', merge([BX(0.1, 0.3, 0.11, 0, -0.15, 0, HC.uni), BX(0.115, 0.09, 0.125, 0, -0.03, 0, HC.vest)]), 2);
-defPart('h_farm', merge([BX(0.09, 0.26, 0.1, 0, -0.13, 0, HC.uni), BX(0.08, 0.09, 0.09, 0, -0.3, 0, HC.glove)]), 2);
-defPart('h_thigh', merge([BX(0.15, 0.45, 0.16, 0, -0.23, 0, HC.uniD), BX(0.04, 0.12, 0.11, 0.09, -0.25, 0, HC.pouch)]), 2);
-defPart('h_shin', merge([BX(0.13, 0.42, 0.14, 0, -0.21, 0, HC.uniD), BX(0.12, 0.1, 0.04, 0, -0.03, -0.08, 0x2b2b25), BX(0.13, 0.1, 0.27, 0, -0.43, -0.05, HC.boot)]), 2);
+defPart('h_uarm_l', merge([BX(0.1, 0.3, 0.11, 0, -0.15, 0, HC.uni), BX(0.115, 0.09, 0.125, 0, -0.03, 0, HC.vest)]), 2);
+defPart('h_farm_l', merge([BX(0.09, 0.26, 0.1, 0, -0.13, 0, HC.uni), BX(0.08, 0.09, 0.09, 0, -0.3, 0, HC.glove)]), 2);
+defPart('h_thigh_l', merge([BX(0.15, 0.45, 0.16, 0, -0.23, 0, HC.uniD), BX(0.04, 0.12, 0.11, 0.09, -0.25, 0, HC.pouch)]), 2);
+defPart('h_shin_l', merge([BX(0.13, 0.42, 0.14, 0, -0.21, 0, HC.uniD), BX(0.12, 0.1, 0.04, 0, -0.03, -0.08, 0x2b2b25), BX(0.13, 0.1, 0.27, 0, -0.43, -0.05, HC.boot)]), 2);
+
+// ---------- детальные модели (low-poly, вблизи) ----------
+function PR(g, c, t, s, r) { if (s) g.scale(s[0], s[1], s[2]); if (r) { if (r[0]) g.rotateX(r[0]); if (r[1]) g.rotateY(r[1]); if (r[2]) g.rotateZ(r[2]); } g.translate(t[0], t[1], t[2]); return [g, c]; }
+const gC = (r1, r2, h, seg) => new THREE.CylinderGeometry(r1, r2, h, seg || 8);
+const gS = (r, w, hh) => new THREE.SphereGeometry(r, w || 8, hh || 6);
+const gB = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+const gHelm = (r) => new THREE.SphereGeometry(r, 12, 6, 0, TAU, 0, Math.PI * 0.56);
+defPart('h_pelvis', merge([
+  PR(gC(0.15, 0.14, 0.2, 10), HC.uniD, [0, -0.01, 0], [1.15, 1, 0.82]), PR(gC(0.163, 0.163, 0.05, 10), 0x2b2b25, [0, 0.085, 0], [1.15, 1, 0.84]),
+  PR(gB(0.06, 0.045, 0.02), 0x8a8270, [0, 0.085, -0.14]), PR(gB(0.08, 0.1, 0.06), HC.pouch, [0.15, 0.01, -0.07]), PR(gB(0.08, 0.1, 0.06), HC.pouch, [-0.15, 0.01, -0.07]),
+  PR(gC(0.035, 0.035, 0.12, 8), 0x4a4a3a, [-0.17, 0.0, 0.08]), PR(gB(0.2, 0.1, 0.14), HC.uniD, [0, -0.1, 0]),
+]));
+defPart('h_torso', merge([
+  PR(gC(0.15, 0.16, 0.27, 10), HC.uni, [0, 0.135, 0], [1.12, 1, 0.74]), PR(gC(0.2, 0.155, 0.3, 10), HC.uni, [0, 0.4, 0], [1.08, 1, 0.7]),
+  PR(gS(0.1), HC.uni, [-0.21, 0.51, 0], [1, 0.75, 1]), PR(gS(0.1), HC.uni, [0.21, 0.51, 0], [1, 0.75, 1]),
+  PR(gB(0.34, 0.32, 0.06), HC.vest, [0, 0.35, -0.125]), PR(gB(0.34, 0.32, 0.06), HC.vest, [0, 0.35, 0.125]), PR(gB(0.05, 0.3, 0.26), HC.vest, [-0.17, 0.34, 0]), PR(gB(0.05, 0.3, 0.26), HC.vest, [0.17, 0.34, 0]),
+  PR(gB(0.07, 0.05, 0.28), HC.vest, [-0.11, 0.52, 0]), PR(gB(0.07, 0.05, 0.28), HC.vest, [0.11, 0.52, 0]),
+  PR(gB(0.07, 0.12, 0.05), HC.pouch, [-0.1, 0.25, -0.17]), PR(gB(0.07, 0.12, 0.05), HC.pouch, [0, 0.25, -0.17]), PR(gB(0.07, 0.12, 0.05), HC.pouch, [0.1, 0.25, -0.17]),
+  PR(gB(0.09, 0.07, 0.04), HC.pouch, [-0.09, 0.42, -0.165]), PR(gB(0.05, 0.08, 0.04), 0x2a2a28, [0.1, 0.43, -0.165]),
+  PR(gC(0.055, 0.062, 0.1, 8), HC.skin, [0, 0.6, 0]), PR(gC(0.075, 0.07, 0.04, 8), HC.uni, [0, 0.555, 0]),
+  PR(gB(0.29, 0.33, 0.13), HC.pack, [0, 0.34, 0.225]), PR(gB(0.25, 0.12, 0.06), 0x4a5236, [0, 0.24, 0.3]), PR(gC(0.055, 0.055, 0.3, 8), 0x6a6650, [0, 0.54, 0.22], null, [0, 0, Math.PI / 2]),
+  PR(gC(0.006, 0.006, 0.45, 4), 0x111111, [0.1, 0.65, 0.27]),
+]));
+const headBase = [PR(gS(0.1, 10, 8), HC.skin, [0, 0.12, -0.005], [0.95, 1.12, 1.02]), PR(gB(0.03, 0.05, 0.04), 0xb8896a, [0, 0.11, -0.105]),
+  PR(gB(0.03, 0.012, 0.01), 0x1a1612, [-0.035, 0.145, -0.095]), PR(gB(0.03, 0.012, 0.01), 0x1a1612, [0.035, 0.145, -0.095]), PR(gB(0.05, 0.012, 0.01), 0x6e4a3a, [0, 0.07, -0.095]),
+  PR(gB(0.02, 0.04, 0.03), HC.skin, [-0.1, 0.12, 0]), PR(gB(0.02, 0.04, 0.03), HC.skin, [0.1, 0.12, 0])];
+defPart('h_head', merge(headBase.map(([g, c]) => [g.clone(), c]).concat([
+  PR(gHelm(0.14), HC.helm, [0, 0.14, 0.005], [1, 0.95, 1.08]), PR(gC(0.142, 0.15, 0.025, 12), HC.helm, [0, 0.14, 0.005], [1, 1, 1.08]),
+  PR(gB(0.17, 0.035, 0.03), 0x222222, [0, 0.22, -0.13]), PR(gB(0.04, 0.05, 0.05), 0x1a1a1a, [0.13, 0.19, -0.05]), PR(gB(0.012, 0.09, 0.012), 0x2a2a22, [-0.08, 0.09, -0.06], null, [0, 0, 0.2]),
+])));
+defPart('h_head2', merge(headBase.map(([g, c]) => [g.clone(), c]).concat([
+  PR(gHelm(0.142), 0x6b6a4f, [0, 0.14, 0.005], [1, 0.92, 1.08]), PR(gC(0.146, 0.152, 0.025, 12), 0x6b6a4f, [0, 0.14, 0.005], [1, 1, 1.08]),
+  PR(gB(0.2, 0.04, 0.05), 0x1c1c1c, [0, 0.165, -0.1]), PR(gB(0.07, 0.035, 0.012), 0x5a7a8a, [-0.04, 0.165, -0.127]), PR(gB(0.07, 0.035, 0.012), 0x5a7a8a, [0.04, 0.165, -0.127]),
+])));
+defPart('h_head3', merge([PR(gS(0.104, 10, 8), 0x2a2b26, [0, 0.12, -0.005], [0.97, 1.14, 1.04]), PR(gB(0.09, 0.025, 0.012), HC.skin, [0, 0.145, -0.1]),
+  PR(gB(0.03, 0.012, 0.01), 0x1a1612, [-0.03, 0.146, -0.107]), PR(gB(0.03, 0.012, 0.01), 0x1a1612, [0.03, 0.146, -0.107]),
+  PR(new THREE.SphereGeometry(0.115, 10, 5, 0, TAU, 0, Math.PI * 0.5), 0x3e4a2c, [0, 0.165, 0], [1, 0.7, 1.05]), PR(gB(0.16, 0.015, 0.1), 0x3e4a2c, [0, 0.17, -0.12]),
+]));
+defPart('h_uarm', merge([PR(gS(0.07), HC.uni, [0, -0.01, 0]), PR(gC(0.058, 0.05, 0.3, 8), HC.uni, [0, -0.15, 0]), PR(gB(0.03, 0.08, 0.05), 0x55603b, [-0.055, -0.1, 0]), PR(gS(0.05), 0x2b2b25, [0, -0.3, 0.01], [1, 0.8, 1])]), 2);
+defPart('h_farm', merge([PR(gC(0.05, 0.042, 0.26, 8), HC.uni, [0, -0.13, 0]), PR(gC(0.045, 0.045, 0.04, 8), HC.uniD, [0, -0.24, 0]),
+  PR(gB(0.065, 0.08, 0.085), HC.glove, [0, -0.3, -0.005]), PR(gB(0.02, 0.05, 0.03), HC.glove, [-0.04, -0.29, -0.03])]), 2);
+defPart('h_thigh', merge([PR(gC(0.088, 0.066, 0.46, 8), HC.uniD, [0, -0.23, 0], [1, 1, 1.05]), PR(gB(0.04, 0.13, 0.11), HC.pouch, [0.085, -0.24, 0]),
+  PR(gS(0.066, 8, 6), 0x2b2b25, [0, -0.45, -0.045], [1.05, 1, 0.65])]), 2);
+defPart('h_shin', merge([PR(gC(0.066, 0.05, 0.38, 8), HC.uniD, [0, -0.19, 0]), PR(gC(0.064, 0.07, 0.1, 8), HC.boot, [0, -0.37, 0]),
+  PR(gB(0.11, 0.1, 0.24), HC.boot, [0, -0.44, -0.05]), PR(gB(0.12, 0.03, 0.27), 0x161412, [0, -0.495, -0.05]), PR(gB(0.1, 0.03, 0.06), HC.boot, [0, -0.42, -0.17], null, [0.4, 0, 0])]), 2);
 defPart('h_ak', merge([BX(0.05, 0.075, 0.36, 0, 0, -0.2, HC.metal), BX(0.045, 0.08, 0.26, 0, -0.025, 0.08, HC.wood), BX(0.055, 0.06, 0.18, 0, 0, -0.46, HC.wood), CY(0.011, 0.011, 0.32, 0, 0.01, -0.7, HC.metal, Math.PI / 2),
   BX(0.04, 0.16, 0.07, 0, -0.1, -0.26, 0x5a3424, 0.3), BX(0.035, 0.1, 0.045, 0, -0.07, -0.06, 0x2b2522, 0.3)]));
 defPart('h_pkm', merge([BX(0.06, 0.09, 0.42, 0, 0, -0.22, HC.metal), BX(0.05, 0.09, 0.28, 0, -0.02, 0.1, 0x2a2a28), CY(0.014, 0.014, 0.5, 0, 0.01, -0.68, HC.metal, Math.PI / 2), BX(0.1, 0.11, 0.12, 0.03, -0.12, -0.2, 0x3d4a2c),
@@ -356,6 +401,8 @@ defPart('r_torso', merge([BX(0.5, 0.36, 0.34, 0, 0.18, 0, RC.jt), BX(0.7, 0.42, 
   BX(0.07, 0.3, 0.05, -0.12, 0.42, 0.45, RC.jt), BX(0.07, 0.3, 0.05, 0.12, 0.42, 0.45, RC.jt), BX(0.28, 0.1, 0.28, 0, 0.74, 0, RC.jt), BX(0.04, 0.24, 0.02, -0.18, 0.5, -0.3, RC.ac), BX(0.04, 0.24, 0.02, 0.18, 0.5, -0.3, RC.ac),
   CY(0.01, 0.01, 0.55, -0.2, 0.98, 0.36, RC.jt), BX(0.5, 0.06, 0.3, 0, 0.0, 0, RC.ar)]));
 defPart('r_head', merge([BX(0.26, 0.2, 0.3, 0, 0.11, 0.02, RC.ar), BX(0.3, 0.06, 0.34, 0, 0.23, 0.02, RC.dk), BX(0.2, 0.1, 0.2, 0, 0.0, -0.08, RC.dk), BX(0.05, 0.14, 0.16, -0.16, 0.12, 0.02, RC.jt), BX(0.05, 0.14, 0.16, 0.16, 0.12, 0.02, RC.jt), BX(0.08, 0.05, 0.2, 0, 0.28, 0.06, RC.lt)]));
+defPart('r_joint', merge([PR(gS(0.1, 8, 6), RC.jt, [0, 0, 0]), PR(gC(0.035, 0.035, 0.5, 6), RC.lt, [0, -0.22, 0.12], null, [0.12, 0, 0])]), 6);
+defPart('r_spine', merge([PR(gC(0.11, 0.13, 0.32, 8), RC.jt, [0, 0.18, 0.02]), ...[0, 1, 2].map((i) => PR(gC(0.16, 0.16, 0.035, 8), RC.dk, [0, 0.07 + i * 0.1, 0.02], [1.3, 1, 1]))]));
 defPart('r_eye', merge([BX(0.22, 0.035, 0.02, 0, 0.13, -0.135, 0xff2a14), BX(0.04, 0.04, 0.02, 0.07, 0.04, -0.18, 0xff6a2a)]), 1, true);
 defPart('r_pad', merge([BX(0.26, 0.16, 0.36, 0, 0.04, 0, RC.ar), BX(0.28, 0.04, 0.38, 0, -0.04, 0, RC.dk), BX(0.04, 0.05, 0.3, 0, 0.13, 0, RC.ac)]), 2);
 defPart('r_uarm', merge([BX(0.14, 0.42, 0.14, 0, -0.22, 0, RC.dk), CY(0.025, 0.025, 0.32, 0.09, -0.22, 0, RC.lt), BX(0.16, 0.1, 0.16, 0, -0.42, 0, RC.jt)]), 2);
@@ -369,11 +416,20 @@ defPart('r_pod', merge([BX(0.34, 0.3, 0.56, 0, 0, 0, RC.dk), BX(0.36, 0.04, 0.58
 defPart('r_smk', merge([CY(0.05, 0.05, 0.22, -0.08, 0, 0, RC.dk, 0.9), CY(0.05, 0.05, 0.22, 0.08, 0, 0, RC.dk, 0.9), BX(0.26, 0.06, 0.12, 0, -0.06, 0.05, RC.ar)]));
 // хитбоксы: [cx, cy, cz, hx, hy, hz] в координатах сустава
 const HB = {
-  h_pelvis: [0, 0, 0, 0.18, 0.12, 0.12], h_torso: [0, 0.3, 0.02, 0.21, 0.3, 0.17], h_head: [0, 0.14, 0, 0.11, 0.15, 0.12],
-  h_uarm: [0, -0.15, 0, 0.06, 0.16, 0.065], h_farm: [0, -0.17, 0, 0.055, 0.18, 0.055], h_thigh: [0, -0.23, 0, 0.085, 0.24, 0.085], h_shin: [0, -0.23, -0.03, 0.075, 0.25, 0.11],
-  r_pelvis: [0, 0, 0, 0.25, 0.14, 0.17], r_torso: [0, 0.4, 0.04, 0.34, 0.38, 0.28], r_head: [0, 0.12, 0, 0.15, 0.14, 0.17], r_pad: [0, 0.03, 0, 0.14, 0.09, 0.19],
+  h_pelvis: [[0, -0.01, 0, 0.17, 0.1, 0.12], [0, -0.1, 0, 0.1, 0.06, 0.07]],
+  h_torso: [[0, 0.4, 0, 0.21, 0.16, 0.16], [0, 0.135, 0, 0.17, 0.13, 0.13], [0, 0.6, 0, 0.06, 0.05, 0.06]],
+  h_head: [[0, 0.12, -0.005, 0.095, 0.115, 0.105], [0, 0.18, 0.005, 0.14, 0.07, 0.15]],
+  h_uarm: [0, -0.15, 0, 0.06, 0.165, 0.06], h_farm: [[0, -0.13, 0, 0.05, 0.14, 0.05], [0, -0.3, 0, 0.04, 0.05, 0.05]],
+  h_thigh: [0, -0.23, 0, 0.088, 0.245, 0.092], h_shin: [[0, -0.2, 0, 0.066, 0.2, 0.068], [0, -0.44, -0.05, 0.06, 0.06, 0.13]],
+  r_pelvis: [0, 0, 0, 0.25, 0.14, 0.17], r_torso: [[0, 0.5, 0.02, 0.36, 0.22, 0.24], [0, 0.18, 0.02, 0.18, 0.16, 0.14], [0, 0.42, 0.33, 0.22, 0.22, 0.12]], r_head: [0, 0.12, 0, 0.15, 0.14, 0.17], r_pad: [0, 0.03, 0, 0.14, 0.09, 0.19],
   r_uarm: [0, -0.22, 0, 0.09, 0.25, 0.09], r_farm: [0, -0.24, 0, 0.09, 0.26, 0.09], r_thigh: [0, -0.29, 0, 0.12, 0.32, 0.12], r_shin: [0, -0.3, -0.05, 0.12, 0.33, 0.19],
 };
+// часть тела: ключ модели, сустав, зона; hbs — список коробок-хитбоксов, hb — главная (для прицеливания)
+function mkPart(key, o, zone) {
+  const raw = HB[key] || HB[key.replace(/\d$/, '')] || null;
+  const hbs = raw ? (Array.isArray(raw[0]) ? raw : [raw]) : null;
+  return { key, o, zone, hb: hbs ? hbs[0] : null, hbs, lod: PT[key + '_l'] ? key + '_l' : (key.startsWith('h_head') ? 'h_head_l' : null) };
+}
 function J(parent, x, y, z) { const o = new THREE.Object3D(); o.position.set(x, y, z); if (parent) parent.add(o); return o; }
 const GUNKEY = { lead: 'h_ak', rifle: 'h_ak', medic: 'h_ak', mg: 'h_pkm', sniper: 'h_svd', rpg: 'h_rpg', hmg: 'h_ak', mortar: 'h_ak' };
 function rigHuman(cls) {
@@ -382,8 +438,9 @@ function rigHuman(cls) {
   const shL = J(torso, -0.25, 0.5, 0), shR = J(torso, 0.25, 0.5, 0), faL = J(shL, 0, -0.3, 0), faR = J(shR, 0, -0.3, 0);
   const thL = J(hips, -0.1, -0.05, 0), thR = J(hips, 0.1, -0.05, 0), snL = J(thL, 0, -0.46, 0), snR = J(thR, 0, -0.46, 0);
   const gun = cls === 'rpg' ? J(torso, 0.16, 0.62, 0.05) : J(torso, 0.12, 0.36, -0.16);
-  const P_ = (key, o, zone) => ({ key, o, zone, hb: HB[key] || null });
-  const parts = [P_('h_pelvis', hips, 'pelvis'), P_('h_torso', torso, 'torso'), P_('h_head', head, 'head'), P_('h_uarm', shL, 'uarmL'), P_('h_uarm', shR, 'uarmR'),
+  const P_ = mkPart;
+  const hk = ['h_head', 'h_head', 'h_head2', 'h_head3'][(uid * 7 + 3) % 4];
+  const parts = [P_('h_pelvis', hips, 'pelvis'), P_('h_torso', torso, 'torso'), P_(hk, head, 'head'), P_('h_uarm', shL, 'uarmL'), P_('h_uarm', shR, 'uarmR'),
     P_('h_farm', faL, 'farmL'), P_('h_farm', faR, 'farmR'), P_('h_thigh', thL, 'thighL'), P_('h_thigh', thR, 'thighR'), P_('h_shin', snL, 'shinL'), P_('h_shin', snR, 'shinR'), P_(GUNKEY[cls], gun, 'gun')];
   if (cls === 'medic') { const mb = J(hips, -0.2, 0.0, 0.08); parts.push(P_('h_medbag', mb, 'pelvis')); }
   return { root, tilt, hips, torso, head, shL, shR, faL, faR, thL, thR, snL, snR, gun, parts };
@@ -396,8 +453,8 @@ function rigRobot(cls) {
   const thL = J(hips, -0.17, -0.06, 0), thR = J(hips, 0.17, -0.06, 0), snL = J(thL, 0, -0.58, 0), snR = J(thR, 0, -0.58, 0);
   const gun = J(faR, 0, -0.44, -0.05);
   if (cls === 'heavy') gun.scale.setScalar(1.15);
-  const P_ = (key, o, zone) => ({ key, o, zone, hb: HB[key] || null });
-  const parts = [P_('r_pelvis', hips, 'pelvis'), P_('r_torso', torso, 'torso'), P_('r_head', head, 'head'), P_('r_eye', head, 'head'),
+  const P_ = mkPart;
+  const parts = [P_('r_pelvis', hips, 'pelvis'), P_('r_spine', torso, 'torso'), P_('r_joint', shL, 'uarmL'), P_('r_joint', shR, 'uarmR'), P_('r_joint', snL, 'shinL'), P_('r_joint', snR, 'shinR'), P_('r_joint', faL, 'farmL'), P_('r_joint', faR, 'farmR'), P_('r_torso', torso, 'torso'), P_('r_head', head, 'head'), P_('r_eye', head, 'head'),
     P_('r_pad', shL, 'uarmL'), P_('r_pad', shR, 'uarmR'), P_('r_uarm', shL, 'uarmL'), P_('r_uarm', shR, 'uarmR'), P_('r_farm', faL, 'farmL'), P_('r_farm', faR, 'farmR'),
     P_('r_thigh', thL, 'thighL'), P_('r_thigh', thR, 'thighR'), P_('r_shin', snL, 'shinL'), P_('r_shin', snR, 'shinR'), P_(RGUN[cls], gun, 'gun')];
   let pod = null;
@@ -461,7 +518,7 @@ function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= TAU; while (d <
 const canShoot = (u) => !u.gone.has('farmR') && !u.gone.has('uarmR') && !u.gone.has('gun');
 function zonePoint(u, zone, out) {
   out = out || new V3();
-  const p = u.rig.parts.find((q) => q.zone === zone && q.hb && !u.gone.has(zone)) || u.rig.parts[1];
+  const p = u.rig.parts.find((q) => q.zone === zone && q.hb && !u.gone.has(zone)) || u.rig.parts.find((q) => q.hb && q.zone === 'torso') || u.rig.parts.find((q) => q.hb);
   const hb = p.hb;
   return out.set(hb[0], hb[1], hb[2]).applyMatrix4(p.o.matrixWorld);
 }
@@ -868,9 +925,8 @@ function unitHitTest(u, p0, p1) {
   if (!segSphere(u.bc, isBot(u) ? 1.9 : 1.2, p0, p1)) return null;
   let best = null;
   for (const p of u.rig.parts) {
-    if (!p.hb || u.gone.has(p.zone)) continue;
-    const t = obbT(p.hb, p.o.matrixWorld, p0, p1);
-    if (t != null && (!best || t < best.t)) best = { t, zone: p.zone };
+    if (!p.hbs || u.gone.has(p.zone)) continue;
+    for (const hb of p.hbs) { const t = obbT(hb, p.o.matrixWorld, p0, p1); if (t != null && (!best || t < best.t)) best = { t, zone: p.zone }; }
   }
   if (best) best.pt = new V3().lerpVectors(p0, p1, best.t);
   return best;
@@ -2239,9 +2295,11 @@ function renderUnits(dt) {
     }
     if (isBot(u)) { aimRobotGun(u); updateLaser(u); }
     u.rig.hips.getWorldPosition(u.bc);
+    const lodK = Math.hypot(u.pos.x - cx, u.pos.z - cz) * Math.tan(camera.fov * Math.PI / 360) > 52;
     for (const p of u.rig.parts) {
       if (u.gone.has(p.zone)) continue;
-      const pt = PT[p.key]; if (pt.n >= pt.max) continue;
+      if (lodK && p.key === 'r_joint') continue;
+      const pt = PT[lodK && p.lod ? p.lod : p.key]; if (pt.n >= pt.max) continue;
       pt.mesh.setMatrixAt(pt.n, p.o.matrixWorld);
       if (u.man && u.team === 'r') _c.copy(OPFOR); else _c.copy(WHITE);
       if (isBot(u)) {
