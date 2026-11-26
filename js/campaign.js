@@ -54,7 +54,7 @@ function launch(i) {
 let sel = null;
 function render() {
   const box = $('mCamp'); if (!box) return;
-  const p = prog(); box.replaceChildren();
+  const p = prog(); while (box.firstChild) box.removeChild(box.firstChild);
   MISSIONS.forEach((m, i) => {
     const b = document.createElement('button'); b.type = 'button';
     const open = i <= p.done, done = i < p.done;
@@ -65,11 +65,11 @@ function render() {
     box.appendChild(b);
   });
   const note = $('mCampNote'); if (!note) return;
-  note.replaceChildren();
+  while (note.firstChild) note.removeChild(note.firstChild);
   if (sel != null && sel <= p.done && MISSIONS[sel]) {
     const m = MISSIONS[sel], heading = document.createElement('b');
     heading.textContent = (sel + 1) + '. ' + m.title;
-    note.append(heading, document.createTextNode(' — ' + m.brief));
+    note.appendChild(heading); note.appendChild(document.createTextNode(' — ' + m.brief));
     const go = document.createElement('button'); go.type = 'button'; go.className = 'go'; go.style.marginTop = '8px'; go.textContent = 'Начать миссию';
     go.addEventListener('click', () => launch(sel)); note.appendChild(document.createElement('br')); note.appendChild(go);
   } else {
