@@ -23,6 +23,13 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Проверяем синтаксис JavaScript
+        run: |
+          node --check js/game.js
+          node --check js/campaign.js
+          node --check js/battle.js
+          node --check js/hud.js
+
       - name: Копируем игру в assets
         run: |
           mkdir -p android/app/src/main/assets/www
