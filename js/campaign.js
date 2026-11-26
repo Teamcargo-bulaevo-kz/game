@@ -1,4 +1,4 @@
-/* Кампания «Степной фронт»: миссии с брифингом, погодой, картами и подкреплениями. Прогресс — в localStorage. */
+/* Кампания «Степной фронт»: миссии с брифингом, погодой, расстановками и подкреплениями. Прогресс — в localStorage. */
 (function () {
 'use strict';
 const SS = window.SS, S = SS.S, $ = (id) => document.getElementById(id);
@@ -26,18 +26,35 @@ const MISSIONS = [
     cfg: { scen: 'def', foe: 'bot', nH: 40, nR: 16, weather: 'dark' },
     events: [{ t: 100, type: 'reinf', team: 'r', n: 6, msg: 'Ещё одна волна роботов' }, { t: 220, type: 'reinf', team: 'r', n: 6 }, { t: 270, type: 'reinf', team: 'h', n: 12, msg: 'Батальон подошёл! Контратака!' }] },
 ];
-function prog() { try { return JSON.parse(localStorage.getItem(KEY) || '{"done":0}'); } catch (e) { return { done: 0 }; } }
-function setProg(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) { /* нет хранилища */ } }
+function prog() {
+  try {
+    const p = JSON.parse(localStorage.getItem(KEY) || '{"done":0}');
+    return { done: Math.max(0, Math.min(MISSIONS.length, Math.floor(Number(p && p.done) || 0))) };
+  } catch (e) { return { done: 0 }; }
+}
+function setProg(p) {
+  try { localStorage.setItem(KEY, JSON.stringify({ done: Math.max(0, Math.min(MISSIONS.length, Math.floor(Number(p.done) || 0))) })); }
+  catch (e) { /* хранилище может быть недоступно */ }
+}
+function activeIndex() {
+  const i = S.campaign;
+  return Number.isInteger(i) && i >= 0 && i < MISSIONS.length ? i : null;
+}
+function persistSettings() {
+  try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (e) { /* хранилище может быть недоступно */ }
+}
 function launch(i) {
-  const m = MISSIONS[i]; if (!m) return;
+  const p = prog();
+  if (!Number.isInteger(i) || i < 0 || i >= MISSIONS.length || i > p.done) return;
+  const m = MISSIONS[i];
   Object.assign(S, m.cfg, { gmode: 'battle', side: 'h', campaign: i, autostart: true, map: m.cfg.map || 'field' });
-  try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (e) { /* ignore */ }
+  persistSettings();
   location.reload();
 }
 let sel = null;
 function render() {
   const box = $('mCamp'); if (!box) return;
-  const p = prog(); box.innerHTML = '';
+  const p = prog(); box.replaceChildren();
   MISSIONS.forEach((m, i) => {
     const b = document.createElement('button'); b.type = 'button';
     const open = i <= p.done, done = i < p.done;
@@ -47,26 +64,43 @@ function render() {
     b.addEventListener('click', () => { sel = i; render(); });
     box.appendChild(b);
   });
-  const note = $('mCampNote');
-  if (sel != null) {
-    const m = MISSIONS[sel];
-    note.innerHTML = '<b>' + (sel + 1) + '. ' + m.title + '</b> — ' + m.brief + '<br><button class="go" type="button" id="campGo" style="margin-top:8px">Начать миссию</button>';
-    $('campGo').addEventListener('click', () => launch(sel));
-  } else note.textContent = S.campaign != null ? 'Сейчас: миссия ' + (S.campaign + 1) + ' «' + MISSIONS[S.campaign].title + '». Чтобы играть свободный бой, выберите режим ниже и нажмите «В бой».' : 'Пройдено миссий: ' + p.done + ' из ' + MISSIONS.length + '. Выберите миссию.';
+  const note = $('mCampNote'); if (!note) return;
+  note.replaceChildren();
+  if (sel != null && sel <= p.done && MISSIONS[sel]) {
+    const m = MISSIONS[sel], heading = document.createElement('b');
+    heading.textContent = (sel + 1) + '. ' + m.title;
+    note.append(heading, document.createTextNode(' — ' + m.brief));
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'go'; go.style.marginTop = '8px'; go.textContent = 'Начать миссию';
+    go.addEventListener('click', () => launch(sel)); note.appendChild(document.createElement('br')); note.appendChild(go);
+  } else {
+    const i = activeIndex();
+    note.textContent = i != null
+      ? 'Сейчас: миссия ' + (i + 1) + ' «' + MISSIONS[i].title + '». Чтобы играть свободный бой, измените режим, сценарий, сторону или расстановку ниже.'
+      : 'Пройдено миссий: ' + p.done + ' из ' + MISSIONS.length + '. Выберите миссию.';
+  }
 }
-// свободный бой: любое изменение режима в меню выводит из кампании
-document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('#mGmode,#mScen,#mFoe,#mSide') && S.campaign != null) { S.campaign = null; try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (er) { /* ignore */ } render(); } }, true);
+// Выбор свободного режима/сценария/стороны/расстановки отключает режим кампании.
+document.addEventListener('click', (e) => {
+  const target = e.target;
+  if (target && typeof target.closest === 'function' &&
+      target.closest('#mGmode,#mScen,#mFoe,#mSide,#mMap') && activeIndex() != null) {
+    S.campaign = null; persistSettings(); render();
+  }
+}, true);
 window.CAMPAIGN = {
   missions: MISSIONS,
-  current() { return S.campaign != null ? MISSIONS[S.campaign] : null; },
+  current() { const i = activeIndex(); return i == null ? null : MISSIONS[i]; },
   onEnd(win) {
-    const i = S.campaign; if (i == null) return;
+    const i = activeIndex(); if (i == null) return;
     const p = prog();
-    if (win && i + 1 > p.done) { p.done = Math.min(MISSIONS.length, i + 1); setProg(p); }
-    const nx = $('endNext'); if (nx) { nx.hidden = !(win && MISSIONS[i + 1]); nx.textContent = 'Миссия ' + (i + 2) + ' →'; }
+    if (win && i + 1 > p.done) { p.done = i + 1; setProg(p); }
+    const nx = $('endNext');
+    if (nx) { nx.hidden = !(win && i + 1 < MISSIONS.length); nx.textContent = 'Миссия ' + (i + 2) + ' →'; }
     render();
   },
 };
-const nx = $('endNext'); if (nx) nx.addEventListener('click', () => { if (S.campaign != null) launch(S.campaign + 1); });
+const nx = $('endNext');
+if (nx) nx.addEventListener('click', () => { const i = activeIndex(); if (i != null) launch(i + 1); });
+if (S.campaign != null && activeIndex() == null) { S.campaign = null; persistSettings(); }
 render();
 })();
