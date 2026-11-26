@@ -455,7 +455,7 @@ function rigHuman(cls) {
   const tilt = J(root, 0, 0, 0), hips = J(tilt, 0, 0.95, 0), torso = J(hips, 0, 0.1, 0), head = J(torso, 0, 0.58, 0);
   const shL = J(torso, -0.25, 0.5, 0), shR = J(torso, 0.25, 0.5, 0), faL = J(shL, 0, -0.3, 0), faR = J(shR, 0, -0.3, 0);
   const thL = J(hips, -0.1, -0.05, 0), thR = J(hips, 0.1, -0.05, 0), snL = J(thL, 0, -0.46, 0), snR = J(thR, 0, -0.46, 0);
-  const gun = cls === 'rpg' ? J(torso, 0.16, 0.62, 0.05) : J(torso, 0.12, 0.36, -0.16);
+  const gun = cls === 'rpg' ? J(torso, 0.16, 0.62, 0.05) : J(torso, 0.12, 0.36, -0.16); gun.userData.p0 = gun.position.clone();
   const P_ = mkPart;
   const hk = ['h_head', 'h_head', 'h_head2', 'h_head3'][(uid * 7 + 3) % 4], tk = cls === 'medic' || cls === 'lead' ? 'h_torso' : ['h_torso', 'h_torso2', 'h_torso3', 'h_torso'][(uid * 5 + 1) % 4];
   const parts = [P_('h_pelvis', hips, 'pelvis'), P_(tk, torso, 'torso'), P_(hk, head, 'head'), P_('h_uarm', shL, 'uarmL'), P_('h_uarm', shR, 'uarmR'),
@@ -469,7 +469,7 @@ function rigRobot(cls) {
   const tilt = J(root, 0, 0, 0), hips = J(tilt, 0, 1.2, 0), torso = J(hips, 0, 0.12, 0), head = J(torso, 0, 0.8, 0);
   const shL = J(torso, -0.46, 0.64, 0), shR = J(torso, 0.46, 0.64, 0), faL = J(shL, 0, -0.44, 0), faR = J(shR, 0, -0.44, 0);
   const thL = J(hips, -0.17, -0.06, 0), thR = J(hips, 0.17, -0.06, 0), snL = J(thL, 0, -0.58, 0), snR = J(thR, 0, -0.58, 0);
-  const gun = J(faR, 0, -0.44, -0.05);
+  const gun = J(torso, 0.22, 0.6, -0.4);
   if (cls === 'heavy') gun.scale.setScalar(1.15);
   const P_ = mkPart;
   const parts = [P_('r_pelvis', hips, 'pelvis'), P_('r_spine', torso, 'torso'), P_('r_joint', shL, 'uarmL'), P_('r_joint', shR, 'uarmR'), P_('r_joint', snL, 'shinL'), P_('r_joint', snR, 'shinR'), P_('r_joint', faL, 'farmL'), P_('r_joint', faR, 'farmR'), P_('r_torso', torso, 'torso'), P_('r_head', head, 'head'), P_('r_eye', head, 'head'),
@@ -479,6 +479,68 @@ function rigRobot(cls) {
   if (cls === 'rocket' || cls === 'mortar') { pod = J(torso, -0.28, 0.92, 0.1); parts.push(P_('r_pod', pod, 'torso')); }
   const smk = J(torso, 0.26, 0.86, 0.18); parts.push(P_('r_smk', smk, 'torso'));
   return { root, tilt, hips, torso, head, shL, shR, faL, faR, thL, thR, snL, snR, gun, pod, parts };
+}
+// ===== хват оружия: руки тянутся к рукояти и цевью (IK из двух звеньев) =====
+// точки в координатах оружия: b — затыльник (упирается в плечо), r — пистолетная рукоять, l — цевьё, m — магазин
+const GRIP = {
+  h_ak:  { b: [0, 0.0, 0.2],  r: [0.012, -0.095, -0.07], l: [-0.01, -0.06, -0.36], m: [0, -0.17, -0.27] },
+  h_pkm: { b: [0, 0.0, 0.23], r: [0.012, -0.09, -0.02],  l: [-0.01, -0.07, -0.4],  m: [0.03, -0.17, -0.2] },
+  h_svd: { b: [0, 0.0, 0.24], r: [0.012, -0.08, -0.04],  l: [-0.01, -0.05, -0.42], m: [0, -0.17, -0.22] },
+  h_rpg: { b: [0, 0.0, 0.26], r: [0.01, -0.12, -0.05],   l: [-0.01, -0.08, -0.36], m: [0, -0.12, -0.2] },
+  r_rifle: { b: [0, 0.0, 0.07], r: [0.02, -0.22, -0.2], l: [-0.02, -0.1, -0.42], m: [0, -0.2, -0.3] },
+  r_mg:    { b: [0, 0.0, 0.1],  r: [0.02, -0.2, -0.15], l: [-0.02, -0.12, -0.45], m: [0.13, -0.2, -0.2] },
+  r_long:  { b: [0, 0.0, 0.12], r: [0.02, -0.2, -0.2],  l: [-0.02, -0.08, -0.5], m: [0, -0.18, -0.3] },
+};
+const IKV = { a: new V3(), b: new V3(), c: new V3(), d: new V3(), e: new V3(), f: new V3(), x: new V3(), y: new V3(), z: new V3(), m: new THREE.Matrix4(), q: new THREE.Quaternion(), q2: new THREE.Quaternion(), up: new V3(0, 1, 0) };
+// плечо sh (сустав в торсе), предплечье fa; цель — в координатах торса; pole — куда смотрит локоть
+function solveArm(sh, fa, target, L1, L2, pole) {
+  const t = IKV.a.copy(target).sub(sh.position);
+  let d = t.length(); if (d < 1e-4) return;
+  const dir = t.multiplyScalar(1 / d); d = clamp(d, Math.abs(L1 - L2) + 0.02, (L1 + L2) * 0.999);
+  const cosA = clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1), sinA = Math.sqrt(1 - cosA * cosA);
+  const pp = IKV.b.copy(pole).addScaledVector(dir, -pole.dot(dir)); if (pp.lengthSq() < 1e-6) pp.set(0, -1, 0); pp.normalize();
+  const up = IKV.c.copy(dir).multiplyScalar(cosA).addScaledVector(pp, sinA).normalize();           // плечевая кость
+  const fd = IKV.d.copy(dir).multiplyScalar(d).addScaledVector(up, -L1).normalize();                 // предплечье
+  const bend = Math.acos(clamp(up.dot(fd), -1, 1));
+  const Y = IKV.y.copy(up).negate();
+  const Z = IKV.z.copy(fd).addScaledVector(up, -fd.dot(up)); if (Z.lengthSq() < 1e-6) Z.copy(pp); Z.normalize().negate();
+  const X = IKV.x.crossVectors(Y, Z).normalize();
+  sh.quaternion.setFromRotationMatrix(IKV.m.makeBasis(X, Y, Z));
+  fa.rotation.set(bend, 0, 0);
+}
+const POLE_R = new V3(0.7, -1, 0.25), POLE_L = new V3(-0.45, -1, 0.1), RPOLE_R = new V3(0.8, -1, 0.3), RPOLE_L = new V3(-0.8, -1, 0.3);
+const LOWDIR = new V3(-0.5, -0.33, -0.8).normalize(), RELDIR = new V3(-0.3, -0.4, -0.86).normalize(), _gT = new V3(), _gq = new THREE.Quaternion(), _hR = new V3();
+// mode: aim | low | reload; pocket — точка плеча в торсе; aimDir в мире (для aim)
+function holdGun(u, bot, mode, dt) {
+  const r = u.rig, g = r.gun; if (r.gk === undefined) r.gk = GRIP[(r.parts.find((p) => p.zone === 'gun') || {}).key] || null; const gk = r.gk;
+  if (!gk) return;
+  r.root.updateMatrixWorld(true);
+  // направление ствола в координатах торса
+  const yaw = bot ? u.aimYaw : u.yaw;
+  if (mode === 'aim') { const p = clamp(u.pitch + (u.kick || 0) * 0.07, -1.2, 1.2), cp = Math.cos(p); _gT.set(-Math.sin(yaw) * cp, Math.sin(p), -Math.cos(yaw) * cp); }
+  else _gT.copy(mode === 'low' ? LOWDIR : RELDIR).applyAxisAngle(IKV.up, yaw);   // в осях тела, независимо от наклона корпуса
+  r.torso.getWorldQuaternion(IKV.q2); _gT.applyQuaternion(IKV.q2.invert());
+  const Zg = IKV.z.copy(_gT).negate().normalize(), Xg = IKV.x.crossVectors(IKV.up, Zg); if (Xg.lengthSq() < 1e-6) Xg.set(1, 0, 0); Xg.normalize();
+  const Yg = IKV.y.crossVectors(Zg, Xg);
+  _gq.setFromRotationMatrix(IKV.m.makeBasis(Xg, Yg, Zg));
+  if (!u.gq) { u.gq = _gq.clone(); u.gp = new V3(); }
+  const k = 1 - Math.exp(-dt * (mode === 'aim' ? 16 : 9));
+  u.gq.slerp(_gq, u.gq.angleTo(_gq) > 2 ? 1 : k);
+  const sc = g.scale.x;
+  const pk = bot ? IKV.e.set(0.2, 0.6, -0.36) : mode === 'aim' ? (u.cls === 'rpg' ? IKV.e.set(0.17, 0.62, 0.02) : IKV.e.set(0.14, 0.5, -0.17)) : mode === 'low' ? IKV.e.set(0.16, 0.44, -0.2) : IKV.e.set(0.13, 0.42, -0.22);
+  pk.z += (u.kick || 0) * 0.05;
+  const bp = IKV.f.fromArray(gk.b).multiplyScalar(sc).applyQuaternion(u.gq);
+  const tgt = pk.sub(bp);
+  if (u.gp.lengthSq() === 0) u.gp.copy(tgt); else u.gp.lerp(tgt, k);
+  g.position.copy(u.gp); g.quaternion.copy(u.gq);
+  const L = bot ? 0.44 : 0.3;
+  const hR = IKV.f.fromArray(gk.r).multiplyScalar(sc).applyQuaternion(u.gq).add(u.gp);
+  solveArm(r.shR, r.faR, _hR.copy(hR), L, L, bot ? RPOLE_R : POLE_R);
+  if (u.hp < 45 && !bot && mode !== 'reload' && !u.target && !u.mv) return;   // раненый держится за бок левой рукой
+  const hl = mode === 'reload' ? gk.m : gk.l;
+  const hL = IKV.f.fromArray(hl).multiplyScalar(sc).applyQuaternion(u.gq).add(u.gp);
+  if (mode === 'reload') { const ph = (B.t * 1.6 + u.id) % 1; hL.y -= Math.sin(ph * Math.PI) * 0.18; hL.x -= Math.sin(ph * Math.PI) * 0.06; }
+  solveArm(r.shL, r.faL, hL, L, L, bot ? RPOLE_L : POLE_L);
 }
 const DEP = { head: ['head'], uarmL: ['uarmL', 'farmL'], uarmR: ['uarmR', 'farmR', 'gun'], farmL: ['farmL'], farmR: ['farmR', 'gun'], thighL: ['thighL', 'shinL'], thighR: ['thighR', 'shinR'], shinL: ['shinL'], shinR: ['shinR'], gun: ['gun'] };
 const RZ = { head: [2600, 55], torso: [4200, 175], pelvis: [3600, 130], uarmL: [2500, 60], uarmR: [2500, 60], farmL: [2300, 50], farmR: [2300, 50], thighL: [3000, 85], thighR: [3000, 85], shinL: [2800, 70], shinR: [2800, 70] };
@@ -2506,6 +2568,9 @@ function poseHuman(u, dt) {
     if (u.healing) { T.hipsY = 0.5; T.thL = 1.5; T.snL = -1.6; T.thR = 0.2; T.snR = -1.7; T.torX = -0.7; T.shLx = 1.1; T.shRx = 1.0; T.faL = 0.6 + Math.sin(B.t * 6) * 0.3; T.faR = 0.8; T.gunX = -0.9; }
     if (u.chute) { T.hipsY = 0.95; T.thL = 0.15; T.thR = 0.05; T.snL = -0.35; T.snR = -0.2; T.torX = 0; T.shLx = 2.9; T.shLz = -0.35; T.shRx = 2.9; T.shRz = 0.35; T.faL = 0.4; T.faR = 0.4; T.gunX = -1.3; T.headX = 0.3; }
     if (u.mortar) { T.shLx = 0.9 + u.kick * 0.8; T.shRx = 0.9 + u.kick * 0.8; T.faL = 0.8; T.faR = 0.8; T.gunX = -0.9; }
+    u.hold = u.chute || u.mortar || u.healing ? null : u.reloadT > 0 ? 'reload' : run > 0.3 ? 'low' : 'aim';
+    if (u.hold === 'aim') { const bl = u.cls === 'rpg' ? 0.3 : 0.5; T.torY -= bl; T.headY += bl * 0.9; }   // корпус развёрнут, голова — на цель
+    else if (u.hold === 'low') { T.torY -= 0.2; T.headY += 0.2; }
     blendPV(u, PV_H, dt * 11);
   }
   const v = u.pv;
@@ -2515,10 +2580,11 @@ function poseHuman(u, dt) {
   r.torso.rotation.set(v.torX, v.torY, 0); r.head.rotation.set(v.headX, v.headY, 0);
   r.shL.rotation.set(v.shLx, 0, v.shLz); r.shR.rotation.set(v.shRx, 0, v.shRz);
   r.faL.rotation.set(v.faL, 0, 0); r.faR.rotation.set(v.faR, 0, 0);
-  r.gun.rotation.set(v.gunX, 0, 0);
   if (u.fall) updateFall(u, dt);
   r.root.rotation.set(0, u.yaw, 0); r.root.position.copy(u.pos);
   if (u.fall) r.tilt.quaternion.setFromAxisAngle(u.fall.ax, u.fall.th); else r.tilt.quaternion.identity();
+  if (!u.down && !u.fall && u.hold) holdGun(u, false, u.hold, dt);
+  else { const p0 = r.gun.userData.p0; u.gq = null; r.gun.position.copy(p0); r.gun.rotation.set(v.gunX, 0, 0); }
 }
 const PV_R = ['hipsY', 'thL', 'thR', 'snL', 'snR', 'torX', 'torY', 'torZ', 'headX', 'headY', 'shLx', 'shLz', 'shRx', 'shRz', 'faL', 'faR'];
 function poseRobot(u, dt) {
@@ -2537,6 +2603,7 @@ function poseRobot(u, dt) {
   T.headX = u.pitch * 0.4; T.headY = clamp(u.head - T.torY, -1, 1) * 0.8;
   T.shLx = -sw * (0.6 + runK * 0.6) + 0.2; T.shLz = -0.08; T.faL = 0.35 + runK * 0.6;
   T.shRx = 1.35; T.shRz = 0; T.faR = 0.25;
+  if (u.alive && !u.crawl) T.torY -= 0.35;
   if (u.crawl) { T.hipsY = 1.2; T.thL = 0.05; T.thR = -0.05; T.snL = -0.1; T.snR = -0.2; T.torX = 0.25; T.torY = 0; T.shLx = 2.9; T.shRx = 2.7; T.faL = 0.2; T.faR = 0.1; T.headX = -0.9; }
   if (!u.alive) {
     u.buckle = Math.min(1, u.buckle + dt * 2.2);
@@ -2557,6 +2624,8 @@ function poseRobot(u, dt) {
   r.root.rotation.set(0, u.yaw, u.alive ? Math.sin(u.staggerPh) * u.stagger * 0.1 : 0);
   r.root.position.copy(u.pos);
   if (u.fall) r.tilt.quaternion.setFromAxisAngle(u.fall.ax, u.fall.th); else r.tilt.quaternion.identity();
+  if (u.alive && !u.crawl && !u.fall && !u.gone.has('farmR') && !u.gone.has('uarmR')) holdGun(u, true, u.reloadT > 0 ? 'reload' : 'aim', dt);
+  else { r.gun.position.set(0.3, 0.3, -0.3); r.gun.rotation.set(-0.9, 0.3, 0); }
 }
 function aimRobotGun(u) {
   if (!u.alive || !canShoot(u)) return;
@@ -2579,7 +2648,7 @@ function renderUnits(dt) {
       u.right.set(Math.cos(u.yaw), 0, -Math.sin(u.yaw));
       u.rig.root.updateMatrixWorld(true);
     }
-    if (isBot(u)) { aimRobotGun(u); updateLaser(u); }
+    if (isBot(u)) updateLaser(u);
     u.rig.hips.getWorldPosition(u.bc);
     const lodK = Math.hypot(u.pos.x - cx, u.pos.z - cz) * Math.tan(camera.fov * Math.PI / 360) > 52;
     for (const p of u.rig.parts) {
@@ -2927,7 +2996,7 @@ HOOK.update = function (dt, sdt) {
   updateRockets(sdt);
   updateDebris(sdt);
   updateSmokes(sdt);
-  if (!B.active) { if (units.length) renderUnits(dt); return; }
+  if (!B.active || B.freeze) { if (units.length) renderUnits(dt); return; }
   if (!$('menu').hidden) { renderUnits(0); return; }
   B.t += dt;
   const gy = terrainH(P.x, P.z);
