@@ -1298,6 +1298,7 @@ function bulletHitsUnit(b, u, h) {
   if (!isBot(u) && !u.alive) { SS.spawnPuff(h.pt, 0x6b0d0d, 0.3, 0.5, 1, 0.1, 0.03); killDowned(u, 'finish', b.player ? 'player' : ''); return; }
   if (!isBot(u)) {
     SS.spawnPuff(h.pt, 0x6b0d0d, 0.3, 0.5, 1, 0.1, 0.03);
+    u.hitBy = b.owner ? [Math.round(b.owner.pos.distanceTo(u.pos)), b.owner.cls, h.zone] : null;
     if (b.player) { HM.t = 0.25; HM.kind = 'pen'; B.hitsE++; }
     const was0 = u.alive;
     hurtHuman(u, humanDamage(h.zone, E), b.player ? 'player' : '', dir, false);
@@ -3126,7 +3127,7 @@ function clearBattle() {
   if (B.pchute) { scene.remove(B.pchute); B.pchute = null; }
   HOOK.chute = false;
   for (const k in PT) PT[k].mesh.count = 0;
-  slots.front.concat(slots.rear).forEach((s) => { s.used = null; });
+  slots.front.concat(slots.rear).forEach((s) => { s.used = null; }); Object.values(POI).forEach((q) => q.spots.forEach((s) => { s.used = null; }));
   covers.forEach((cv) => cv.pts.h.concat(cv.pts.r).forEach((p) => { p.used = null; }));
   forestSpots.forEach((p) => { p.used = null; });
   nests.forEach((n) => { n.crew = []; n.piv.visible = true; });
@@ -3197,7 +3198,7 @@ function startBattle() {
     const morN = S.mortars === false ? 0 : Math.min(pits.length, Math.floor(nH / 7));
     for (let i = 0; i < morN && nH >= 1; i++) { const m = pits[i]; for (let k = 0; k < (nH >= 12 ? 2 : 1); k++) { const p = m.pos.clone().add(_v.set(k ? 1.1 : -1.1, 0, 0.6)); p.y = terrainH(p.x, p.z); const u = makeUnit('h', 'mortar', p, Math.PI); u.mortar = m; m.crew.push(u); hq.members.push(u); nH--; } }
     const snN = nH >= 14 ? 2 : nH >= 7 ? 1 : 0;
-    for (let i = 0; i < snN && nH > 0; i++) { const s = slots.rear.filter((q) => !q.used).sort((a, b) => Math.abs(a.pos.x - (i ? 45 : -45)) - Math.abs(b.pos.x - (i ? 45 : -45)))[0]; if (s) { const u = placeH('sniper', s, false); hq.members.push(u); nH--; } }
+    for (let i = 0; i < snN && nH > 0; i++) { const s = i === 0 && POI.mill && !POI.mill.spots[0].used ? POI.mill.spots[0] : slots.rear.filter((q) => !q.used).sort((a, b) => Math.abs(a.pos.x - (i ? 45 : -45)) - Math.abs(b.pos.x - (i ? 45 : -45)))[0]; if (s) { const u = placeH('sniper', s, false); hq.members.push(u); nH--; } }
     if (hq.members.length) squads.push(hq);
     const roles = ['lead', 'mg', 'rpg', 'medic', 'rifle', 'rifle'];
     let k = 0;
