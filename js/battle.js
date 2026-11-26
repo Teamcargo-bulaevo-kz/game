@@ -865,7 +865,7 @@ function makeSmoke(pos, r, life, np, fixed) {
   const w = fixed ? [0, 0] : SS.windAt(pos.z, SS.getSimT());
   for (let i = 0; i < (np == null ? 12 : np); i++) {
     const p = _v.set(pos.x + gauss() * r * 0.4, pos.y + Math.abs(gauss()) * r * (fixed ? 0.35 : 0.2) + (fixed ? 0.8 : 2), pos.z + gauss() * r * 0.4);
-    SS.fxPuff(p, 0xbdbcb4, r * (fixed ? 1.05 : 1.2), r * (fixed ? rnd(1.4, 1.6) : rnd(2, 2.5)), life * rnd(0.85, 1.1), _v2.set(w[0] * 0.35 + gauss() * 0.2, 0.15, w[1] * 0.35 + gauss() * 0.2), 0.9, 0, 0, 0);
+    SS.fxSmoke(p, 0xbdbcb4, r * (fixed ? 1.05 : 1.2), r * (fixed ? rnd(1.4, 1.6) : rnd(2, 2.5)), life * rnd(0.85, 1.1), _v2.set(w[0] * 0.35 + gauss() * 0.2, 0.15, w[1] * 0.35 + gauss() * 0.2), 0.9, 0, 0, 0);
   }
   smokes.push(s);
   const d = pos.distanceTo(camera.position); const AC = SS.getAC(); if (AC && d < 600) SS.noiseHit(AC.currentTime + d / 343, 1.2, 'lowpass', 600, clamp(20 / (d + 20), 0.03, 0.4));
@@ -877,9 +877,9 @@ function updateSmokes(dt) {
     if (!s.fixed) { s.pos.x += w[0] * dt * 0.35; s.pos.z += w[1] * dt * 0.35; }
     s.dens = Math.min(1, s.t / 3) * (1 - smoothS(s.life * 0.6, s.life, s.t));
     // шашка дымит ещё долго: плотные клубы у земли
-    if (!s.fixed && s.t < s.life * 0.55 && (s.acc = (s.acc || 0) + dt) > 1.3 && Math.abs(s.pos.x - camera.position.x) + Math.abs(s.pos.z - camera.position.z) < 1400) {
+    if (!s.fixed && s.t < s.life * 0.55 && (s.acc = (s.acc || 0) + dt) > 1.6 && Math.abs(s.pos.x - camera.position.x) + Math.abs(s.pos.z - camera.position.z) < 1400) {
       s.acc = 0; const k = 1 - s.t / (s.life * 0.55);
-      for (let j = 0; j < 2; j++) SS.fxPuff(_v.set(s.pos.x + gauss() * s.r * 0.3, s.pos.y + 1.5 + Math.random() * 2, s.pos.z + gauss() * s.r * 0.3), 0xc4c3bb, s.r * 0.9, s.r * rnd(1.8, 2.3), rnd(16, 24), _v2.set(w[0] * 0.3 + gauss() * 0.3, 0.25, w[1] * 0.3 + gauss() * 0.3), 0.75 + 0.2 * k, 0, 0, 0);
+      for (let j = 0; j < 1; j++) SS.fxSmoke(_v.set(s.pos.x + gauss() * s.r * 0.3, s.pos.y + 1.5 + Math.random() * 2, s.pos.z + gauss() * s.r * 0.3), 0xc4c3bb, s.r * 1.1, s.r * rnd(2.1, 2.6), rnd(18, 24), _v2.set(w[0] * 0.3 + gauss() * 0.3, 0.25, w[1] * 0.3 + gauss() * 0.3), 0.75 + 0.2 * k, 0, 0, 0);
     }
     if (s.t > s.life) smokes.splice(i, 1);
   }
@@ -2424,9 +2424,10 @@ function brainAttack(team) {
       continue;
     }
     if (g.phase === 'deploy') {
-      if (!g.smoked && al.length) {
+      const foeNear = [...TK[team].values()].some((q) => B.t - q.t < 30 && q.pos.distanceTo(c) < 500);
+      if (!g.smoked && al.length && foeNear) {
         const dir = new V3(goal.x - c.x, 0, goal.z - c.z).normalize();
-        const n = Math.min(3, al.filter((m) => m.smokes > 0).length);
+        const n = Math.min(2, al.filter((m) => m.smokes > 0).length);
         const sm = al.filter((m) => m.smokes > 0);
         for (let i = 0; i < n; i++) { const at = c.clone().addScaledVector(dir, rnd(70, 120)).add(_v.set(-dir.z * (i - 1) * 26, 0, dir.x * (i - 1) * 26)); throwSmoke(sm[i], at); }
         g.smoked = true;
@@ -3297,7 +3298,7 @@ function renderUnits(dt) {
       const d = Math.hypot(u.pos.x - cx, u.pos.z - cz); if (d < 250) continue;
       const px = 1.8 / d * H2; if (px > 6) continue;
       const bot = isBot(u), ht = bot ? (u.crawl ? 0.5 : 1.25) : u.down ? 0.25 : u.crouch > 0.5 ? 0.65 : 1.0;
-      SS.emit(SS.PSY.puff, u.pos.x, u.pos.y + ht, u.pos.z, 0, 0, 0, bot ? 1.1 : 0.9, bot ? 1.1 : 0.9, 0.09, bot ? 0x4a4f56 : u.man && u.team === 'r' ? 0x3a3c40 : 0x30361f, 0.95, 0, 0, 1.6);
+      SS.emit(SS.PSY.dot, u.pos.x, u.pos.y + ht, u.pos.z, 0, 0, 0, bot ? 1.1 : 0.9, bot ? 1.1 : 0.9, 0.09, bot ? 0x4a4f56 : u.man && u.team === 'r' ? 0x3a3c40 : 0x30361f, 0.95, 0, 0, 1.6);
     } }
   for (const k in PT) { const p = PT[k]; p.mesh.count = p.n; p.mesh.instanceMatrix.needsUpdate = true; p.mesh.instanceColor.needsUpdate = true; }
 }

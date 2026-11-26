@@ -986,7 +986,8 @@ function makePS(tex, additive, cap) {
   ps.pts = new THREE.Points(geo, mat); ps.pts.frustumCulled = false; ps.pts.renderOrder = additive ? 4 : 3; scene.add(ps.pts);
   return ps;
 }
-const PSY = { puff: makePS(puffTex, false, IS_TOUCH ? 1100 : 3000), glow: makePS(glowTex, true, IS_TOUCH ? 1000 : 2200) };
+// дым и силуэты дальних бойцов — в своих буферах, чтобы частые частицы не затирали долгий дым
+const PSY = { puff: makePS(puffTex, false, IS_TOUCH ? 1100 : 3000), glow: makePS(glowTex, true, IS_TOUCH ? 1000 : 2200), smoke: makePS(puffTex, false, IS_TOUCH ? 1000 : 1800), dot: makePS(puffTex, false, IS_TOUCH ? 320 : 700) };
 const _pc = new THREE.Color();
 function emit(ps, x, y, z, vx, vy, vz, s0, s1, life, color, a0, grav, floor, minPx) {
   const i = ps.head; ps.head = (ps.head + 1) % ps.cap;
@@ -1016,6 +1017,7 @@ function updatePS(ps, dt) {
   at.position.needsUpdate = true; at.aSize.needsUpdate = true; at.aAlpha.needsUpdate = true; at.aColor.needsUpdate = true; at.aMin.needsUpdate = true;
 }
 // совместимые обёртки
+function fxSmoke(p, color, s0, s1, life, v, a0) { emit(PSY.smoke, p.x, p.y, p.z, v ? v.x : 0, v ? v.y : 0, v ? v.z : 0, s0, s1, life, color, a0 == null ? 0.9 : a0, 0, 0, 0); }
 function fxPuff(p, color, s0, s1, life, v, a0, grav, floor, minPx) { emit(PSY.puff, p.x, p.y, p.z, v ? v.x : 0, v ? v.y : 0, v ? v.z : 0, s0, s1, life, color, a0 == null ? 0.95 : a0, grav, floor, minPx); }
 function fxGlow(p, color, s0, s1, life, v, a0, grav, floor, minPx) { emit(PSY.glow, p.x, p.y, p.z, v ? v.x : 0, v ? v.y : 0, v ? v.z : 0, s0, s1, life, color, a0 == null ? 1 : a0, grav, floor, minPx); }
 function spawnPuff(p, color, size, life, n, rise, spread) {
@@ -1024,7 +1026,7 @@ function spawnPuff(p, color, size, life, n, rise, spread) {
 }
 function spawnSpark(p, size) { emit(PSY.glow, p.x, p.y, p.z, 0, 0, 0, size, size * 1.6, 0.18, 0xffd27a, 1, 0, 0, 2); }
 function updateEffects(dt) {
-  updatePS(PSY.puff, dt); updatePS(PSY.glow, dt);
+  updatePS(PSY.puff, dt); updatePS(PSY.glow, dt); updatePS(PSY.smoke, dt); updatePS(PSY.dot, dt);
 }
 function syncPS(cam) {
   const sc = renderer.domElement.height / (2 * Math.tan(cam.fov * DEG / 2));
@@ -2482,7 +2484,7 @@ window.SS = {
   clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
   say,
   setWeather: (id) => { if (!WEATHER[id]) return; S.weather = id; applyConditions(); applyWeatherVisuals(); },
-  suppress, toggleWeaponList, ROBOTS_ON,
+  suppress, toggleWeaponList, ROBOTS_ON, fxSmoke,
   setRumble: (v) => { if (AC && rumbleGain) rumbleGain.gain.setTargetAtTime(S.sound ? v : 0, AC.currentTime, 1.5); },
   obstHit, addObst, KURGANS,
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,
