@@ -248,10 +248,12 @@ const QUALITY = {
 };
 
 /* ---------------- настройки ---------------- */
+const ROBOTS_ON = false;   // роботы временно скрыты: код на месте, в меню и боях не используются
 const DEF = { gmode: 'range', teamN: 6, nH: 18, nR: 6, scen: 'def', role: 'rifle', dynres: true, side: 'h', vibro: true, assist: true, rifle: 0, weather: 'clear', wind: 'moderate', mode: 'train', tracers: true, bcam: false, sound: true, mortars: true, foe: 'bot', dmgE: 5, dmgF: 5, sens: 1, sensS: 1, gyro: 'off', gyroS: 1, gyroInv: false, vol: 0.85, fov: 65, labels: true, shake: true, fps: false, cap30: false, quality: IS_TOUCH ? 'mid' : 'high', scopes: {} };
 let S = Object.assign({}, DEF);
 try { const raw = localStorage.getItem('stepSniper'); if (raw) S = Object.assign({}, DEF, JSON.parse(raw)); } catch (e) { /* нет хранилища */ }
 if (!(S.rifle >= 0 && S.rifle < RIFLES.length)) S.rifle = 0;
+if (!ROBOTS_ON && S.foe !== 'man') { S.foe = 'man'; if ((S.nR || 6) <= 8) S.nR = Math.max(S.nR || 6, Math.round((S.nH || 18) * 1.4)); }
 const HOOK = {};
 const SHAKE = { a: 0 };
 const HM = { t: 0, kind: '' };
@@ -2353,7 +2355,8 @@ function renderMenu() {
   else chips($('mScopes'), [[scopeOf(rf).id, scopeOf(rf).name + ' — штатный']], scopeOf(rf).id, () => {});
   chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Бой']], S.gmode, (id) => { if (id === S.gmode) return; S.gmode = id; S.autostart = true; save(); location.reload(); });
   $('teamRow').hidden = S.gmode !== 'battle';
-  chips($('mFoe'), [['bot', 'Люди против роботов'], ['man', 'Люди против людей']], S.foe || 'bot', (id) => { S.foe = id; save(); renderMenu(); });
+  if (!ROBOTS_ON) { S.foe = 'man'; $('mFoe').hidden = true; if ($('mFoe').previousElementSibling) $('mFoe').previousElementSibling.hidden = true; }
+  else chips($('mFoe'), [['bot', 'Люди против роботов'], ['man', 'Люди против людей']], S.foe || 'bot', (id) => { S.foe = id; save(); renderMenu(); });
   const pvp = S.foe === 'man';
   chips($('mSide'), pvp ? [['h', 'Играть за зелёных'], ['r', 'Играть за серых']] : [['h', 'Играть за людей'], ['r', 'Играть за роботов']], S.side, (id) => { S.side = id; save(); renderMenu(); });
   if ($('mMap')) { $('mMap').hidden = S.scen !== 'wall'; if (HOOK.wmaps) chips($('mMap'), Object.entries(HOOK.wmaps).filter(([k, v]) => !v.hidden).map(([k, v]) => [k, 'Карта: ' + v.name]), S.map || 'field', (id) => { S.map = id; save(); renderMenu(); }); }
@@ -2366,7 +2369,7 @@ function renderMenu() {
 
   if ($('mNH').previousSibling) $('mNH').previousSibling.textContent = pvp ? 'Зелёных ' : 'Людей '; if ($('mNR').previousSibling) $('mNR').previousSibling.textContent = pvp ? 'Серых ' : 'Роботов ';
   $('gmodeNote').textContent = S.gmode === 'battle'
-    ? 'Высота 112 с траншеями, «Корды» и миномёты; за ней лагерь с укрытием, оружейкой и медпунктом, дальше деревня — опорный пункт для отхода. Слева мельница (снайперская позиция), справа густая посадка. Потеря высоты — не конец: отходите в деревню мелкими группами, раненых несите в медпункты. Ценятся тактика и сбережённые люди. Выберите противника, сценарий, сторону, численность (до 100) и роль.'
+    ? 'Высота 112 с траншеями, «Корды» и миномёты; за ней лагерь с укрытием, оружейкой и медпунктом, дальше деревня — опорный пункт для отхода. Слева мельница (снайперская позиция), справа густая посадка. Потеря высоты — не конец: отходите в деревню мелкими группами, раненых несите в медпункты. Ценятся тактика и сбережённые люди. Выберите сценарий, сторону, численность (до 100) и роль.'
     : 'Мишени от 100 до 1500 м, разбор каждого выстрела.';
   $('bRestart').hidden = !(started && S.gmode === 'battle');
   chips($('mWeather'), Object.entries(WEATHER).map(([k, w]) => [k, w.name + ' ' + (w.t > 0 ? '+' : '') + w.t + '°']), S.weather, (id) => { S.weather = id; save(); applyConditions(); applyWeatherVisuals(); renderMenu(); });
@@ -2479,7 +2482,7 @@ window.SS = {
   clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
   say,
   setWeather: (id) => { if (!WEATHER[id]) return; S.weather = id; applyConditions(); applyWeatherVisuals(); },
-  suppress, toggleWeaponList,
+  suppress, toggleWeaponList, ROBOTS_ON,
   setRumble: (v) => { if (AC && rumbleGain) rumbleGain.gain.setTargetAtTime(S.sound ? v : 0, AC.currentTime, 1.5); },
   obstHit, addObst, KURGANS,
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,

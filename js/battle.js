@@ -784,7 +784,7 @@ function makeUnit(team, cls, pos, yaw) {
     u.mag = cls === 'mg' ? 100 : cls === 'sniper' ? 10 : cls === 'rpg' ? 1 : 30;
     u.speed = 4.8;
     u.gren = cls === 'rifle' || cls === 'lead' ? 2 : 1;
-    if (cls === 'lead') u.smokes = 2; else if (cls === 'rifle') u.smokes = 1;
+    if (cls === 'lead') u.smokes = 2; else if (cls === 'rifle' || cls === 'medic') u.smokes = 1;
   }
   u.smokeRk = cls === 'rpg' || cls === 'rocket' ? 1 : 0;
   units.push(u);
@@ -864,8 +864,8 @@ function makeSmoke(pos, r, life, np, fixed) {
   const s = { pos: pos.clone(), r, t: 0, life, dens: 0, fixed };
   const w = fixed ? [0, 0] : SS.windAt(pos.z, SS.getSimT());
   for (let i = 0; i < (np == null ? 12 : np); i++) {
-    const p = _v.set(pos.x + gauss() * r * 0.45, pos.y + Math.abs(gauss()) * r * 0.35 + 1, pos.z + gauss() * r * 0.45);
-    SS.fxPuff(p, 0xbdbcb4, r * (fixed ? 1.05 : 0.45), r * rnd(fixed ? 1.4 : 1.1, 1.6), life * rnd(0.85, 1.1), _v2.set(w[0] * 0.35 + gauss() * 0.2, 0.15, w[1] * 0.35 + gauss() * 0.2), 0.9, 0, 0, 0);
+    const p = _v.set(pos.x + gauss() * r * 0.4, pos.y + Math.abs(gauss()) * r * (fixed ? 0.35 : 0.2) + (fixed ? 0.8 : 2), pos.z + gauss() * r * 0.4);
+    SS.fxPuff(p, 0xbdbcb4, r * (fixed ? 1.05 : 1.2), r * (fixed ? rnd(1.4, 1.6) : rnd(2, 2.5)), life * rnd(0.85, 1.1), _v2.set(w[0] * 0.35 + gauss() * 0.2, 0.15, w[1] * 0.35 + gauss() * 0.2), 0.9, 0, 0, 0);
   }
   smokes.push(s);
   const d = pos.distanceTo(camera.position); const AC = SS.getAC(); if (AC && d < 600) SS.noiseHit(AC.currentTime + d / 343, 1.2, 'lowpass', 600, clamp(20 / (d + 20), 0.03, 0.4));
@@ -876,8 +876,19 @@ function updateSmokes(dt) {
     const w = SS.windAt(s.pos.z, SS.getSimT());
     if (!s.fixed) { s.pos.x += w[0] * dt * 0.35; s.pos.z += w[1] * dt * 0.35; }
     s.dens = Math.min(1, s.t / 3) * (1 - smoothS(s.life * 0.6, s.life, s.t));
+    // шашка дымит ещё долго: плотные клубы у земли
+    if (!s.fixed && s.t < s.life * 0.55 && (s.acc = (s.acc || 0) + dt) > 1.3 && Math.abs(s.pos.x - camera.position.x) + Math.abs(s.pos.z - camera.position.z) < 1400) {
+      s.acc = 0; const k = 1 - s.t / (s.life * 0.55);
+      for (let j = 0; j < 2; j++) SS.fxPuff(_v.set(s.pos.x + gauss() * s.r * 0.3, s.pos.y + 1.5 + Math.random() * 2, s.pos.z + gauss() * s.r * 0.3), 0xc4c3bb, s.r * 0.9, s.r * rnd(1.8, 2.3), rnd(16, 24), _v2.set(w[0] * 0.3 + gauss() * 0.3, 0.25, w[1] * 0.3 + gauss() * 0.3), 0.75 + 0.2 * k, 0, 0, 0);
+    }
     if (s.t > s.life) smokes.splice(i, 1);
   }
+}
+// дымовая завеса стеной: несколько облаков поперёк направления
+function smokeWall(pt, dirV, n) {
+  const d = _v3.set(dirV.x, 0, dirV.z); if (d.lengthSq() < 1e-6) d.set(0, 0, 1); d.normalize();
+  const px = -d.z, pz = d.x;
+  for (let k = 0; k < n; k++) { const o = (k - (n - 1) / 2) * 11 + gauss() * 1.5; const x = pt.x + px * o + d.x * gauss() * 2, z = pt.z + pz * o + d.z * gauss() * 2; makeSmoke(new V3(x, terrainH(x, z), z), rnd(12, 15), rnd(75, 95), 10, false); }
 }
 function throwSmoke(u, at) {
   if (u.smokes <= 0) return;
@@ -1057,7 +1068,7 @@ function hurtHuman(u, dmg, by, dir, blast) {
   dmg *= dmgK(u.team);
   if (!u.alive) return;
   u.flinch = 1; u.flinchS = Math.random() < 0.5 ? -1 : 1;
-  u.hp -= dmg; u.supp += 2.5; u.hitT = B.t; B.dmgT = B.dmgT || {}; B.dmgT[u.team] = B.t; u.cause = blast ? "blast" : "bullet";
+  u.hp -= dmg; u.supp += 2.5; u.hitT = B.t; if (dir && !blast) { if (!u.fear) u.fear = new V3(); u.fear.copy(u.pos).addScaledVector(dir, -120); u.fearT = B.t; } u.st = Math.max(u.st || 0, rnd(1, 2.2)); B.dmgT = B.dmgT || {}; B.dmgT[u.team] = B.t; u.cause = blast ? "blast" : "bullet";
   if (u.hp <= 0) downHuman(u, by, dir, blast);
   else if (isFriend(u.team) && Math.random() < 0.5) vSay(pickR(['Санитар!', 'Меня зацепило!', 'Ранен!', 'А-а, чёрт!']), u);
   if (u.alive && u.hp < 70 && isFriend(u.team) && u.squad === PL.squad && Math.random() < 0.4) feed('Тройка: ' + clsName(u.cls) + ' ранен!', 'bad');
@@ -1077,7 +1088,7 @@ function revivePlayer(hp, by) {
   feed((by ? clsName(by.cls) : 'Вы') + ' вытащил вас: +' + hp + '. В строй!', 'me');
 }
 function reviveUnit(u, hp, by) {
-  u.revives = (u.revives || 0) + 1; u.stab = false;
+  u.revives = (u.revives || 0) + 1; u.stab = false; u.sheltered = false; u.smoked = 0; u.carryTo = null; u.rescueT = 0;
   u.alive = true; u.down = false; u.state = 'pos'; u.hp = hp; u.fall = null; u.pose = null; u.writhe = false; u.slide.set(0, 0, 0); u.pv = null; u.crouchT = 1;
   u.gone.delete('gun'); u.healer = null; B.humansDown = Math.max(0, B.humansDown - 1); if (isFriend(u.team)) B.lost = Math.max(0, B.lost - 1);
   if (isFriend(u.team) && (u.squad === PL.squad || (by && by.isPlayer) || Math.random() < 0.4)) feed((by && !by.isPlayer ? clsName(by.cls) : 'Вы') + ' спас бойца (' + clsName(u.cls) + '): +' + hp, 'me');
@@ -1264,7 +1275,7 @@ HOOK.collide = function (b, p0, p1) {
   for (const u of _cand) {
     if (!u.alive || u.team === b.team || Math.abs(u.pos.z - p1.z) > 2.5 || Math.abs(u.pos.x - p1.x) > 2.5) continue;
     _v.set(u.pos.x, u.pos.y + 1.4, u.pos.z);
-    if (segSphere(_v, 1.6, p0, p1)) { u.supp += isBot(u) ? (B.scen === 'att' ? 0.35 : 0.05) : 0.3; if (b.owner && b.owner.alive) know(u, b.owner, 0.12); else if (b.player) know(u, PL, 0.12); }
+    if (segSphere(_v, 1.6, p0, p1)) { u.supp += isBot(u) ? (B.scen === 'att' ? 0.35 : 0.05) : 0.3; fearFrom(u, b); if (b.owner && b.owner.alive) know(u, b.owner, 0.12); else if (b.player) know(u, PL, 0.12); }
   }
   const st = staticHit(p0, p1);
   if (st != null) best = { t: st, fn: () => hitStatic(b, new V3().lerpVectors(p0, p1, st)) };
@@ -1286,16 +1297,21 @@ HOOK.collide = function (b, p0, p1) {
   }
   return best;
 };
+function fearFrom(u, b) {
+  const src = b.owner && b.owner.alive ? b.owner.pos : b.player ? PL.pos : null;
+  if (src) { if (!u.fear) u.fear = new V3(); u.fear.copy(src); } else if (b.v) { if (!u.fear) u.fear = new V3(); u.fear.copy(u.pos).addScaledVector(b.v, -0.3); }
+  u.fearT = B.t;
+}
 function hitStatic(b, pt) {
   SS.killBullet(b, pt, false);
   if (!b.player && PL.alive && b.team !== PL.team && pt.distanceTo(camera.position) < 4) SS.suppress(0.18);
-  for (const u of units) if (u.alive && u.team !== b.team && Math.abs(u.pos.x - pt.x) < 3 && Math.abs(u.pos.z - pt.z) < 3.5) u.supp += isBot(u) ? 0.1 : 0.7;
+  for (const u of units) if (u.alive && u.team !== b.team && Math.abs(u.pos.x - pt.x) < 3 && Math.abs(u.pos.z - pt.z) < 3.5) { u.supp += isBot(u) ? 0.1 : 0.7; fearFrom(u, b); }
 }
 function bulletHitsUnit(b, u, h) {
   const v = b.v.length(), E = 0.5 * b.rf.g / 1000 * v * v;
   SS.killBullet(b, null);
   const dir = b.v.clone().normalize();
-  if (!isBot(u) && !u.alive) { SS.spawnPuff(h.pt, 0x6b0d0d, 0.3, 0.5, 1, 0.1, 0.03); killDowned(u, 'finish', b.player ? 'player' : ''); return; }
+  if (!isBot(u) && !u.alive) { SS.spawnPuff(h.pt, 0x6b0d0d, 0.3, 0.5, 1, 0.1, 0.03); if (b.player || b.aimDown || Math.random() < 0.3) killDowned(u, 'finish', b.player ? 'player' : ''); else u.downT -= 3; return; }
   if (!isBot(u)) {
     SS.spawnPuff(h.pt, 0x6b0d0d, 0.3, 0.5, 1, 0.1, 0.03);
     u.hitBy = b.owner ? [Math.round(b.owner.pos.distanceTo(u.pos)), b.owner.cls, h.zone] : null;
@@ -1394,7 +1410,7 @@ function updateRockets(dt) {
     }
     if (hit) {
       if (hit.tg) { const T = hit.tg.T; T.hits.push({ a: hit.tg.a, b: T.kind === 'steel' ? hit.tg.b + 0.735 : hit.tg.b, score: 10 }); if (T.kind === 'ring') SS.paintRing(T); else { SS.paintSteel(T); T.swingV += 6; } }
-      if (r.smoke) { SS.spawnPuff(hit.pt, 0xcfcac0, 1.5, 3, 6, 1.2, 0.5); const sp = hit.pt.clone(); sp.y = terrainH(sp.x, sp.z); makeSmoke(sp, rnd(15, 19), rnd(70, 90)); scene.remove(r.mesh); rockets.splice(i, 1); continue; }
+      if (r.smoke) { SS.spawnPuff(hit.pt, 0xcfcac0, 1.5, 3, 6, 1.2, 0.5); smokeWall(hit.pt, r.v, 3); scene.remove(r.mesh); rockets.splice(i, 1); continue; }
       explode(hit.pt, 1.0, { by: r.player ? 'player' : '', direct: hit.u ? { u: hit.u, zone: hit.zone } : null, ground: !hit.air });
       scene.remove(r.mesh); rockets.splice(i, 1);
       continue;
@@ -1941,7 +1957,7 @@ function npcFireAt(u, tp, vel, spreadMrad, tracer, org) {
   const D = org.distanceTo(tp);
   const p = tp.clone(); if (vel) p.addScaledVector(vel, D / (wp.mv * 0.8));
   const dir = shootDir(org, p, wp, D, u.rangeErr, spreadMrad);
-  SS.spawnBullet({ team: u.team, rf: wp, origin: org, dir, mv: wp.mv + gauss() * 3, tracer, owner: u, dt: 0.003 });
+  const bb = SS.spawnBullet({ team: u.team, rf: wp, origin: org, dir, mv: wp.mv + gauss() * 3, tracer, owner: u, dt: 0.003 }); if (bb && B.finishing) bb.aimDown = true;
   flashFX(org, wp.g > 10);
   if (Math.random() < 0.45 && Math.abs(org.x - camera.position.x) + Math.abs(org.z - camera.position.z) < 80) SS.fxPuff(org, 0xd8d4cc, 0.1, 0.7, 1.0, dir.clone().multiplyScalar(1.5), 0.3);
   u.kick = 1; u.mag--; u.firedT = B.t;
@@ -2037,6 +2053,7 @@ function doHeal(u, dt) {
   const ok = pt && (pt.isPlayer ? PL.alive : pt.alive || (pt.down && !pt.dead && !pt.evac && !pt.carrier && (canRevive(pt) || (u.cls === 'medic' && !pt.stab))));
   if (!ok) { u.patient = null; if (pt) pt.healer = null; u.state = 'pos'; if (u.home) sendTo(u, u.home, 0.3); return; }
   const pp = pt.isPlayer ? PL.pos : pt.pos;
+  if (!pt.isPlayer && !pt.alive && !pt.smoked && u.smokes > 0 && !sheltered(pt.pos)) { const th = threatNear(pt, 250); if (th) { pt.smoked = B.t; const dir = th.clone().sub(pp).setY(0).normalize(); throwSmoke(u, pp.clone().addScaledVector(dir, 14)); if (isFriend(u.team) && Math.random() < 0.6) feed(clsName(u.cls) + ': дым! Иду к раненому!', 'me'); } }
   u.dest = pp.clone().add(_v.set(0.6, 0, 0.45));
   if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) > 2.3) { u.crouchT = 0.3; moveUnit(u, dt, u.speed * 0.9); u.state = 'heal'; u.mv = lerp(u.mv, 1, dt * 5); return; }
   u.mv = lerp(u.mv, 0, dt * 6); u.vel.set(0, 0, 0); u.crouchT = 1; u.healing = true;
@@ -2089,6 +2106,10 @@ function updateHuman(u, dt) {
   if (u.state === 'move') {
     if (u.moveDelay > 0) { u.moveDelay -= dt; u.crouchT = 1; u.mv = lerp(u.mv, 0, dt * 6); return; }
     u.crouchT = u.supp > 1.5 ? 0.45 : 0;
+    if (u.supp > 3.5 && !(u.orderT > B.t) && !u.carry && B.t > (u.hideT || 0) && u.dest && u.pos.distanceTo(u.dest) > 15) {
+      u.hideT = B.t + rnd(6, 10);
+      const sp = nearCover(u, 14); if (sp) { sendTo(u, sp, 0); u.run = true; if (isFriend(u.team) && u.squad === PL.squad && Math.random() < 0.5) feed('Тройка: ' + clsName(u.cls) + ' — плотный огонь, залёг!'); return; }
+    }
     const sp = u.speed * (u.run ? 1.5 : 1) * (u.hp < 40 ? 0.45 : 1) * (u.supp > 1.5 ? 0.7 : 1);
     if (moveUnit(u, dt, sp)) { u.st = rnd(0.3, 1); u.crouchT = 1; u.run = false; }
     u.mv = lerp(u.mv, 1, dt * 5);
@@ -2104,6 +2125,7 @@ function updateHuman(u, dt) {
     return;
   }
   u.mv = lerp(u.mv, 0, dt * 6); u.vel.set(0, 0, 0);
+  if (fearStep(u, dt)) return;
   // голова: осмотр сектора или слежение за целью
   const t = u.target && u.target.alive ? u.target : null;
   u.scan += dt * (0.5 + 0.2 * Math.sin(u.id));
@@ -2609,9 +2631,10 @@ function woundsTick(dt) {
 }
 // бойцы сами выносят раненых, которых уже не поднять, — если рядом нет боя
 function carryTick() {
+  rescueTick();
   for (const d of units) {
     if (!d.down || d.alive || d.dead || d.evac || d.carrier || B.drag === d || isBot(d)) continue;
-    if (B.t - d.downT < 3) continue;
+    if (B.t - d.downT < 3 || threatNear(d, 160)) continue;
     const medic = units.some((m) => m.alive && m.team === d.team && m.cls === 'medic' && m.kits > 0 && m.pos.distanceTo(d.pos) < 90);
     if (!d.stab && canRevive(d) && medic) continue;
     { const cc = ccpFor(d.team, d.pos); if (!cc || Math.hypot(cc.pos.x - d.pos.x, cc.pos.z - d.pos.z) > 450) continue; }
@@ -2633,6 +2656,13 @@ function carryStep(u, dt) {
   const b = u.carry;
   if (!b || b.dead || b.alive || b.evac) { u.carry = null; if (b) b.carrier = null; u.state = 'pos'; return; }
   if (u.pos.distanceTo(b.pos) > 2.5) { u.dest = b.pos.clone(); u.crouchT = 0.3; moveUnit(u, dt, u.speed); u.mv = lerp(u.mv, 1, dt * 5); return; }
+  if (b.carryTo) {
+    if (Math.hypot(b.carryTo.x - u.pos.x, b.carryTo.z - u.pos.z) < 2.2 || B.t - (b.carryT0 || B.t) > 40) { b.carryTo = null; b.sheltered = true; u.carry = null; b.carrier = null; u.state = 'pos'; u.orderT = 0; if (isFriend(u.team) && (u.squad === PL.squad || Math.random() < 0.4)) feed(clsName(u.cls) + ': раненый в укрытии — санитара!', 'me'); return; }
+    u.dest = b.carryTo.clone(); u.crouchT = 0.5;
+    moveUnit(u, dt, u.speed * 0.8); u.state = 'carry'; u.mv = lerp(u.mv, 0.7, dt * 5);
+    const bx0 = u.pos.x + Math.sin(u.yaw) * 1.15, bz0 = u.pos.z + Math.cos(u.yaw) * 1.15;
+    b.pos.set(bx0, terrainH(bx0, bz0) + climbY(bx0, bz0), bz0); b.slide.set(0, 0, 0); b.yaw = u.yaw; return;
+  }
   const cc = ccpFor(u.team, u.pos); if (!cc) { u.carry = null; b.carrier = null; return; }
   if (Math.hypot(cc.pos.x - u.pos.x, cc.pos.z - u.pos.z) < 5) { evacuate(b, u); u.state = 'pos'; return; }
   u.dest = cc.pos.clone(); u.crouchT = 0.2;
@@ -2651,7 +2681,7 @@ function finishTick() {
     const eye = eyeOf(s, new V3()), tp = _v3.set(d.pos.x, d.pos.y + 0.25, d.pos.z);
     if (!los(eye, tp)) continue;
     s.yaw = s.aimYaw = faceYaw(tp.x - s.pos.x, tp.z - s.pos.z);
-    const n = isBot(s) ? 3 : 2; for (let i = 0; i < n; i++) npcFireAt(s, tp.clone(), null, 3, i === 0);
+    const n = isBot(s) ? 3 : 2; B.finishing = true; for (let i = 0; i < n; i++) npcFireAt(s, tp.clone(), null, 3, i === 0); B.finishing = false;
   }
 }
 // ===== отход: высота потеряна — бой продолжается у деревни =====
@@ -2821,6 +2851,97 @@ HOOK.surrender = function () {
   if (!B.surAsk || B.t - B.surAsk > 4) { B.surAsk = B.t; feed('Сдаться? Нажмите «СДАТЬСЯ» ещё раз в течение 4 секунд', 'bad'); return; }
   endBattle(false, 'Вы сдались', true);
 };
+
+// ===== инстинкт самосохранения и взаимовыручка =====
+function threatNear(u, r) {
+  let best = null, bd = r;
+  for (const q of TK[u.team].values()) { if (B.t - q.t > 15) continue; const d = q.pos.distanceTo(u.pos); if (d < bd) { bd = d; best = q.pos; } }
+  if (u.fear && B.t - (u.fearT || -99) < 8 && u.fear.distanceTo(u.pos) < r && (!best || u.fear.distanceTo(u.pos) < bd)) best = u.fear;
+  return best;
+}
+function sheltered(p) {
+  if (inTrench(p)) return true;
+  for (const cv of covers) { if (Math.abs(cv.c.x - p.x) > 8 || Math.abs(cv.c.z - p.z) > 8) continue; const lx = (p.x - cv.c.x) * cv.u.x + (p.z - cv.c.z) * cv.u.z, lz = (p.x - cv.c.x) * cv.n.x + (p.z - cv.c.z) * cv.n.z; if (Math.abs(lx) < cv.mx[0] + 1.2 && Math.abs(lz) < cv.mx[2] + 1.8 && cv.h > 0.8) return true; }
+  return inForest(p);
+}
+// ближайшее укрытие, по возможности — с другой стороны от угрозы
+function nearCover(u, r, from) {
+  const th = from || threatNear(u, 400);
+  let best = null, bs = 1e9;
+  const test = (s) => { if (s.used && s.used !== u) return; const d = s.pos.distanceTo(u.pos); if (d > r) return; let sc = d; if (th) { const tdx = th.x - s.pos.x, tdz = th.z - s.pos.z; const back = ((u.pos.x - th.x) * tdx + (u.pos.z - th.z) * tdz) < 0 ? 0 : 6; sc += back - Math.min(10, Math.hypot(tdx, tdz) / 50); } if (sc < bs) { bs = sc; best = s; } };
+  const side = WALL() ? (u.team === 'h' ? 'h' : 'r') : (u.team === attTeam() ? 'r' : 'h');
+  for (const cv of covers) { if (Math.abs(cv.c.x - u.pos.x) > r + 6 || Math.abs(cv.c.z - u.pos.z) > r + 6) continue; for (const s of cv.pts[side]) test(s); if (th && cv.pts[side === 'h' ? 'r' : 'h']) { /* укрытие с тыла тоже годится, если угроза с той стороны */ const tz = th.z - cv.c.z; for (const s of cv.pts[side === 'h' ? 'r' : 'h']) if (Math.sign(s.pos.z - cv.c.z) !== Math.sign(tz)) test(s); } }
+  for (const s of forestSpots) if (Math.abs(s.pos.x - u.pos.x) < r && Math.abs(s.pos.z - u.pos.z) < r) test(s);
+  if (!WALL()) { for (const s of slots.front) test(s); for (const s of slots.rear) test(s); }
+  for (const k in POI) for (const s of POI[k].spots) if (!s.mill) test(s);
+  return best;
+}
+// возвращает true, если боец занят спасением себя в этом кадре
+function fearStep(u, dt) {
+  if (u.nest || u.mortar || u.carry || u.patient || u.state === 'camp' || u.chute) return false;
+  const ordered = u.orderT > B.t;
+  const th = u.fear && B.t - (u.fearT || -99) < 6 ? u.fear : null;
+  // 1) под плотным огнём на открытом месте — к ближайшему укрытию
+  if (u.supp > 2.2 && !u.spot && !sheltered(u.pos) && B.t > (u.hideT || 0)) {
+    u.hideT = B.t + rnd(5, 8);
+    const sp = nearCover(u, ordered ? 15 : 35, th);
+    if (sp) { sendTo(u, sp, 0, null, true); u.run = true; if (isFriend(u.team) && (u.squad === PL.squad || Math.random() < 0.12)) feed((u.squad === PL.squad ? 'Тройка: ' : '') + clsName(u.cls) + ': ' + pickR(['прижали! В укрытие!', 'меня кроют — меняю позицию!', 'плотный огонь, ухожу!'])); return true; }
+    // укрытия нет — залечь и отползти от угрозы
+    if (th) { const away = u.pos.clone().sub(th).setY(0).normalize(); sendTo(u, null, 0, u.pos.clone().addScaledVector(away, 8).add(_v.set(gauss() * 3, 0, gauss() * 3)), true); u.run = false; u.crouchT = 1; return true; }
+  }
+  // 2) в укрытии под шквалом — пережидать, не высовываться
+  if (u.supp > 4.2) { u.st = Math.max(u.st || 0, rnd(1.2, 2.5)); }
+  // 3) тяжело ранен в бою — отойти назад в укрытие, к санитару
+  if (u.hp < 40 && th && !u.retreated && B.t > (u.hideT || 0)) {
+    u.hideT = B.t + 12; u.retreated = true;
+    const dir = u.pos.clone().sub(th).setY(0).normalize();
+    const sp = nearCover(u, 45, th) ; const back = u.pos.clone().addScaledVector(dir, 25);
+    if (sp && sp.pos.distanceTo(th) > u.pos.distanceTo(th)) sendTo(u, sp, 0, null, true); else sendTo(u, null, 0, back, true);
+    u.run = true; u.orderT = B.t + 20; return true;
+  }
+  // 4) смена позиции: долго на одном месте или по нему пристрелялись
+  if (!ordered && u.state === 'pos' && u.target && u.target.alive && B.t > (u.relocT || 0)) {
+    if (!u.posT) u.posT = B.t;
+    const hot = B.t - (u.hitT || -99) < 4 || (u.supp > 2.6 && B.t - (u.fearT || -99) < 2);
+    if (hot || B.t - u.posT > (u.cls === 'sniper' ? 25 : 45)) {
+      u.relocT = B.t + rnd(14, 22);
+      const tp = u.target.isPlayer ? PL.pos : u.target.pos;
+      const sd = Math.random() < 0.5 ? -1 : 1, rt = new V3(-(tp.z - u.pos.z), 0, tp.x - u.pos.x).normalize();
+      const goal = u.pos.clone().addScaledVector(rt, sd * rnd(10, 22));
+      const sp = nearCover({ pos: goal, team: u.team }, 16, tp);
+      if (sp && sp !== u.spot && sp.pos.distanceTo(u.pos) > 5) { sendTo(u, sp, rnd(0.2, 0.8)); u.run = true; u.posT = 0; return true; }
+    }
+  }
+  if (u.state === 'pos' && !u.posT) u.posT = B.t;
+  return false;
+}
+// раненый под огнём: один прикрывает, другой тащит в укрытие, кто-то ставит дым
+function rescueTick() {
+  for (const d of units) {
+    if (!d.down || d.alive || d.dead || d.evac || d.carrier || B.drag === d || isBot(d) || d.sheltered) continue;
+    if (B.t - d.downT < 1.5 || B.t < (d.rescueT || 0)) continue;
+    const th = threatNear(d, 260); if (!th) continue;
+    if (sheltered(d.pos)) { d.sheltered = true; continue; }
+    const helpers = units.filter((h) => h.alive && h.team === d.team && !isBot(h) && !h.carry && !h.patient && !h.nest && !h.mortar && !h.chute && h.state !== 'camp' && h.pos.distanceTo(d.pos) < 40 && !(h.orderT > B.t && h.squad && h.squad.bm))
+      .sort((a, b) => a.pos.distanceTo(d.pos) - b.pos.distanceTo(d.pos));
+    if (!helpers.length) continue;
+    d.rescueT = B.t + 25;
+    const carrier = helpers.find((h) => h.cls !== 'mg') || helpers[0], cover = helpers.filter((h) => h !== carrier);
+    const dir = th.clone().sub(d.pos).setY(0).normalize();
+    // дым между раненым и противником
+    const thrower = [carrier, ...cover].find((h) => h.smokes > 0) || units.find((h) => h.alive && h.team === d.team && h.smokes > 0 && h.pos.distanceTo(d.pos) < 60);
+    if (thrower) throwSmoke(thrower, d.pos.clone().addScaledVector(dir, rnd(12, 18)));
+    else { const rk = units.find((h) => h.alive && h.team === d.team && h.smokeRk > 0 && h.pos.distanceTo(d.pos) < 150); if (rk) { rk.smokeRk--; const at = d.pos.clone().addScaledVector(dir, 25); at.y = terrainH(at.x, at.z) + 1; const org = muzzle(rk, new V3()); const D = org.distanceTo(at), dd = at.clone().sub(org).normalize(); dd.applyAxisAngle(_v3.set(-dd.z, 0, dd.x).normalize(), HOOK.rocketElev(D)); launchRocket(org, dd, rk.team, false, rk, true); } }
+    // прикрытие: двое бьют по угрозе
+    cover.slice(0, 2).forEach((h) => { h.coverT = B.t + 14; h.st = 0; });
+    // носильщик тащит за ближайшее укрытие (подальше от угрозы)
+    const sp = nearCover(d, 35, th);
+    let to = sp ? sp.pos.clone() : d.pos.clone().addScaledVector(dir, -22);
+    if (sp && sp.pos.distanceTo(th) < d.pos.distanceTo(th) - 3) to = d.pos.clone().addScaledVector(dir, -22);
+    carrier.carry = d; d.carrier = carrier; d.carryTo = to; d.carryT0 = B.t; if (carrier.spot) { carrier.spot.used = null; carrier.spot = null; } carrier.state = 'carry'; carrier.target = null;
+    if (isFriend(d.team) && (d.squad === PL.squad || carrier.squad === PL.squad || Math.random() < 0.4)) feed(clsName(carrier.cls) + ': ' + (thrower ? 'дым! ' : '') + 'прикрой — вытаскиваю раненого (' + clsName(d.cls) + ')!', 'me');
+  }
+}
 function reinforce(team, n, msg) {
   const man = team === 'h' || B.pvp, comp = man ? ['lead', 'rifle', 'mg', 'rifle', 'rpg', 'medic'] : ['assault', 'heavy', 'assault', 'rocket'];
   B.rfN = (B.rfN || 0) + 1;
@@ -3221,7 +3342,7 @@ function startBattle() {
   if (!BATTLE_MAP) { S.gmode = 'battle'; S.autostart = true; try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (e) { /* ignore */ } location.reload(); return; }
   clearBattle();
   B.side = S.side === 'r' ? 'r' : 'h';
-  B.pvp = S.foe === 'man';
+  B.pvp = S.foe === 'man' || !SS.ROBOTS_ON;
   B.scen = S.scen === 'att' ? 'att' : S.scen === 'wall' ? 'wall' : S.scen === 'points' ? 'points' : 'def';
   B.wm = B.scen === 'points' ? WMAPS.points : (WMAPS[S.map] || WMAPS.field);
   B.camp = window.CAMPAIGN ? window.CAMPAIGN.current() : null; B.campEv = B.camp ? B.camp.events.map((e) => Object.assign({ done: false }, e)) : [];
@@ -3296,9 +3417,9 @@ function startBattle() {
     for (let gi = 0; gi < gN; gi++) {
       const n = gi === gN - 1 ? nR - made : Math.min(nR - made, Math.round(tot / gN));
       if (n <= 0) continue;
-      const route = ROUTES[gi % ROUTES.length], sp = B.pvp ? 3 : 0;
+      const route = ROUTES[gi % ROUTES.length], sp = B.pvp ? 1 : 0;
       const wave = gi < Math.ceil(gN * 0.6) ? 1 : 2;
-      const g = { id: 'r' + gi, team: 'r', name: RSQN[gi] || 'Группа ' + (gi + 1), members: [], phase: wave === 1 ? 'march' : 'wait', release: rnd(85, 110), route, wi: B.pvp ? 4 : 1, turn: 0, smoked: false };
+      const g = { id: 'r' + gi, team: 'r', name: RSQN[gi] || 'Группа ' + (gi + 1), members: [], phase: wave === 1 ? 'march' : 'wait', release: rnd(85, 110), route, wi: sp + 1, turn: 0, smoked: false };
       const comp = comps[gi % comps.length];
       for (let i = 0; i < n; i++) {
         const lane = Math.floor(gi / ROUTES.length) * 40;
@@ -3310,7 +3431,7 @@ function startBattle() {
     }
     if (B.side === 'r') {
       const g = squads.find((q) => q.team === 'r' && !q.static);
-      const r0 = g.route[B.pvp ? 3 : 0]; ppos = new V3(r0[0] - 8, 0, r0[1] + 6); PL.squad = g;
+      const r0 = g.route[B.pvp ? 1 : 0]; ppos = new V3(r0[0] - 8, 0, r0[1] + 6); PL.squad = g;
     }
   } else if (B.scen === 'wall' || B.scen === 'points') {
     // ===== стенка на стенку: две линии в поле, между ними река и укрытия
@@ -3432,7 +3553,7 @@ function startBattle() {
   if (B.scen === 'points') intro = 'Война за точки А–Е. Захватывайте и держите точки (стойте рядом с флагом): у кого больше точек, тот сжигает билеты противника. Подкрепления приходят волнами.';
   else if (B.scen === 'wall') intro = 'Стенка на стенку: две линии в поле за рекой, между ними курганы и рощи. Вы — ' + roleName + '. Вперёд, держаться своих!';
   else if (B.scen === 'def') intro = B.side === 'h' ? 'Вы — ' + roleName + '. ' + (isNight() ? 'Ночь, отдых у костра. ' : 'Привал в лагере за высотой. ') + 'На постах часовые. По тревоге — бегом на позицию!' : 'Вы — ' + roleName + ' штурмовой группы. Цель — высота с траншеями, кв. ' + grid(new V3(0, 0, HILL.cz)) + '. Вперёд!';
-  else intro = B.side === 'h' ? 'Вы — ' + roleName + '. Десант! Артподготовка и дымовая завеса, приземление в 500 м от высоты, кв. ' + grid(new V3(0, 0, -545)) + '.' : 'Вы — ' + roleName + '. Удерживаем высоту: люди высаживают десант с севера.';
+  else intro = B.side === 'h' ? 'Вы — ' + roleName + '. Десант! Артподготовка и дымовая завеса, приземление в 500 м от высоты, кв. ' + grid(new V3(0, 0, -545)) + '.' : 'Вы — ' + roleName + '. Удерживаем высоту: ' + (B.pvp ? 'зелёные' : 'люди') + ' высаживают десант с севера.';
   feed(intro, 'me');
   cmdSay('Задача: ' + R.obj + '.');
   if (B.taskMsg) setTimeout(() => { if (B.active) cmdSay('Взвод: ' + B.taskMsg + '.'); }, 3500);
@@ -3530,7 +3651,7 @@ HOOK.update = function (dt, sdt) {
     if (B.pts) pointsTick(sdt);
     if (B.campEv && B.campEv.length) campaignTick();
     atmosphere(dt);
-    if (B.scen === 'def' && !B.alarm) { for (const u of units) if (u.team === 'r' && u.alive && !u.mortarU && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 1300) { raiseAlarm('Роботы в квадрате ' + grid(u.pos) + ', ' + Math.round(Math.hypot(u.pos.x, u.pos.z - HILL.cz)) + ' м'); break; } }
+    if (B.scen === 'def' && !B.alarm) { for (const u of units) if (u.team === 'r' && u.alive && !u.mortarU && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < (B.pvp ? 900 : 1300)) { raiseAlarm((B.pvp ? 'Противник' : 'Роботы') + ' в квадрате ' + grid(u.pos) + ', ' + Math.round(Math.hypot(u.pos.x, u.pos.z - HILL.cz)) + ' м'); break; } }
     if (PL.alive && PL.team === attTeam() && Math.hypot(PL.pos.x, PL.pos.z - HILL.cz) < 158) B.reachedTrench = true;
     B.rumbleT -= dt;
     if (B.rumbleT <= 0) { B.rumbleT = 2; SS.setRumble(B.t - Math.max(B.contactT, B.rContactT || -99) < 20 ? 0.16 : 0.07); }
