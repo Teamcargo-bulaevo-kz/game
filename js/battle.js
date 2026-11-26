@@ -2645,7 +2645,7 @@ function retreatTo(team, why, byPlayer) {
   const spots = POI.vil.spots;
   const me = isFriend(team);
   if (me && PL.squad && PL.squad.team === team) { PL.squad.order = 'follow'; PL.squad.members.forEach((m) => { m.orderT = 0; }); }
-  if (me) { cmdSay((byPlayer ? '' : why + '! ') + 'Всем отход в деревню мелкими группами — по двое, прикрывая друг друга! Раненых — в медпункт'); const ns = spots.slice().sort((a, b) => a.pos.distanceTo(PL.pos) - b.pos.distanceTo(PL.pos))[0]; B.pslot = { pos: (ns ? ns.pos : B.fallPt).clone(), text: 'Отход в деревню, занять оборону' }; }
+  if (me) { cmdSay((byPlayer ? '' : why + '! ') + 'Всем отход в деревню мелкими группами — по двое, прикрывая друг друга! Раненых — в медпункт'); const ns = spots.slice().sort((a, b) => a.pos.distanceTo(PL.pos) - b.pos.distanceTo(PL.pos))[0]; B.pslot = { pos: (ns ? ns.pos : B.fallPt).clone(), text: 'Отход в деревню, занять оборону' }; if (PL.team === team) B.obj2 = { pos: B.pslot.pos.clone(), text: B.pslot.text + ', кв. ' + grid(B.pslot.pos) }; }
   else feed('Противник оставляет ' + (team === 'r' && !B.pvp ? 'высоту' : 'позиции') + ' и отходит к деревне', 'me');
   let k = 0;
   for (const sq of squads) {
@@ -2847,6 +2847,7 @@ HOOK.squadMenu = function () { const p = $('sqPanel'); p.hidden = !p.hidden; };
 document.querySelectorAll('#sqPanel button').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation();
   if (b.dataset.w) { B.who = b.dataset.w; document.querySelectorAll('#sqPanel [data-w]').forEach((x) => x.classList.toggle('on', x === b)); return; }
   squadCmd(b.dataset.c); $('sqPanel').hidden = true; }));
+HOOK.point = () => { if (B.active && PL.alive) orderTo('laser'); };
 { const bp = $('bPoint'); if (bp) bp.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (B.active && PL.alive) orderTo('laser'); }); }
 function platoonCmd(c) {
   const me = B.side, att = me === attTeam();
@@ -3476,7 +3477,7 @@ HOOK.update = function (dt, sdt) {
         B.defWithdraw = true;
         if (isFriend(DT)) cmdSay('Деревню не удержать. Выводим людей — всем на юг, за лесополосу! Раненых не бросать!'); else feed('Противник оставляет деревню и уходит', 'me');
         units.filter((u) => u.team === DT && u.alive && !u.chute).forEach((u, i) => { if (u.nest) { u.nest.crew = u.nest.crew.filter((c) => c !== u); u.nest = null; } if (u.mortar) { u.mortar.crew = u.mortar.crew.filter((c) => c !== u); u.mortar = null; } u.mortarU = false; sendTo(u, null, (i % 3) * 1.5, new V3(u.pos.x * 0.5 + gauss() * 20, 0, 545), true); u.run = true; u.orderT = B.t + 1e6; });
-        if (PL.team === DT && PL.alive) B.pslot = { pos: new V3(P.x, 0, 545), text: 'Выход из боя: на юг, к краю карты' };
+        if (PL.team === DT && PL.alive) { B.pslot = { pos: new V3(P.x, terrainH(P.x, 545), 545), text: 'Выход из боя: на юг, к краю карты' }; B.obj2 = { pos: B.pslot.pos.clone(), text: B.pslot.text }; }
       }
       if (B.defWithdraw && units.filter((u) => u.team === DT && fighter(u)).every((u) => u.pos.z > 470) && (!(PL.alive && PL.team === DT) || PL.pos.z > 470)) endBattle(B.side === AT, B.side === DT ? 'Позиции оставлены — люди выведены' : 'Противник ушёл с поля', true);
       if (B.fallback) {

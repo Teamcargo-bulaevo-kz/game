@@ -1802,6 +1802,7 @@ window.addEventListener('keydown', (e) => {
   else if (/^Digit[0-9]$/.test(k)) { if (HOOK.canSwitch && !HOOK.canSwitch()) return; if (HOOK.battle) { const l = weaponChoices(), i = l[(+k.slice(5) + 9) % 10]; if (i != null) selectRifle(i); } else { const i = (+k.slice(5) + 9) % 10; if (!RIFLES[i].mounted) selectRifle(i); } }
   else if (k === 'KeyG' && HOOK.callArt) HOOK.callArt();
   else if (k === 'KeyL') toggleLaser();
+  else if (k === 'KeyV' && HOOK.point) HOOK.point();
 });
 window.addEventListener('keyup', (e) => { input.keys[e.code] = false; if (e.code === 'Space') fireHeld = false; if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') BR.hold = false; });
 
@@ -2350,7 +2351,7 @@ function renderMenu() {
   if (rf.type === 'sniper') chips($('mScopes'), Object.values(SCOPES).filter((s) => !s.iron && !s.rocket).map((s) => [s.id, s.name]), scopeOf(rf).id, (id) => { S.scopes[rf.id] = id; const st = TUR[rf.id]; st.e = 0; st.w = 0; st.drum = 1; st.zoom = null; save(); renderMenu(); });
   else if (rf.type === 'auto' && rf.org !== 'BOT') chips($('mScopes'), [[rf.scope, SCOPES[rf.scope].name + ' (штатный)']].concat(AUTO_SC.map((k) => [k, SCOPES[k].name + (k === 'pso' ? ' 4×' : '')])), scopeOf(rf).id, (id) => { S.scopes[rf.id] = id === rf.scope ? null : id; save(); renderMenu(); });
   else chips($('mScopes'), [[scopeOf(rf).id, scopeOf(rf).name + ' — штатный']], scopeOf(rf).id, () => {});
-  chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Бой: высота против роботов']], S.gmode, (id) => { if (id === S.gmode) return; S.gmode = id; S.autostart = true; save(); location.reload(); });
+  chips($('mGmode'), [['range', 'Стрельбище'], ['battle', 'Бой']], S.gmode, (id) => { if (id === S.gmode) return; S.gmode = id; S.autostart = true; save(); location.reload(); });
   $('teamRow').hidden = S.gmode !== 'battle';
   chips($('mFoe'), [['bot', 'Люди против роботов'], ['man', 'Люди против людей']], S.foe || 'bot', (id) => { S.foe = id; save(); renderMenu(); });
   const pvp = S.foe === 'man';
@@ -2365,7 +2366,7 @@ function renderMenu() {
 
   if ($('mNH').previousSibling) $('mNH').previousSibling.textContent = pvp ? 'Зелёных ' : 'Людей '; if ($('mNR').previousSibling) $('mNR').previousSibling.textContent = pvp ? 'Серых ' : 'Роботов ';
   $('gmodeNote').textContent = S.gmode === 'battle'
-    ? 'Высота с траншеями, лагерь, «Корды» и миномёты. Оборона: тревога, люди бегут из лагеря по позициям, роботы подходят из-за холмов в 2 км под дымом. Штурм: артподготовка, дымовая стена и десант людей в 500 м. Выберите сторону, численность (до 50) и роль со своей задачей.'
+    ? 'Высота 112 с траншеями, «Корды» и миномёты; за ней лагерь с укрытием, оружейкой и медпунктом, дальше деревня — опорный пункт для отхода. Слева мельница (снайперская позиция), справа густая посадка. Потеря высоты — не конец: отходите в деревню мелкими группами, раненых несите в медпункты. Ценятся тактика и сбережённые люди. Выберите противника, сценарий, сторону, численность (до 100) и роль.'
     : 'Мишени от 100 до 1500 м, разбор каждого выстрела.';
   $('bRestart').hidden = !(started && S.gmode === 'battle');
   chips($('mWeather'), Object.entries(WEATHER).map(([k, w]) => [k, w.name + ' ' + (w.t > 0 ? '+' : '') + w.t + '°']), S.weather, (id) => { S.weather = id; save(); applyConditions(); applyWeatherVisuals(); renderMenu(); });
