@@ -65,6 +65,7 @@ function obstHit(p0, p1) {
   [[-430, -1120, 170], [-290, -520, 105], [390, -1320, 190], [540, -470, 120], [-120, -1720, 150], [160, 380, 130], [-260, 300, 90], [640, -900, 110], [-650, -820, 120]].forEach((f) => FORESTS.push({ x: f[0], z: f[1], r: f[2] }));
   for (let x = -700; x <= 650; x += 22) if (Math.abs(x - 40) > 60) FORESTS.push({ x, z: -1540 + Math.sin(x / 90) * 6, r: 13, belt: true });   // дальняя лесополоса
   for (let x = -640; x <= -160; x += 22) FORESTS.push({ x, z: -330 + Math.sin(x / 70) * 5, r: 12, belt: true });                     // ближняя лесополоса (запад)
+  for (let z = -255; z <= -35; z += 13) FORESTS.push({ x: 285 + 8 * Math.sin(z / 50), z, r: 9, belt: true, n: 10 });                 // густая посадка справа от высоты
 })();
 const KURGANS = [[-600, -430, 46, 5], [330, -600, 55, 6.5], [-160, -980, 40, 4.5], [520, -1150, 62, 7.5], [-600, -1450, 52, 6], [120, -1880, 46, 5], [680, -320, 40, 4], [-380, -700, 34, 3.5]];
 const riverZ = (x) => -760 + 70 * Math.sin(x / 310) + 25 * Math.sin(x / 97);
@@ -552,13 +553,13 @@ if (MAPM === 'battle') (function buildForests() {
   const trunkG = new THREE.CylinderGeometry(0.16, 0.28, 1, 6); trunkG.translate(0, 0.5, 0);
   const pineG = new THREE.ConeGeometry(1, 1, 7); pineG.translate(0, 0.5, 0);
   const leafG = new THREE.IcosahedronGeometry(1, 0);
-  const cnt = FORESTS.reduce((s, f) => s + Math.min(140, Math.round(f.r * f.r / 160) + (f.belt ? 3 : 0)), 0);
+  const cnt = FORESTS.reduce((s, f) => s + (f.n || Math.min(140, Math.round(f.r * f.r / 160) + (f.belt ? 3 : 0))), 0);
   const trunks = new THREE.InstancedMesh(trunkG, new THREE.MeshLambertMaterial({ color: 0x4a3a28 }), cnt);
   const pines = new THREE.InstancedMesh(pineG, new THREE.MeshPhongMaterial({ color: 0x2f4a22, flatShading: true, shininess: 0 }), cnt);
   const leaves = new THREE.InstancedMesh(leafG, new THREE.MeshPhongMaterial({ color: 0x3d5a26, flatShading: true, shininess: 0 }), cnt);
   const col = new THREE.Color(); let nt = 0, np = 0, nl = 0;
   for (const f of FORESTS) {
-    const n = Math.min(140, Math.round(f.r * f.r / 160) + (f.belt ? 3 : 0));
+    const n = f.n || Math.min(140, Math.round(f.r * f.r / 160) + (f.belt ? 3 : 0));
     for (let i = 0; i < n; i++) {
       const a = Math.random() * TAU, rr = Math.sqrt(Math.random()) * f.r;
       const x = f.x + Math.cos(a) * rr, z = f.z + Math.sin(a) * rr, gy = terrainH(x, z);
@@ -2477,7 +2478,7 @@ window.SS = {
   clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
   say,
   setWeather: (id) => { if (!WEATHER[id]) return; S.weather = id; applyConditions(); applyWeatherVisuals(); },
-  suppress,
+  suppress, toggleWeaponList,
   setRumble: (v) => { if (AC && rumbleGain) rumbleGain.gain.setTargetAtTime(S.sound ? v : 0, AC.currentTime, 1.5); },
   obstHit, addObst, KURGANS,
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,

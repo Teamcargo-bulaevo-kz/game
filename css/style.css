@@ -281,3 +281,7 @@ body.captain #sqPanel .sqh.cap{display:block}
 body.aiming #pts{opacity:.35}
 
 #endP .outro{margin-top:10px;font-style:italic;opacity:.85;font-size:13px}
+
+#sqPanel .who{display:flex;flex-wrap:wrap;gap:4px;grid-column:1/-1}
+#sqPanel .who button{flex:1 1 auto;min-width:0;padding:6px 8px;font-size:12px}
+#sqPanel .who button.on{background:rgba(110,200,120,.35);border-color:#7fd07f}
