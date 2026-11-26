@@ -2923,9 +2923,11 @@ function rescueTick() {
     if (B.t - d.downT < 1.5 || B.t < (d.rescueT || 0)) continue;
     const th = threatNear(d, 260); if (!th) continue;
     if (sheltered(d.pos)) { d.sheltered = true; continue; }
+    const aliveT = units.filter((h) => h.alive && h.team === d.team).length, carrying = units.filter((h) => h.alive && h.team === d.team && h.carry).length;
+    if (carrying >= Math.max(1, Math.floor(aliveT * 0.15))) continue;      // не больше 15% бойцов на выносе — остальные воюют
     const helpers = units.filter((h) => h.alive && h.team === d.team && !isBot(h) && !h.carry && !h.patient && !h.nest && !h.mortar && !h.chute && h.state !== 'camp' && h.pos.distanceTo(d.pos) < 40 && !(h.orderT > B.t && h.squad && h.squad.bm))
       .sort((a, b) => a.pos.distanceTo(d.pos) - b.pos.distanceTo(d.pos));
-    if (!helpers.length) continue;
+    if (helpers.length < 2) continue;                                       // один тащит — второй обязательно прикрывает
     d.rescueT = B.t + 25;
     const carrier = helpers.find((h) => h.cls !== 'mg') || helpers[0], cover = helpers.filter((h) => h !== carrier);
     const dir = th.clone().sub(d.pos).setY(0).normalize();
