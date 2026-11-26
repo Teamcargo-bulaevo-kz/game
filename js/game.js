@@ -2485,7 +2485,7 @@ window.SS = {
   curRifle, curTur, scopeOf, selectRifle, setAim, setStance, updateWeaponUI, setRangeVisible, openMenu, renderMenu, targetSeg, paintRing, paintSteel, inPoly, SIL,
   IS_TOUCH, getSimT: () => simT, reload, rifleHolder, report, updateStats,
   shadows: !!Q.sh, SUN_DIR, RSTANCE, rangeAt, marchTerrain, WIDX: (id) => RIFLES.findIndex((r) => r.id === id),
-  MAPM, FORESTS, riverZ, gullyX, VIS, setVision, sun, hemi, WEATHER, jump, input, SW, REC, Q, elevRad, emit, PSY, DR, setLean, updateTurUI, curScope,
+  getRenderer: () => renderer, MAPM, FORESTS, riverZ, gullyX, VIS, setVision, sun, hemi, WEATHER, jump, input, SW, REC, Q, elevRad, emit, PSY, DR, setLean, updateTurUI, curScope,
 };
 /* ---------------- старт ---------------- */
 applyConditions(); newWind(); applyWeatherVisuals(); applyMode();
