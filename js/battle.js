@@ -1756,8 +1756,8 @@ function doHeal(u, dt) {
   const ok = pt && (pt.isPlayer ? PL.alive : pt.alive || (pt.down && !pt.stab && B.t - (pt.downT || -99) < 15));
   if (!ok) { u.patient = null; if (pt) pt.healer = null; u.state = 'pos'; if (u.home) sendTo(u, u.home, 0.3); return; }
   const pp = pt.isPlayer ? PL.pos : pt.pos;
-  u.dest = pp.clone().add(_v.set(0.8, 0, 0.6));
-  if (u.pos.distanceTo(pp) > 1.6) { u.crouchT = 0.3; moveUnit(u, dt, u.speed * 0.9); u.state = 'heal'; u.mv = lerp(u.mv, 1, dt * 5); return; }
+  u.dest = pp.clone().add(_v.set(0.6, 0, 0.45));
+  if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) > 2.3) { u.crouchT = 0.3; moveUnit(u, dt, u.speed * 0.9); u.state = 'heal'; u.mv = lerp(u.mv, 1, dt * 5); return; }
   u.mv = lerp(u.mv, 0, dt * 6); u.vel.set(0, 0, 0); u.crouchT = 1; u.healing = true;
   u.yaw += angDiff(faceYaw(pp.x - u.pos.x, pp.z - u.pos.z), u.yaw) * Math.min(1, dt * 4);
   u.healT += dt;
