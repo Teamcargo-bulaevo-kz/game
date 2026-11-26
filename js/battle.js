@@ -1918,7 +1918,7 @@ function pickTarget(u, load) {
 }
 function chooseZone(m, t) {
   if (t.isPlayer) return 'torso';
-  if (!isBot(t)) return m.cls === 'scout' ? 'head' : t.crouch > 0.5 ? 'head' : (Math.random() < 0.5 ? 'head' : 'torso');
+  if (!isBot(t)) return m.cls === 'scout' ? 'head' : t.crouch > 0.5 ? (Math.random() < 0.6 ? 'head' : 'torso') : (Math.random() < 0.5 ? 'head' : 'torso');
   if (m.cls === 'sniper') return t.gone.has('head') ? 'torso' : 'head';
   if (m.cls === 'mg' || m.cls === 'rpg' || m.cls === 'hmg') return 'torso';
   // стрелки бьют в самую изношенную зону — вместе продавливают броню
@@ -2110,7 +2110,7 @@ function updateHuman(u, dt) {
   const baseYaw = u.slot ? u.slot.yaw : u.yaw;
   const inCover = !!u.spot;
   // огонь по точке / подавление по приказу
-  const autoCover = sq && !sq.player && !sq.static && (u.cls === 'mg' || (u.cls === 'rifle' && u.id % 2) || u.cls === 'lead') && u.state === 'pos' && (!u.target || !u.target.alive || B.t - (u.seenT || 0) > 3) && Math.random() < 0.985;
+  const autoCover = sq && !sq.player && ((u.coverT > B.t && u.cls !== 'rpg' && u.cls !== 'medic') || (!sq.static && (u.cls === 'mg' || (u.cls === 'rifle' && u.id % 2) || u.cls === 'lead'))) && u.state === 'pos' && (!u.target || !u.target.alive || B.t - (u.seenT || 0) > 3) && Math.random() < 0.985;
   if (sq && ((sq.player && (sq.order === 'fire' || sq.order === 'cover') && B.t < sq.orderT) || autoCover) && u.reloadT <= 0 && u.supp < 3.5) {
     let pt = null;
     if (sq.order === 'fire' && sq.firePt) pt = sq.firePt.clone().add(_v.set(gauss() * 4, 1 + Math.random(), gauss() * 4));
@@ -2340,20 +2340,34 @@ function brainAttack(team) {
   const me = isFriend(team);
   const holdD = team === 'r' && !B.pvp ? [900, 750] : [430, 380];
   const hold = (m) => m.cls === 'scout' || m.cls === 'sniper';
-  // люди не идут на убой: при больших потерях атака отменяется, выжившие отходят
-  if (!WALL() && manT && !B.attWithdraw && B.t > 60 && attAlive <= Math.ceil(B.NA * 0.5)) {
-    B.attWithdraw = team;
-    if (me) cmdSay('Атака захлебнулась! Всем отход — сохраняем людей! Раненых выносить!'); else feed('Противник прекращает атаку и отходит', 'me');
-    for (const g of squads) { if (g.team !== team || g.player) continue; g.phase = 'hold'; g.holdT = B.t + 1e6;
-      g.members.filter((m) => m.alive && !m.chute && !m.mortar && !m.nest && !m.mortarU).forEach((m, i) => { const away = _v.set(m.pos.x, 0, m.pos.z - HILL.cz).normalize(); if (!isFinite(away.x)) away.set(0, 0, -1); sendTo(m, null, (i % 3) * 1.2, m.pos.clone().addScaledVector(away, 320).add(_v2.set(gauss() * 20, 0, 0)), true); m.run = true; m.orderT = B.t + 1e6; }); }
+  // люди не идут на убой: при больших потерях отходят перекатами, перегруппировываются и атакуют снова
+  B.wd = B.wd || {}; B.wBase = B.wBase || Object.assign({}, B.n0);
+  if (!B.wd[team] && B.t > 60 && attAlive >= 2 && attAlive < (B.wBase[team] || 0) && attAlive <= Math.ceil((B.wBase[team] || attAlive) * (manT ? 0.5 : 0.65))) {
+    const until = B.t + rnd(80, 110); B.wd[team] = { until };
+    if (me) cmdSay(manT ? 'Атака захлебнулась! Отходим перекатами — одни прикрывают, другие бегут! Раненых выносить!' : 'Группы отходят на ремонт и перезарядку, прикрывая друг друга'); else feed(manT ? 'Противник отходит перекатами под прикрытием' : 'Роботы отходят на ремонт — у вас есть время', 'me');
+    B.wd[team].stage = null;
+    const stage = WALL() ? new V3(B.wm[team][0], 0, B.wm[team][1]) : B.scen === 'att' && team === 'h' ? new V3(0, 0, -640) : B.scen === 'att' ? new V3(0, 0, 300) : new V3(0, 0, -900); B.wd[team].stage = stage; if (me && PL.alive && PL.team === team) { const sp = stage.clone(); sp.y = terrainH(sp.x, sp.z); B.obj2 = { pos: sp, text: 'Отход на сборный пункт, кв. ' + grid(sp) }; }
+    for (const g of squads) { if (g.team !== team || g.player || g.static) continue; g.phase = 'hold'; g.holdT = until; const cc = groupCenter(g);
+      if (cc && manT) { const ks = [...TK[team].values()].filter((q) => B.t - q.t < 30); const ec = ks.length ? ks.reduce((a, q) => a.add(q.pos), new V3()).divideScalar(ks.length) : new V3(0, 0, HILL.cz); const dir = ec.clone().sub(cc).setY(0).normalize(); if (isFinite(dir.x)) for (const o of [-14, 0, 14]) { const sp = cc.clone().addScaledVector(dir, rnd(35, 50)).add(_v2.set(-dir.z * o, 0, dir.x * o)); makeSmoke(new V3(sp.x, terrainH(sp.x, sp.z), sp.z), rnd(14, 18), rnd(60, 80), 6, true); } }
+      boundMove(g, stage.clone().add(_v.set(cc ? clamp(cc.x, -300, 300) * 0.6 : gauss() * 60, 0, gauss() * 15)), null); }
   }
+  if (B.wd[team] && B.wd[team].stage && !manT) for (const u of units) if (u.team === team && u.alive && u.Z && Math.hypot(u.pos.x - B.wd[team].stage.x, u.pos.z - B.wd[team].stage.z) < 120) for (const z in u.Z) { const Z = u.Z[z]; if (Z.hp > 0) { Z.hp = Math.min(Z.max, Z.hp + Z.max * 0.02); Z.int = Math.min(1, Z.int + 0.02); } }   // ремонт на сборном пункте
+  if (B.wd[team] && B.t > B.wd[team].until) { B.wd[team] = null; B.wBase[team] = attAlive; if (me) cmdSay('Перегруппировались. Снова вперёд — перекатами, под дымом!'); else feed('Противник перегруппировался и снова наступает', 'bad'); for (const g of squads) if (g.team === team && !g.player && !g.static) { g.smoked = false; g.phase = 'deploy'; } }
+  // противник пропал из виду — прочёсывание местности
+  B.seenT = B.seenT || {};
+  if (!B.seenT[team] || [...TK[team].entries()].some(([e, q]) => B.t - q.t < 40 && (e.isPlayer ? PL.alive : e.alive && !e.crawl))) B.seenT[team] = B.t;
+  const hunting = B.t - B.seenT[team] > 50 && !POINTS();
+  if (hunting && !B.huntSaid?.[team]) { B.huntSaid = B.huntSaid || {}; B.huntSaid[team] = true; if (me) cmdSay('Противник пропал из виду. Прочесать местность — двойками, прикрывая друг друга!'); else feed(TN(team) === 'роботов' ? 'Роботы прочёсывают местность' : 'Противник прочёсывает местность', 'bad'); }
+  if (!hunting && B.huntSaid) B.huntSaid[team] = false;
   for (const g of squads) {
-    if (g.team !== team || g.player || g.static) continue;
+    if (g.team !== team || g.player || (g.static && !hunting) || g.bm) continue;
+    if (g.static) { const al2 = g.members.filter((m) => m.alive && !m.crawl && !m.mortar && !m.nest && !m.chute); if (al2.length) huntStep(g, al2, groupCenter(g) || al2[0].pos.clone(), team, foe); continue; }
     if (g.phase === 'hold' && g.holdT) { if (B.t < g.holdT) continue; g.phase = 'bound'; g.holdT = 0; }
     if (g.phase === 'chute') { if (g.members.some((m) => m.alive && m.chute)) continue; g.phase = 'deploy'; if (me) feed(g.name + ': приземлились, к бою!'); }
     const al = g.members.filter((m) => m.alive && !m.crawl && !m.chute && !m.mortar);
     if (!al.length) continue;
     const c = groupCenter(g) || al[0].pos.clone();
+    if (hunting && !B.wd[team]) { huntStep(g, al, c, team, foe); continue; }
     if (WALL()) {
       const ks = [...TK[team].values()].filter((q) => B.t - q.t < 25);
       if (ks.length) { const gx = ks.reduce((s, q) => s + q.pos.x, 0) / ks.length, gz = ks.reduce((s, q) => s + q.pos.z, 0) / ks.length; g.goal = new V3(gx, 0, gz); }
@@ -2420,6 +2434,7 @@ function brainAttack(team) {
         const wpn = g.route[Math.min(g.wi, g.route.length - 1)];
         const toward = tacticToward(g, new V3(wpn[0], 0, wpn[1]), toHill, goal);
         if (Math.hypot(c.x - wpn[0], c.z - wpn[1]) < 70 && g.wi < g.route.length - 1) g.wi++;
+        al.forEach((m, i) => { if (i % 2 !== g.turn) m.coverT = B.t + 4; });
         al.filter((m, i) => i % 2 === g.turn).forEach((m, i) => {
           if (m.state === 'move' || hold(m) && toHill < holdD[1]) return;
           const sp = spotNear(team, m.pos, toward, 35, 120, lerp(m.pos.x, toward.x, 0.5));
@@ -2648,19 +2663,11 @@ function retreatTo(team, why, byPlayer) {
   if (me && PL.squad && PL.squad.team === team) { PL.squad.order = 'follow'; PL.squad.members.forEach((m) => { m.orderT = 0; }); }
   if (me) { cmdSay((byPlayer ? '' : why + '! ') + 'Всем отход в деревню мелкими группами — по двое, прикрывая друг друга! Раненых — в медпункт'); const ns = spots.slice().sort((a, b) => a.pos.distanceTo(PL.pos) - b.pos.distanceTo(PL.pos))[0]; B.pslot = { pos: (ns ? ns.pos : B.fallPt).clone(), text: 'Отход в деревню, занять оборону' }; if (PL.team === team) B.obj2 = { pos: B.pslot.pos.clone(), text: B.pslot.text + ', кв. ' + grid(B.pslot.pos) }; }
   else feed('Противник оставляет ' + (team === 'r' && !B.pvp ? 'высоту' : 'позиции') + ' и отходит к деревне', 'me');
-  let k = 0;
   for (const sq of squads) {
     if (sq.team !== team || sq.player) continue;
     sq.order = 'village'; sq.phase = 'hold';
-    const al = sq.members.filter((m) => m.alive && !m.chute);
-    al.forEach((m, i) => {
-      if (m.nest) { m.nest.crew = m.nest.crew.filter((c) => c !== m); m.nest = null; }
-      if (m.mortar) { m.mortar.crew = m.mortar.crew.filter((c) => c !== m); m.mortar = null; }
-      m.mortarU = false; if (m.state === 'camp') m.state = 'pos';
-      const free = spots.filter((s) => !s.used).sort((a, b) => a.pos.distanceTo(m.pos) - b.pos.distanceTo(m.pos))[0];
-      sendTo(m, free || null, (k >> 1) * 2.5 + (i % 2) * 1.2, free ? null : B.fallPt.clone().add(_v.set(gauss() * 15, 0, gauss() * 10)), true);
-      m.run = true; m.orderT = B.t + 60; k++;
-    });
+    sq.members.forEach((m) => { if (!m.alive) return; if (m.nest) { m.nest.crew = m.nest.crew.filter((c) => c !== m); m.nest = null; } if (m.mortar) { m.mortar.crew = m.mortar.crew.filter((c) => c !== m); m.mortar = null; } m.mortarU = false; if (m.state === 'camp') m.state = 'pos'; });
+    boundMove(sq, B.fallPt.clone().add(_v.set(gauss() * 20, 0, -25 + gauss() * 8)), spots);
   }
 }
 function villageAssault(g, al, team, manT) {
@@ -2748,6 +2755,72 @@ function takeOver() {
   feed('Вы продолжаете бой за бойца: ' + clsName(c.cls) + (c.squad ? ' (' + c.squad.name + ')' : ''), 'me');
 }
 { const tk = $('endTake'); if (tk) tk.addEventListener('click', takeOver); }
+
+// ===== перекаты: половина группы прикрывает огнём, половина перебегает к укрытию =====
+function boundMove(g, dest, spots) {
+  g.bm = { dest: dest.clone(), spots, turn: 0, legT: B.t, started: false };
+  g.members.forEach((m) => { if (m.alive) { m.orderT = B.t + 30; m.coverT = 0; } });
+}
+function boundTick() {
+  for (const g of squads) {
+    const bm = g.bm; if (!bm) continue;
+    const al = g.members.filter((m) => m.alive && !m.crawl && !m.chute && !m.nest && !m.mortar && !m.carry && !m.patient);
+    if (!al.length) { g.bm = null; continue; }
+    const c = al.reduce((a, m) => a.add(m.pos), new V3()).divideScalar(al.length);
+    if (Math.hypot(c.x - bm.dest.x, c.z - bm.dest.z) < 40 || B.t - bm.legT > 240) {
+      al.forEach((m, i) => { const sp = bm.spots ? bm.spots.filter((s) => !s.used).sort((a, b) => a.pos.distanceTo(m.pos) - b.pos.distanceTo(m.pos))[0] : null; sendTo(m, sp || null, i * 0.3, sp ? null : bm.dest.clone().add(_v.set(gauss() * 8, 0, gauss() * 8)), true); m.orderT = B.t + 8; m.coverT = 0; });
+      g.bm = null; continue;
+    }
+    const half = (m, i) => (al.length < 2 ? 0 : i % 2);
+    const movers = al.filter((m, i) => half(m, i) === bm.turn), cover = al.filter((m, i) => half(m, i) !== bm.turn);
+    cover.forEach((m) => { m.coverT = B.t + 3; m.orderT = Math.max(m.orderT || 0, B.t + 3); });
+    const busy = movers.some((m) => m.state === 'move');
+    if (bm.started && busy && B.t - bm.legT < 25) continue;
+    // следующий бросок: эта половина бежит, другая прикрывает
+    if (bm.started) { bm.turn = al.length < 2 ? 0 : 1 - bm.turn; }
+    bm.started = true; bm.legT = B.t;
+    const run = al.filter((m, i) => half(m, i) === bm.turn);
+    run.forEach((m, i) => {
+      m.coverT = 0;
+      const d = Math.hypot(bm.dest.x - m.pos.x, bm.dest.z - m.pos.z);
+      let sp = d > 90 ? spotNear(m.team, m.pos, bm.dest, 35, 85, lerp(m.pos.x, bm.dest.x, 0.4) + (i - 1) * 6) : null;
+      const p = sp ? null : (d > 90 ? m.pos.clone().lerp(bm.dest, 70 / d) : bm.dest.clone()).add(_v.set(gauss() * 4, 0, gauss() * 4));
+      sendTo(m, sp, i * 0.35, p, true); m.run = true; m.orderT = B.t + 30;
+    });
+    if (isFriend(g.team) && PL.alive && c.distanceTo(PL.pos) < 160 && Math.random() < 0.35) feed(g.name + ': ' + pickR(['перебежка, прикрываю!', 'пошли — прикрываю!', 'бегу, держи их!']));
+  }
+}
+function huntStep(g, al, c, team, foe) {
+  if (g.huntT && B.t < g.huntT && al.some((m) => m.state === 'move')) return;
+  g.huntT = B.t + 18;
+  const en = units.filter((u) => u.team === foe && u.alive); if (PL.alive && PL.team === foe) en.push(PL);
+  if (!en.length) return;
+  const tg = en.reduce((a, u) => ((u.isPlayer ? PL.pos : u.pos).distanceTo(c) < (a.isPlayer ? PL.pos : a.pos).distanceTo(c) ? u : a), en[0]);
+  const tp = (tg.isPlayer ? PL.pos : tg.pos), d = tp.distanceTo(c);
+  const goal = d > 120 ? c.clone().lerp(tp, 90 / d) : tp.clone().add(_v.set(gauss() * 20, 0, gauss() * 20));
+  g.turn = 1 - (g.turn || 0);
+  al.forEach((m, i) => { if (i % 2 === g.turn || al.length < 2) { const sp = spotNear(team, m.pos, goal, 20, 90, goal.x + (i - 1) * 8); sendTo(m, sp, i * 0.4, sp ? null : goal.clone().add(_v.set((i - 1) * 7, 0, gauss() * 5))); m.run = d > 200; } else m.coverT = B.t + 6; });
+}
+// ===== сдача: люди без шансов сдаются (роботы — никогда) =====
+function surrenderCheck(dt) {
+  if (B.pts) return false;
+  for (const t of ['h', 'r']) {
+    if (t === B.side && PL.alive) continue;          // пока игрок в строю — сдаваться решает он
+    if (t === 'r' && !B.pvp) continue;               // роботы не сдаются
+    const mine = units.filter((u) => u.team === t && u.alive && !u.crawl).length, foe = units.filter((u) => u.team !== t && u.alive).length + (PL.alive ? 1 : 0);
+    const n0 = (B.n0 && B.n0[t]) || 1;
+    if (B.t > 120 && mine > 0 && mine <= Math.max(2, Math.round(n0 * 0.12)) && foe >= mine * 4 && B.t - ((B.dmgT && B.dmgT[t]) || -99) < 40) {
+      B.surT = (B.surT || 0) + dt;
+      if (B.surT > 12) { units.forEach((u) => { if (u.team === t && u.alive) { u.surrendered = true; u.target = null; } }); endBattle(B.side !== t, t === B.side ? 'Остатки взвода сдались' : 'Противник сдался', true); return true; }
+    } else B.surT = Math.max(0, (B.surT || 0) - dt * 0.5);
+  }
+  return false;
+}
+HOOK.surrender = function () {
+  if (!B.active || B.over) return;
+  if (!B.surAsk || B.t - B.surAsk > 4) { B.surAsk = B.t; feed('Сдаться? Нажмите «СДАТЬСЯ» ещё раз в течение 4 секунд', 'bad'); return; }
+  endBattle(false, 'Вы сдались', true);
+};
 function reinforce(team, n, msg) {
   const man = team === 'h' || B.pvp, comp = man ? ['lead', 'rifle', 'mg', 'rifle', 'rpg', 'medic'] : ['assault', 'heavy', 'assault', 'rocket'];
   B.rfN = (B.rfN || 0) + 1;
@@ -2786,7 +2859,7 @@ function brainDefend(team) {
     if (B.contactT > 0 && B.t - B.contactT > 35 && !B.lullSaid) { B.lullSaid = true; cmdSay('Затишье. Перезарядиться, перевязать раненых, смотреть в оба'); }
     if (B.t - B.contactT < 5) B.lullSaid = false;
   }
-  if (B.phaseD !== 'attack' && !B.attWithdraw && eAlive > 0 && eAlive <= Math.max(1, Math.round(B.NA * 0.25)) && near > 120 && B.t > 60) {
+  if (B.phaseD !== 'attack' && !(B.wd && B.wd[foe]) && eAlive > 0 && eAlive <= Math.max(1, Math.round(B.NA * 0.25)) && near > 120 && B.t > 60) {
     B.phaseD = 'attack';
     if (me) cmdSay('Добить оставшихся! Отделения — вперёд перебежками, кв. ' + grid(enemies[0] ? enemies[0].pos : PL.pos)); else feed('Противник контратакует!', 'bad');
   }
@@ -2799,8 +2872,8 @@ function brainDefend(team) {
       al.forEach((m, i) => { const s = slots.front.filter((q) => !q.used && Math.sign(q.pos.x) === sd && Math.abs(q.pos.x) > 70).sort((a, b) => a.pos.distanceTo(m.pos) - b.pos.distanceTo(m.pos))[0]; if (s) { sendTo(m, s, i * 0.3); m.run = true; } });
       if (me) cmdSay(sq.name + ' (резерв) — на ' + (sd < 0 ? 'левый' : 'правый') + ' фланг! Противник обходит.');
     }
-    if (!al.length) continue;
-    if (sq.order === 'village' && B.phaseD !== 'attack') continue;
+    if (!al.length || sq.bm) continue;
+    if ((sq.order === 'village' || sq.order === 'rally') && B.phaseD !== 'attack') continue;
     const foc = al.map((m) => m.target).filter((x) => x && x.alive);
     sq.focus = foc.length ? foc[0] : null;
     const lost = 1 - sq.members.filter((m) => m.alive).length / sq.members.length;
@@ -2816,6 +2889,7 @@ function brainDefend(team) {
     if (sq.order === 'attack') {
       const moving = al.some((m) => m.state === 'move');
       if (!moving && enemies.length) {
+        al.forEach((m, i) => { if (i % 2 !== sq.turn) m.coverT = B.t + 4; });
         al.filter((m, i) => i % 2 === sq.turn && m.cls !== 'medic').forEach((m, i) => {
           const tgt = enemies.reduce((a, r) => (r.pos.distanceTo(m.pos) < a.pos.distanceTo(m.pos) ? r : a), enemies[0]);
           if (m.pos.distanceTo(tgt.pos) < 60) return;
@@ -2848,6 +2922,7 @@ HOOK.squadMenu = function () { const p = $('sqPanel'); p.hidden = !p.hidden; };
 document.querySelectorAll('#sqPanel button').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation();
   if (b.dataset.w) { B.who = b.dataset.w; document.querySelectorAll('#sqPanel [data-w]').forEach((x) => x.classList.toggle('on', x === b)); return; }
   squadCmd(b.dataset.c); $('sqPanel').hidden = true; }));
+{ const bs = $('bSurr'); if (bs) bs.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); HOOK.surrender(); }); }
 HOOK.point = () => { if (B.active && PL.alive) orderTo('laser'); };
 { const bp = $('bPoint'); if (bp) bp.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (B.active && PL.alive) orderTo('laser'); }); }
 function platoonCmd(c) {
@@ -3362,7 +3437,7 @@ function startBattle() {
   cmdSay('Задача: ' + R.obj + '.');
   if (B.taskMsg) setTimeout(() => { if (B.active) cmdSay('Взвод: ' + B.taskMsg + '.'); }, 3500);
   B.n0 = { h: aliveN('h'), r: aliveN('r') };
-  B.drag = null; PL.revives = 0; B.dmgT = {}; B.attWithdraw = null; B.awT = 0; B.defWithdraw = false; B.fallback = false; B.fallTeam = null; B.fallPt = null; B.vilT = 0; B.mark = null; B.evacN = { h: 0, r: 0 }; B.kia = { h: 0, r: 0 }; B.pElev = 0; if (LZR) LZR.visible = false; setupPoints(); { const pe = $('pts'); if (pe) pe.hidden = !B.pts; }
+  B.drag = null; PL.revives = 0; B.dmgT = {}; B.wd = {}; B.wBase = null; B.seenT = {}; B.huntSaid = {}; B.surT = 0; B.surAsk = 0; B.rallyT = 0; B.defWithdraw = false; B.fallback = false; B.fallTeam = null; B.fallPt = null; B.vilT = 0; B.mark = null; B.evacN = { h: 0, r: 0 }; B.kia = { h: 0, r: 0 }; B.pElev = 0; if (LZR) LZR.visible = false; setupPoints(); { const pe = $('pts'); if (pe) pe.hidden = !B.pts; }
   if (B.camp) feed('Кампания · миссия ' + (S.campaign + 1) + ': «' + B.camp.title + '»', 'me');
   SS.updateWeaponUI();
 }
@@ -3438,7 +3513,7 @@ HOOK.update = function (dt, sdt) {
   gridBuild();
   if (!B.over) {
     B.brainT -= sdt;
-    if (B.brainT <= 0) { B.brainT = 1.5; computeLoads(); if (WALL()) { brainAttack('h'); brainAttack('r'); } else { brainAttack(attTeam()); brainDefend(defTeam()); } support(); commander(); }
+    if (B.brainT <= 0) { B.brainT = 1.5; computeLoads(); if (WALL()) { brainAttack('h'); brainAttack('r'); } else { brainAttack(attTeam()); brainDefend(defTeam()); } boundTick(); support(); commander(); }
     for (const u of units) {
       if (!u.alive) continue;
       if (isBot(u)) updateRobot(u, sdt); else updateHuman(u, sdt);
@@ -3469,24 +3544,20 @@ HOOK.update = function (dt, sdt) {
     const dHold = units.filter((u) => u.team === DT && fighter(u) && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 170).length + (PL.alive && PL.team === DT ? 1 : 0);
     if (B.pts) { if (B.tk.h <= 0) endBattle(B.side === 'r', 'Билеты закончились', true); else if (B.tk.r <= 0) endBattle(B.side === 'h', 'Билеты закончились', true); }
     else if (!aAlive) endBattle(B.side === DT, WALL() ? 'Ваша линия разбита' : 'Штурм отбит', true);
-    else if (B.attWithdraw && units.filter((u) => u.team === AT && fighter(u)).every((u) => Math.hypot(u.pos.x, u.pos.z - HILL.cz) > 300) && (B.awT = (B.awT || 0) + dt) > 8) endBattle(B.side === DT, B.side === AT ? 'Атака отменена — люди отведены' : 'Атака отбита — противник отошёл', true);
-    else if (!dAlive) endBattle(B.side === AT, WALL() ? 'Ваша линия разбита' : B.fallback ? 'Силы обороны иссякли' : 'Высота потеряна', true);
+    else if (!dAlive) endBattle(B.side === AT, WALL() ? 'Ваша линия разбита' : 'Силы обороны уничтожены', true);
+    else if (surrenderCheck(dt)) { /* конец по сдаче */ }
     else if (!WALL()) {
       const dN = units.filter((u) => u.team === DT && u.alive).length, d0 = units.filter((u) => u.team === DT).length || 1;
-      if (!B.fallback && ((aIn >= 2 && dHold <= 2) || (dN <= d0 * 0.45 && B.t - ((B.dmgT && B.dmgT[DT]) || -99) < 30))) retreatTo(DT, aIn >= 2 && dHold <= 2 ? 'Высота потеряна' : 'Большие потери — сберечь людей');
-      if (B.fallback && !B.defWithdraw && dN <= Math.max(1, d0 * 0.2) && B.t - ((B.dmgT && B.dmgT[DT]) || -99) < 30) {
-        B.defWithdraw = true;
-        if (isFriend(DT)) cmdSay('Деревню не удержать. Выводим людей — всем на юг, за лесополосу! Раненых не бросать!'); else feed('Противник оставляет деревню и уходит', 'me');
-        units.filter((u) => u.team === DT && u.alive && !u.chute).forEach((u, i) => { if (u.nest) { u.nest.crew = u.nest.crew.filter((c) => c !== u); u.nest = null; } if (u.mortar) { u.mortar.crew = u.mortar.crew.filter((c) => c !== u); u.mortar = null; } u.mortarU = false; sendTo(u, null, (i % 3) * 1.5, new V3(u.pos.x * 0.5 + gauss() * 20, 0, 545), true); u.run = true; u.orderT = B.t + 1e6; });
-        if (PL.team === DT && PL.alive) { B.pslot = { pos: new V3(P.x, terrainH(P.x, 545), 545), text: 'Выход из боя: на юг, к краю карты' }; B.obj2 = { pos: B.pslot.pos.clone(), text: B.pslot.text }; }
+      if (!B.fallback && ((aIn >= 2 && dHold <= 2) || (dN <= d0 * 0.6 && B.t - ((B.dmgT && B.dmgT[DT]) || -99) < 30))) retreatTo(DT, aIn >= 2 && dHold <= 2 ? 'Высота потеряна' : 'Большие потери — сберечь людей');
+      if (B.fallback && !B.defWithdraw && dN <= Math.max(1, d0 * 0.3) && B.t - ((B.dmgT && B.dmgT[DT]) || -99) < 30) {
+        B.defWithdraw = true; B.rallyT = B.t + rnd(90, 120);
+        if (isFriend(DT)) cmdSay('Деревню не удержать. Отходим перекатами на юг, к сборному пункту у опушки! Одни прикрывают — другие бегут!'); else feed('Противник оставляет деревню и отходит на юг', 'me');
+        const rally = new V3(-30, 0, 470); rally.y = terrainH(rally.x, rally.z);
+        for (const sq of squads) { if (sq.team !== DT || sq.player) continue; sq.order = 'rally'; sq.members.forEach((m) => { if (m.nest) { m.nest.crew = m.nest.crew.filter((c) => c !== m); m.nest = null; } if (m.mortar) { m.mortar.crew = m.mortar.crew.filter((c) => c !== m); m.mortar = null; } m.mortarU = false; }); boundMove(sq, rally.clone().add(_v.set(gauss() * 25, 0, gauss() * 10)), null); }
+        if (PL.team === DT && PL.alive) { B.pslot = { pos: rally.clone(), text: 'Отход на сборный пункт у южной опушки' }; B.obj2 = { pos: B.pslot.pos.clone(), text: B.pslot.text }; }
       }
-      if (B.defWithdraw && units.filter((u) => u.team === DT && fighter(u)).every((u) => u.pos.z > 470) && (!(PL.alive && PL.team === DT) || PL.pos.z > 470)) endBattle(B.side === AT, B.side === DT ? 'Позиции оставлены — люди выведены' : 'Противник ушёл с поля', true);
-      if (B.fallback) {
-        const vp = B.fallPt, aV = units.filter((u) => u.team === AT && u.alive && !u.crawl && Math.hypot(u.pos.x - vp.x, u.pos.z - vp.z) < 75).length + (PL.alive && PL.team === AT && Math.hypot(PL.pos.x - vp.x, PL.pos.z - vp.z) < 75 ? 1 : 0);
-        const dV = units.filter((u) => u.team === DT && fighter(u) && Math.hypot(u.pos.x - vp.x, u.pos.z - vp.z) < 120).length + (PL.alive && PL.team === DT && Math.hypot(PL.pos.x - vp.x, PL.pos.z - vp.z) < 120 ? 1 : 0);
-        B.vilT = aV >= 2 && dV === 0 ? (B.vilT || 0) + dt : Math.max(0, (B.vilT || 0) - dt);
-        if (B.vilT > 20) endBattle(B.side === AT, B.side === DT ? 'Деревня потеряна' : 'Противник выбит из деревни', true);
-      }
+      // со сборного пункта — контратака, когда силы соберутся
+      if (B.defWithdraw && B.rallyT && B.t > B.rallyT) { B.rallyT = 0; B.phaseD = 'attack'; for (const sq of squads) if (sq.team === DT && !sq.player) { sq.order = 'attack'; sq.turn = 0; } if (isFriend(DT)) cmdSay('Перегруппировались. Контратака перекатами — вперёд!'); else feed('Противник собрался и контратакует!', 'bad'); }
     }
   }
   if (PL.alive && PL.downed) {
