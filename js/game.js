@@ -255,6 +255,44 @@ const HOOK = {};
 const SHAKE = { a: 0 };
 const HM = { t: 0, kind: '' };
 let fireHeld = false;
+// подавление: когда пули свистят рядом — звук глохнет, руки дрожат, края темнеют, стучит сердце
+const SUP = { v: 0, hb: 0 };
+function suppress(a) { SUP.v = Math.min(1.6, SUP.v + a); SHAKE.a += a * 0.012; }
+function updateSuppression(dt) {
+  SUP.v = Math.max(0, SUP.v - dt * 0.22);
+  if (MUFF && AC) MUFF.frequency.setTargetAtTime(20000 - Math.min(1, SUP.v) * 17800, AC.currentTime, 0.12);
+  if (AC && S.sound && SUP.v > 0.55) { SUP.hb -= dt; if (SUP.hb <= 0) { SUP.hb = 0.95 - Math.min(0.35, SUP.v * 0.25); const t = AC.currentTime; tone(t, 52, 0.12, 0.35 * Math.min(1, SUP.v), 'sine', 38); tone(t + 0.16, 48, 0.1, 0.22 * Math.min(1, SUP.v), 'sine', 36); } }
+}
+// гильзы: латунь вылетает вправо, падает и звякает
+const CAS = { list: [], pool: [] };
+function ejectCasing() {
+  if (!flash || AIM.mode === 'bino' || (AIM.mode === 'scope' && !curScope().iron)) return;
+  let c = CAS.pool.pop();
+  if (!c) { if (CAS.list.length > 40) c = CAS.list.shift(); else { const g = new THREE.CylinderGeometry(0.005, 0.005, 0.028, 6); g.rotateZ(Math.PI / 2); c = { m: new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0xc9a33a, emissive: 0x2a1e06 })) }; scene.add(c.m); } }
+  rifleHolder.updateMatrixWorld(true); flash.getWorldPosition(c.m.position);
+  const q = camera.quaternion, right = new V3(1, 0, 0).applyQuaternion(q), up = new V3(0, 1, 0).applyQuaternion(q), fw = new V3(0, 0, -1).applyQuaternion(q);
+  c.m.position.addScaledVector(fw, -0.45).addScaledVector(right, 0.04).addScaledVector(up, 0.02);
+  c.v = right.multiplyScalar(1.8 + Math.random() * 1.2).addScaledVector(up, 1.4 + Math.random()).addScaledVector(fw, -0.3);
+  c.s = new V3((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30); c.t = 0; c.b = 0; c.m.visible = true; CAS.list.push(c);
+}
+function updateCasings(dt) {
+  for (let i = CAS.list.length - 1; i >= 0; i--) {
+    const c = CAS.list[i]; c.t += dt; c.v.y -= 9.8 * dt; c.m.position.addScaledVector(c.v, dt); c.m.rotation.x += c.s.x * dt; c.m.rotation.y += c.s.y * dt; c.m.rotation.z += c.s.z * dt;
+    const gy = terrainH(c.m.position.x, c.m.position.z) + 0.01;
+    if (c.m.position.y < gy) { c.m.position.y = gy; if (c.b < 2 && c.v.y < -1) { c.v.y = -c.v.y * 0.3; c.v.x *= 0.4; c.v.z *= 0.4; c.s.multiplyScalar(0.5); c.b++; } else { c.v.set(0, 0, 0); c.s.set(0, 0, 0); } }
+    if (c.t > 4) { c.m.visible = false; CAS.list.splice(i, 1); CAS.pool.push(c); }
+  }
+}
+// дым из ствола после длинной очереди
+const BRL = { n: 0, last: -9, acc: 0 };
+function updateBarrelSmoke(dt) {
+  if (simT - BRL.last > 0.5 && BRL.n < 6) BRL.n = 0;
+  if (BRL.n >= 6 && simT - BRL.last < 1.8 && simT - BRL.last > 0.15 && (BRL.acc += dt) > 0.11) {
+    BRL.acc = 0; rifleHolder.updateMatrixWorld(true); const p = new V3(); flash.getWorldPosition(p);
+    fxPuff(p, 0xd8d4cc, 0.05, 0.4, 1.1, new V3((Math.random() - 0.5) * 0.15, 0.45, (Math.random() - 0.5) * 0.15), 0.3 * (1 - (simT - BRL.last) / 1.8));
+  } else if (simT - BRL.last > 1.8) BRL.n = 0;
+}
+let PUNCH = 0;
 const LASER = { on: false, line: null, dot: null, d: 60, f: 0 };
 function save() { try { localStorage.setItem('stepSniper', JSON.stringify(S)); } catch (e) { /* ignore */ } }
 const Q = QUALITY[S.quality] || QUALITY.mid;
@@ -991,7 +1029,7 @@ function syncPS(cam) {
 }
 
 /* ---------------- звук (синтез WebAudio) ---------------- */
-let AC = null, noiseBuf = null, windGain = null, rainGain = null, rumbleGain = null, OUT = null, MASTER = null, REV = null, REVIN = null, voices = 0;
+let AC = null, noiseBuf = null, windGain = null, rainGain = null, rumbleGain = null, OUT = null, MASTER = null, MUFF = null, REV = null, REVIN = null, voices = 0;
 const MAXV = IS_TOUCH ? 18 : 32;
 function audioInit() {
   if (!S.sound) return;
@@ -1001,7 +1039,7 @@ function audioInit() {
       try { AC = new ACtx({ latencyHint: 'balanced' }); } catch (e) { AC = new ACtx(); }
       // общий компрессор: без хрипа и перегрузки, когда стреляют все сразу
       OUT = AC.createDynamicsCompressor(); OUT.threshold.value = -18; OUT.knee.value = 12; OUT.ratio.value = 6; OUT.attack.value = 0.004; OUT.release.value = 0.2;
-      MASTER = AC.createGain(); MASTER.gain.value = (S.vol != null ? S.vol : 0.85) * 1.35; OUT.connect(MASTER); MASTER.connect(AC.destination);
+      MASTER = AC.createGain(); MASTER.gain.value = (S.vol != null ? S.vol : 0.85) * 1.35; MUFF = AC.createBiquadFilter(); MUFF.type = 'lowpass'; MUFF.frequency.value = 20000; OUT.connect(MUFF); MUFF.connect(MASTER); MASTER.connect(AC.destination);
       noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       const mk = (type, f, q) => { const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = AC.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(OUT); src.start(); return g; };
@@ -1395,6 +1433,9 @@ function fire() {
   else sndShot(clamp(0.55 + rf.recoil * 0.25, 0.45, 1), auto);
   // мощь оружия: тряска и пороховой дым у дула
   SHAKE.a += (auto ? 0.0025 : 0.006) + rf.recoil * (auto ? 0.002 : 0.006);
+  if (rf.type !== 'rocket') ejectCasing();
+  BRL.n++; BRL.last = simT; PUNCH = Math.min(1.5, PUNCH + (auto ? 0.35 : 1) * (0.5 + rf.recoil * 0.5));
+  if (!rf.silent) { const mz2 = camera.position.clone().addScaledVector(dir, 1.6).addScaledVector(up, -0.12); fxPuff(mz2, 0xe2ddd2, 0.12, 0.9 + rf.recoil * 0.6, 0.9, dir.clone().multiplyScalar(2.2), 0.22); }
   if (!rf.silent && (!auto || STATS.shots % 3 === 0)) { const mz = camera.position.clone().addScaledVector(dir, 1.4).addScaledVector(up, -0.15); fxPuff(mz, 0xd8d4cc, 0.15, 0.9 + rf.recoil * 0.4, 1.2, dir.clone().multiplyScalar(1.5).add(new V3(0, 0.4, 0)), 0.35); }
   if (rf.type === 'sniper' && !rf.semi) sndBolt(0.45);
   flash.material.opacity = 1;
@@ -1804,7 +1845,7 @@ function updateSway(dt) {
   }
   const rate = (BR.gasp > 0 ? 2.2 : 1) * (1 + P.moving * 0.8);
   BR.phase += dt * TAU / 4.2 * rate;
-  const amp = st.sway * (1 + P.moving * 2.5) * BR.factor * (curRifle().mounted ? 0.15 : 1);
+  const amp = st.sway * (1 + P.moving * 2.5) * BR.factor * (curRifle().mounted ? 0.15 : 1) * (1 + SUP.v * 0.9);
   const tr = st.tremor * (0.45 + 0.55 * BR.factor) * (1 + P.moving);
   const tt = simT;
   const heart = Math.pow(Math.max(0, Math.sin(tt * TAU * 1.25)), 12) * 0.25 * st.tremor;
@@ -1833,7 +1874,8 @@ function applyCamera(dt) {
   camera.rotation.y = P.yaw - SW.x * 0.001 + shx;
   camera.rotation.x = P.pitch + SW.y * 0.001 + REC.k + shy;
   camera.rotation.z = (HOOK.camRoll || 0) - P.leanV * 0.17;
-  let fov = fovFor(AIM.mode);
+  PUNCH *= Math.exp(-dt * 10);
+  let fov = fovFor(AIM.mode) * (1 + PUNCH * 0.012);
   if (sc.iron && (AIM.mode === 'scope' || AIM.blend > 0.01)) fov = lerp(S.fov || 65, sc.fov, AIM.blend);
   if (Math.abs(camera.fov - fov) > 1e-4) { camera.fov = fov; camera.updateProjectionMatrix(); }
   const hip = rf.type === 'sniper' ? HIP_S : rf.type === 'rocket' ? HIP_R : HIP_I;
@@ -2236,6 +2278,10 @@ function drawOverlay() {
     o.lineWidth = (HM.kind === 'kill' ? 3 : 2) * OVD;
     [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sy]) => { o.beginPath(); o.moveTo(cx + sx * r1, cy + sy * r1); o.lineTo(cx + sx * r2, cy + sy * r2); o.stroke(); });
   }
+  if (SUP.v > 0.05 && AIM.mode !== 'scope') {
+    const a = Math.min(0.55, SUP.v * 0.38), vg = o.createRadialGradient(W / 2, H / 2, Math.min(W, H) * (0.42 - Math.min(0.2, SUP.v * 0.12)), W / 2, H / 2, Math.max(W, H) * 0.72);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,6,4,' + a.toFixed(3) + ')'); o.fillStyle = vg; o.fillRect(0, 0, W, H);
+  }
   if (HOOK.drawOverlay) HOOK.drawOverlay(o, W, H, OVD);
 }
 let binoCache = { t: 0, T: null };
@@ -2308,8 +2354,8 @@ function renderMenu() {
   chips($('mFoe'), [['bot', 'Люди против роботов'], ['man', 'Люди против людей']], S.foe || 'bot', (id) => { S.foe = id; save(); renderMenu(); });
   const pvp = S.foe === 'man';
   chips($('mSide'), pvp ? [['h', 'Играть за зелёных'], ['r', 'Играть за серых']] : [['h', 'Играть за людей'], ['r', 'Играть за роботов']], S.side, (id) => { S.side = id; save(); renderMenu(); });
-  if ($('mMap')) { $('mMap').hidden = S.scen !== 'wall'; if (HOOK.wmaps) chips($('mMap'), Object.entries(HOOK.wmaps).map(([k, v]) => [k, 'Карта: ' + v.name]), S.map || 'field', (id) => { S.map = id; save(); renderMenu(); }); }
-  chips($('mScen'), [['def', pvp ? 'Зелёные обороняют высоту' : 'Люди обороняют высоту'], ['att', pvp ? 'Зелёные штурмуют (десант за 500 м)' : 'Люди штурмуют (десант за 500 м)'], ['wall', 'Стенка на стенку (поле)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
+  if ($('mMap')) { $('mMap').hidden = S.scen !== 'wall'; if (HOOK.wmaps) chips($('mMap'), Object.entries(HOOK.wmaps).filter(([k, v]) => !v.hidden).map(([k, v]) => [k, 'Карта: ' + v.name]), S.map || 'field', (id) => { S.map = id; save(); renderMenu(); }); }
+  chips($('mScen'), [['def', pvp ? 'Зелёные обороняют высоту' : 'Люди обороняют высоту'], ['att', pvp ? 'Зелёные штурмуют (десант за 500 м)' : 'Люди штурмуют (десант за 500 м)'], ['wall', 'Стенка на стенку (поле)'], ['points', 'Война за точки (А–Е)']], S.scen || 'def', (id) => { S.scen = id; save(); renderMenu(); });
   const roles = S.side === 'r' && S.foe !== 'man' ? [['assault', 'Штурмовик'], ['heavy', 'Тяжёлый пулемётчик'], ['rocket', 'Ракетчик'], ['scout', 'Разведчик-снайпер']] : [['rifle', 'Стрелок'], ['mg', 'Пулемётчик'], ['sniper', 'Снайпер'], ['rpg', 'Гранатомётчик'], ['medic', 'Санитар'], ['mortar', 'Миномётчик'], ['lead', 'Командир тройки'], ['captain', 'Капитан взвода']];
   if (!roles.some((r) => r[0] === S.role)) S.role = roles[0][0];
   chips($('mRole'), roles, S.role, (id) => { S.role = id; save(); renderMenu(); });
@@ -2392,6 +2438,7 @@ function loop(now) {
   updateSway(dt);
   applyCamera(dt);
   updateLaserBeam();
+  updateSuppression(dt); updateCasings(dt); updateBarrelSmoke(dt);
   updateBullets(sdt);
   updateEffects(sdt);
   updateEnv(dt);
@@ -2430,6 +2477,7 @@ window.SS = {
   clamp, lerp, smooth, gauss, vnoise, windAt, stdElev, zeroAngle, mvNow, spawnBullet, killBullet, spawnPuff, spawnSpark, fxPuff, fxGlow,
   say,
   setWeather: (id) => { if (!WEATHER[id]) return; S.weather = id; applyConditions(); applyWeatherVisuals(); },
+  suppress,
   setRumble: (v) => { if (AC && rumbleGain) rumbleGain.gain.setTargetAtTime(S.sound ? v : 0, AC.currentTime, 1.5); },
   obstHit, addObst, KURGANS,
   glowTex, puffTex, noiseHit, tone, getAC: () => (S.sound ? AC : null), audioInit, sndShotFar, sndCrack, sndImpact,

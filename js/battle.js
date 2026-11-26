@@ -824,7 +824,7 @@ function hurtPlayer(dmg, from) {
   dmg *= dmgK(PL.team);
   if (!PL.alive || !B.active) return;
   if (PL.downed) { PL.hp = 0; playerDie(); return; }
-  PL.hp -= dmg; PL.lastHit = B.t;
+  PL.hp -= dmg; PL.lastHit = B.t; SS.suppress(0.5);
   if (S.vibro && navigator.vibrate) { try { navigator.vibrate(dmg > 30 ? 70 : 35); } catch (e) { /* ignore */ } }
   B.dmgA = Math.min(1, B.dmgA + dmg / 45);
   SHAKE.a += 0.02;
@@ -892,6 +892,7 @@ function updateFires(dt) {
 function explode(pt, power, opts) {
   opts = opts || {};
   flashLight(_v.copy(pt).setY(pt.y + 1.5), 3.5 * power);
+  { const dd = pt.distanceTo(camera.position); if (dd < 45 && PL.alive) SS.suppress(power * (1 - dd / 45) * 0.9); }
   if (opts.ground !== false && power >= 1.1 && Math.random() < 0.2 && fires.length < 12 && terrainH(pt.x, pt.z) > -0.5 && !inTrench(pt)) fires.push({ pos: pt.clone(), t: rnd(14, 26), acc: 0 });
   if (opts.ground !== false) {
     // кольцо пыли и столб дыма
@@ -993,7 +994,7 @@ HOOK.collide = function (b, p0, p1) {
   if (!B.active) return null;
   let best = null;
   if (b.team !== PL.team && !b.cracked && PL.alive && !b.player) {
-    if (segSphere(camera.position, 3, p0, p1)) { b.cracked = true; if (b.v.length() > 360) SS.sndCrack(0.7); PL.suppT = B.t; if (b.owner) know(PL, b.owner, 0.25); }
+    if (segSphere(camera.position, 3, p0, p1)) { b.cracked = true; if (b.v.length() > 360) SS.sndCrack(0.7); PL.suppT = B.t; SS.suppress(b.rf.g > 30 ? 0.4 : 0.22); if (b.owner) know(PL, b.owner, 0.25); }
   }
   // подавление: пуля прошла рядом с головой — пригнуться, и понять, откуда стреляют
   gridQuery(p0, p1, 3, _cand);
@@ -1024,6 +1025,7 @@ HOOK.collide = function (b, p0, p1) {
 };
 function hitStatic(b, pt) {
   SS.killBullet(b, pt, false);
+  if (!b.player && PL.alive && b.team !== PL.team && pt.distanceTo(camera.position) < 4) SS.suppress(0.18);
   for (const u of units) if (u.alive && u.team !== b.team && Math.abs(u.pos.x - pt.x) < 3 && Math.abs(u.pos.z - pt.z) < 3.5) u.supp += isBot(u) ? 0.1 : 0.7;
 }
 function bulletHitsUnit(b, u, h) {
@@ -1291,12 +1293,14 @@ function gridQuery(p0, p1, pad, out) {
   return out;
 }
 const attTeam = () => (B.scen === 'att' ? 'h' : 'r');
-const WALL = () => B.scen === 'wall';
+const WALL = () => B.scen === 'wall' || B.scen === 'points';
+const POINTS = () => B.scen === 'points';
 const WMAPS = {
   field:    { name: 'Поле за рекой', h: [0, -880], r: [0, -1460] },
   crossing: { name: 'Переправа', h: [0, -640], r: [0, -1080], hold: 'h' },
   kurgans:  { name: 'Курганы', h: [470, -960], r: [520, -1390] },
   forest:   { name: 'Лесополоса', h: [-250, -1290], r: [-260, -1760] },
+  points:   { name: 'Поле точек', h: [0, -860], r: [0, -1480], hidden: true },
 };
 HOOK.wmaps = WMAPS;
 const defTeam = () => (B.scen === 'att' ? 'r' : 'h');
@@ -1459,6 +1463,7 @@ function drawMinimap() {
     if (u.team === me) { if (!u.alive) { if (u.down) { c.fillStyle = 'rgba(255,90,70,.8)'; c.fillRect(x - 1.5, y - 1.5, 3, 3); } continue; } c.fillStyle = PL.squad && u.squad === PL.squad ? '#7ff0ff' : '#6fa8ff'; c.beginPath(); c.arc(x, y, 2.6, 0, TAU); c.fill(); }
   }
   for (const [e, q] of TK[me]) { if (!e.alive || e.isPlayer) continue; const age = B.t - q.t; if (age > 25) continue; c.fillStyle = 'rgba(255,70,50,' + (1 - age / 30).toFixed(2) + ')'; const x = X(q.pos.x), y = Y(q.pos.z); c.fillRect(x - 2.5, y - 2.5, 5, 5); }
+  if (B.pts) for (const p of B.pts) { const x = X(p.pos.x), y = Y(p.pos.z); c.fillStyle = p.own ? (p.own === B.side ? '#5aa2ff' : '#ff5a46') : '#bdbdbd'; c.beginPath(); c.arc(x, y, 8, 0, TAU); c.fill(); c.fillStyle = '#111'; c.font = '700 11px sans-serif'; c.textAlign = 'center'; c.fillText(p.n, x, y + 4); }
   if (B.obj2) { const x = X(B.obj2.pos.x), y = Y(B.obj2.pos.z); c.strokeStyle = '#f2c94c'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y - 6); c.lineTo(x + 6, y); c.lineTo(x, y + 6); c.lineTo(x - 6, y); c.closePath(); c.stroke(); }
   if (B.lastMortar) { const x = X(B.lastMortar.pos.x), y = Y(B.lastMortar.pos.z); c.strokeStyle = 'rgba(255,200,80,.9)'; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.stroke(); }
   c.save(); c.translate(X(PL.pos.x), Y(PL.pos.z)); c.rotate(-P.yaw); c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -7); c.lineTo(5, 5); c.lineTo(0, 2); c.lineTo(-5, 5); c.closePath(); c.fill(); c.restore();
@@ -1669,6 +1674,7 @@ function npcFireAt(u, tp, vel, spreadMrad, tracer, org) {
   const dir = shootDir(org, p, wp, D, u.rangeErr, spreadMrad);
   SS.spawnBullet({ team: u.team, rf: wp, origin: org, dir, mv: wp.mv + gauss() * 3, tracer, owner: u, dt: 0.003 });
   flashFX(org, wp.g > 10);
+  if (Math.random() < 0.45 && Math.abs(org.x - camera.position.x) + Math.abs(org.z - camera.position.z) < 80) SS.fxPuff(org, 0xd8d4cc, 0.1, 0.7, 1.0, dir.clone().multiplyScalar(1.5), 0.3);
   u.kick = 1; u.mag--; u.firedT = B.t;
   SS.sndShotFar(org.distanceTo(camera.position), wp.g > 10 || u.cls === 'mg', isBot(u));
 }
@@ -2070,8 +2076,14 @@ function brainAttack(team) {
       else if (!g.goal) { const en = B.wm[enemyTeam(team)]; g.goal = new V3(en[0], 0, en[1]); }
       g.route = [[g.goal.x, g.goal.z]]; g.wi = 0;
     }
+    if (POINTS() && B.pts) { const pt = pickPoint(g, team, c); if (g.ptN !== pt.n) g.atPt = null; g.ptN = pt.n; g.goal = pt.pos; g.route = [[pt.pos.x, pt.pos.z]]; g.wi = 0; }
     const goal = g.goal || HILLV;
     const toHill = Math.hypot(c.x - goal.x, c.z - goal.z);
+    if (POINTS() && toHill < 40) {
+      if (g.atPt !== g.ptN) { g.atPt = g.ptN; if (g.phase === 'march' || g.phase === 'deploy') g.phase = 'bound';
+        al.forEach((m, i) => { const a = i / Math.max(1, al.length) * TAU, tp = goal.clone().add(_v.set(Math.cos(a) * 13, 0, Math.sin(a) * 13)); const sp = spotNear(team, m.pos, tp, -25, 25, tp.x); if (sp) sendTo(m, sp, i * 0.2); else sendTo(m, null, i * 0.2, tp); }); }
+      continue;
+    }
     if (g.holdLine) {
       if (!g.dug) { g.dug = true; al.forEach((m, i) => { const sp = spotNear(team, m.pos, goal, -40, 45, m.pos.x); if (sp) sendTo(m, sp, i * 0.4); }); }
       const close = units.some((e) => e.team !== team && e.alive && e.pos.distanceTo(c) < 170) || (PL.alive && PL.team !== team && PL.pos.distanceTo(c) < 170);
@@ -2105,7 +2117,7 @@ function brainAttack(team) {
     if (g.phase === 'bound') {
       const lossF = 1 - al.length / g.members.length;
       if (lossF >= 0.6 && !g.regrouped) { g.phase = 'regroup'; g.regroupT = B.t + rnd(30, 45); g.regrouped = true; const away = c.clone().sub(goal).setY(0).normalize(), back = c.clone().addScaledVector(away, 160); al.forEach((m, i) => { const sp = spotNear(team, m.pos, back, 40, 220, m.pos.x); if (sp) sendTo(m, sp, i * 0.3); }); feed(me ? g.name + ': большие потери, отходим на перегруппировку' : 'Противник отходит на перегруппировку', me ? 'bad' : ''); continue; }
-      if (toHill < 300 && (attAlive * str > defAlive || toHill < 200)) { g.phase = 'assault'; if (me) vSay(manT ? 'Вперёд! Ура-а!' : 'Штурм!', null, { force: true, rate: 1.1 }); feed(me ? g.name + ': штурм!' : (B.pvp ? 'Противник' : team === 'r' ? 'Роботы' : 'Люди') + ' идут на штурм высоты!', me ? 'me' : 'bad'); continue; }
+      if (!POINTS() && toHill < 300 && (attAlive * str > defAlive || toHill < 200)) { g.phase = 'assault'; if (me) vSay(manT ? 'Вперёд! Ура-а!' : 'Штурм!', null, { force: true, rate: 1.1 }); feed(me ? g.name + ': штурм!' : (B.pvp ? 'Противник' : team === 'r' ? 'Роботы' : 'Люди') + ' идут на штурм высоты!', me ? 'me' : 'bad'); continue; }
       // огневая группа: встаёт на рубеже ~400 м и подавляет, пока остальные не пойдут на штурм
       if (g.tactic === 'support' && toHill < 440 && !squads.some((o) => o.team === team && o !== g && o.phase === 'assault')) { al.forEach((m) => { m.rush = false; }); continue; }
       smokeScreen(g, al, c, goal, team);
@@ -2196,6 +2208,67 @@ function assaultWall(g, al, team, manT) {
     if (sp) sendTo(m, sp, Math.random() * 0.4); else sendTo(m, null, Math.random() * 0.4, m.pos.clone().lerp(t, Math.min(0.9, 36 / bd)).add(_v.set(gauss() * 3, 0, gauss() * 3)));
     if (manT) m.run = true;
   });
+}
+// ===== война за точки =====
+const PTS_DEF = [['А', -420, -990], ['Б', -160, -985], ['В', 140, -1040], ['Г', -300, -1330], ['Д', 60, -1300], ['Е', 420, -1250]];
+const ptsMeshes = [];
+const poleGeo = new THREE.CylinderGeometry(0.05, 0.06, 6, 6); poleGeo.translate(0, 3, 0);
+const flagGeo = new THREE.BoxGeometry(1.6, 1.0, 0.04); flagGeo.translate(0.8, 5.4, 0);
+function setupPoints() {
+  ptsMeshes.forEach((m) => scene.remove(m)); ptsMeshes.length = 0; B.pts = null;
+  if (!POINTS()) return;
+  B.pts = PTS_DEF.map(([n, x, z]) => {
+    const p = { n, pos: new V3(x, terrainH(x, z), z), own: null, cap: 0 };
+    const gr = new THREE.Group(); gr.position.copy(p.pos);
+    gr.add(new THREE.Mesh(poleGeo, new THREE.MeshLambertMaterial({ color: 0x555a5e })));
+    p.flagM = new THREE.MeshLambertMaterial({ color: 0xbdbdbd, emissive: 0x111111 }); gr.add(new THREE.Mesh(flagGeo, p.flagM));
+    scene.add(gr); ptsMeshes.push(gr); return p;
+  });
+  const n = (t) => units.filter((u) => u.team === t).length + (PL.team === t ? 1 : 0);
+  B.tk = { h: 150, r: 150 }; B.tkD = { h: 80 / Math.max(4, n('h')), r: 80 / Math.max(4, n('r')) }; B.tkT = 5; B.waveT = 30; B.waveDead = { h: 0, r: 0 };
+}
+function pickPoint(g, team, c) {
+  let best = B.pts[0], bs = 1e9;
+  for (const p of B.pts) {
+    const d = Math.hypot(p.pos.x - c.x, p.pos.z - c.z);
+    const mine = p.own === team && Math.abs(p.cap) >= 100;
+    const threat = units.some((e) => e.alive && e.team !== team && Math.abs(e.pos.x - p.pos.x) < 70 && Math.abs(e.pos.z - p.pos.z) < 70);
+    let s = d + (mine ? (threat ? 80 : 850) : 0) + squads.filter((o) => o !== g && o.team === team && o.ptN === p.n).length * 200 - (g.ptN === p.n ? 140 : 0);
+    if (s < bs) { bs = s; best = p; }
+  }
+  return best;
+}
+function pointsTick(dt) {
+  for (const p of B.pts) {
+    let nh = 0, nr = 0;
+    for (const u of units) if (u.alive && !u.chute && Math.abs(u.pos.x - p.pos.x) < 25 && Math.abs(u.pos.z - p.pos.z) < 25) { if (u.team === 'h') nh++; else nr++; }
+    if (PL.alive && !PL.downed && Math.hypot(PL.pos.x - p.pos.x, PL.pos.z - p.pos.z) < 25) { if (PL.team === 'h') nh++; else nr++; }
+    const old = p.own;
+    if (nh && !nr) p.cap = Math.min(100, p.cap + dt * 9 * Math.min(3, nh)); else if (nr && !nh) p.cap = Math.max(-100, p.cap - dt * 9 * Math.min(3, nr));
+    p.own = p.cap >= 100 ? 'h' : p.cap <= -100 ? 'r' : old === 'h' && p.cap > 0 ? 'h' : old === 'r' && p.cap < 0 ? 'r' : null;
+    p.contested = !!(nh && nr);
+    if (p.own !== old) {
+      if (p.own) { if (isFriend(p.own)) cmdSay('Точка ' + p.n + ' наша!'); else feed('Противник взял точку ' + p.n + '!', 'bad'); }
+      else if (old) feed('Точка ' + p.n + ' нейтральна', isFriend(old) ? 'bad' : 'me');
+    }
+    const k = Math.abs(p.cap) / 100, col = p.cap > 0 ? [0.35, 0.6, 1] : p.cap < 0 ? [1, 0.32, 0.25] : [0.75, 0.75, 0.75];
+    p.flagM.color.setRGB(lerp(0.75, col[0], k), lerp(0.75, col[1], k), lerp(0.75, col[2], k));
+  }
+  B.tkT -= dt;
+  if (B.tkT <= 0) { B.tkT = 5; const oh = B.pts.filter((p) => p.own === 'h').length, or = B.pts.filter((p) => p.own === 'r').length; if (oh > or) B.tk.r -= (oh - or) * 3; else if (or > oh) B.tk.h -= (or - oh) * 3; }
+  for (const u of units) if (!u.alive && !u.tkC) { u.tkC = true; B.tk[u.team] -= B.tkD[u.team]; B.waveDead[u.team]++; }
+  B.waveT -= dt;
+  if (B.waveT <= 0) { B.waveT = 30; ['h', 'r'].forEach((t) => { const n = Math.min(8, B.waveDead[t]); if (n >= 2 && B.tk[t] > 0) { B.waveDead[t] -= n; reinforce(t, n, 'Свежие силы с базы'); } }); }
+}
+// ===== перетаскивание раненых =====
+function nearDowned() { if (!B.active || !PL.alive || PL.downed || PL.robot) return null; for (const u of units) if (u.team === PL.team && !u.alive && u.down && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 2.2) return u; return null; }
+function updateDrag(dt) {
+  const u = B.drag; if (!u) return;
+  if (!PL.alive || PL.downed || u.alive) { B.drag = null; HOOK.speedMul = PL.downed ? 0.2 : 1; return; }
+  const bx = P.x + Math.sin(P.yaw) * 1.15, bz = P.z + Math.cos(P.yaw) * 1.15;
+  u.pos.set(bx, terrainH(bx, bz) + (HOOK.climbY ? climbY(bx, bz) : 0), bz); u.slide.set(0, 0, 0); u.yaw = P.yaw;
+  if (u.downT != null) u.downT += dt;   // пока тащат — кровь не уходит
+  if ((B.dragS = (B.dragS || 0) + dt) > 0.6 && P.moving > 0.2) { B.dragS = 0; SS.fxPuff(_v.set(bx, u.pos.y + 0.1, bz), 0x8a7a5c, 0.2, 0.6, 1, null, 0.25); }
 }
 function reinforce(team, n, msg) {
   const man = team === 'h' || B.pvp, comp = man ? ['lead', 'rifle', 'mg', 'rifle', 'rpg', 'medic'] : ['assault', 'heavy', 'assault', 'rocket'];
@@ -2375,7 +2448,7 @@ function dismount() {
   n.piv.visible = true; B.mounted = null;
   SS.selectRifle(B.prevW != null ? B.prevW : B.loadout[0]);
 }
-HOOK.use = function () { if (!B.active || !PL.alive) return; if (B.mounted) { dismount(); return; } if (B.mortarMode) { dismountMortar(); return; } const n = nearNest(); if (n) { mount(n); return; } const m = nearMortar(); if (m) { mountMortar(m); return; } const dp = nearDrop(); if (dp) { pickDrop(dp); return; } if (nearCrate()) resupply(); };
+HOOK.use = function () { if (!B.active || !PL.alive) return; if (B.drag) { B.drag = null; HOOK.speedMul = 1; feed('Вы оставили раненого'); return; } if (B.mounted) { dismount(); return; } if (B.mortarMode) { dismountMortar(); return; } const n = nearNest(); if (n) { mount(n); return; } const m = nearMortar(); if (m) { mountMortar(m); return; } const dw = nearDowned(); if (dw) { B.drag = dw; HOOK.speedMul = 0.42; feed('Тащите раненого (' + clsName(dw.cls) + ') в укрытие — к санитару. Отпустить: «БРОСИТЬ»', 'me'); return; } const dp = nearDrop(); if (dp) { pickDrop(dp); return; } if (nearCrate()) resupply(); };
 HOOK.move = function () {
   if (!B.active) return;
   if (B.mounted) { const n = B.mounted; const back = _v.set(Math.sin(n.yaw), 0, Math.cos(n.yaw)); P.x = n.pos.x + back.x * 0.9; P.z = n.pos.z + back.z * 0.9; P.yaw = n.yaw + clamp(angDiff(P.yaw, n.yaw), -1.2, 1.2); }
@@ -2550,6 +2623,7 @@ function clearBattle() {
   craters.forEach((c) => scene.remove(c)); craters.length = 0;
   debris.forEach((d) => scene.remove(d.g)); debris.length = 0;
   grenades.forEach((g) => scene.remove(g.mesh)); grenades.length = 0; fires.length = 0; fxL = 0;
+  ptsMeshes.forEach((m) => scene.remove(m)); ptsMeshes.length = 0; B.pts = null; B.drag = null; { const pe = $('pts'); if (pe) pe.hidden = true; }
   for (let i = crates.length - 1; i >= 0; i--) if (crates[i].dyn) { scene.remove(crates[i].mesh); crates.splice(i, 1); }
   drops.forEach((d) => scene.remove(d.mesh)); drops.length = 0;
   smokes.length = 0;
@@ -2576,8 +2650,8 @@ function startBattle() {
   clearBattle();
   B.side = S.side === 'r' ? 'r' : 'h';
   B.pvp = S.foe === 'man';
-  B.scen = S.scen === 'att' ? 'att' : S.scen === 'wall' ? 'wall' : 'def';
-  B.wm = WMAPS[S.map] || WMAPS.field;
+  B.scen = S.scen === 'att' ? 'att' : S.scen === 'wall' ? 'wall' : S.scen === 'points' ? 'points' : 'def';
+  B.wm = B.scen === 'points' ? WMAPS.points : (WMAPS[S.map] || WMAPS.field);
   B.camp = window.CAMPAIGN ? window.CAMPAIGN.current() : null; B.campEv = B.camp ? B.camp.events.map((e) => Object.assign({ done: false }, e)) : [];
   const nHt = clamp(Math.round(+S.nH || 18), 1, 100), nRt = clamp(Math.round(+S.nR || 6), 1, 100);
   const AT = attTeam(), DT = defTeam();
@@ -2666,7 +2740,7 @@ function startBattle() {
       const g = squads.find((q) => q.team === 'r' && !q.static);
       const r0 = g.route[B.pvp ? 3 : 0]; ppos = new V3(r0[0] - 8, 0, r0[1] + 6); PL.squad = g;
     }
-  } else if (B.scen === 'wall') {
+  } else if (B.scen === 'wall' || B.scen === 'points') {
     // ===== стенка на стенку: две линии в поле, между ними река и укрытия
     const line = (team, n, z0) => {
       const man = team === 'h' || B.pvp;
@@ -2783,13 +2857,15 @@ function startBattle() {
   if (isNight() && SS.VIS.mode === 'off' && B.side === 'r' && !B.pvp) SS.setVision('thermal');
   const roleName = (B.side === 'r' && !B.pvp ? { assault: 'штурмовик', heavy: 'тяжёлый пулемётчик', rocket: 'ракетчик', scout: 'разведчик' } : { captain: 'капитан взвода', rifle: 'стрелок', mg: 'пулемётчик', sniper: 'снайпер', rpg: 'гранатомётчик', medic: 'санитар', mortar: 'миномётчик', lead: 'командир тройки' })[S.role] || '';
   let intro;
-  if (B.scen === 'wall') intro = 'Стенка на стенку: две линии в поле за рекой, между ними курганы и рощи. Вы — ' + roleName + '. Вперёд, держаться своих!';
+  if (B.scen === 'points') intro = 'Война за точки А–Е. Захватывайте и держите точки (стойте рядом с флагом): у кого больше точек, тот сжигает билеты противника. Подкрепления приходят волнами.';
+  else if (B.scen === 'wall') intro = 'Стенка на стенку: две линии в поле за рекой, между ними курганы и рощи. Вы — ' + roleName + '. Вперёд, держаться своих!';
   else if (B.scen === 'def') intro = B.side === 'h' ? 'Вы — ' + roleName + '. ' + (isNight() ? 'Ночь, отдых у костра. ' : 'Привал в лагере за высотой. ') + 'На постах часовые. По тревоге — бегом на позицию!' : 'Вы — ' + roleName + ' штурмовой группы. Цель — высота с траншеями, кв. ' + grid(new V3(0, 0, HILL.cz)) + '. Вперёд!';
   else intro = B.side === 'h' ? 'Вы — ' + roleName + '. Десант! Артподготовка и дымовая завеса, приземление в 500 м от высоты, кв. ' + grid(new V3(0, 0, -545)) + '.' : 'Вы — ' + roleName + '. Удерживаем высоту: люди высаживают десант с севера.';
   feed(intro, 'me');
   cmdSay('Задача: ' + R.obj + '.');
   if (B.taskMsg) setTimeout(() => { if (B.active) cmdSay('Взвод: ' + B.taskMsg + '.'); }, 3500);
   B.n0 = { h: aliveN('h'), r: aliveN('r') };
+  B.drag = null; setupPoints(); { const pe = $('pts'); if (pe) pe.hidden = !B.pts; }
   if (B.camp) feed('Кампания · миссия ' + (S.campaign + 1) + ': «' + B.camp.title + '»', 'me');
   SS.updateWeaponUI();
 }
@@ -2822,21 +2898,22 @@ function endBattle(win, why, final) {
     '<br>Лично вами: ' + B.kills + (B.healed ? ', перевязано: ' + B.healed : '') + '<br>Ваши выстрелы: ' + shots + ', попаданий: ' + B.hitsE + (shots ? ' (' + Math.round(B.hitsE / shots * 100) + '%)' : '') +
     '<br>Задача «' + R.obj + '»: ' + (v >= R.need ? '<b style="color:#9fdc7a">выполнена</b>' : v + ' из ' + R.need) + (final ? '' : '<br><br>Бой продолжается без вас.');
   if (B.pvp) { const ee = units.filter((u) => u.team === enemyTeam(B.side)), me2 = units.filter((u) => u.team === B.side); $('endP').innerHTML = 'Длительность: ' + mm + ' мин ' + ss + ' с<br>Противников выведено: ' + ee.filter((u) => !u.alive).length + ' из ' + ee.length + '<br>Ваши потери: ' + me2.filter((u) => !u.alive).length + ' из ' + me2.length + ' (+ вы)<br>Лично вами: ' + B.kills + (B.healed ? ', перевязано: ' + B.healed : '') + '<br>Ваши выстрелы: ' + shots + ', попаданий: ' + B.hitsE + (shots ? ' (' + Math.round(B.hitsE / shots * 100) + '%)' : '') + '<br>Задача «' + R.obj + '»: ' + (v >= R.need ? '<b style="color:#9fdc7a">выполнена</b>' : v + ' из ' + R.need) + (final ? '' : '<br><br>Бой продолжается без вас.'); }
-  $('endWatch').hidden = !!final;
+  $('endWatch').hidden = !!final; $('endWatch').textContent = B.pts && !final ? 'Вернуться в бой (−5 билетов)' : 'Наблюдать бой';
   if ($('endNext')) $('endNext').hidden = true;
-  if (final && B.camp && window.CAMPAIGN) { window.CAMPAIGN.onEnd(win); $('endP').innerHTML += '<br><br><b>' + (win ? 'Миссия «' + B.camp.title + '» выполнена!' : 'Миссия провалена — попробуйте ещё раз.') + '</b>'; }
+  if (final && B.camp && window.CAMPAIGN) { $('endP').innerHTML += '<br><br><b>' + (win ? 'Миссия «' + B.camp.title + '» выполнена!' : 'Миссия провалена — попробуйте ещё раз.') + '</b>'; window.CAMPAIGN.onEnd(win); }
   setTimeout(() => { $('endScr').hidden = false; try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ } }, win ? 1500 : 400);
 }
 $('endAgain').addEventListener('click', () => { $('endScr').hidden = true; startBattle(); SS.setAim('hip'); });
 $('endMenu').addEventListener('click', () => { $('endScr').hidden = true; SS.openMenu(); });
 $('endWatch').addEventListener('click', () => {
+  if (B.pts && !B.over) { $('endScr').hidden = true; const sp = B.wm[B.side]; B.tk[B.side] -= 5; PL.alive = true; PL.hp = 100; PL.downed = false; HOOK.dead = false; HOOK.speedMul = 1; HOOK.camRoll = 0; HOOK.camDY = 0; B.spect = false; B.diedShown = false; B.deadT = 0; P.x = sp[0] + gauss() * 6; P.z = sp[1] + (B.side === 'h' ? 8 : -8); P.stance = 0; P.eye = PL.robot ? 2.15 : 1.62; P.yaw = B.side === 'h' ? 0 : Math.PI; if (PL.robot) { for (const z in PL.Z) { PL.Z[z].hp = PL.Z[z].max; PL.Z[z].int = 1; } } resupply(); SS.setAim('hip'); feed('Вы снова в бою (−5 билетов)', 'me'); return; }
   $('endScr').hidden = true; B.spect = true; HOOK.camRoll = 0; HOOK.camDY = 0;
   P.x = 0; P.z = HILL.cz - 60; P.eye = 3; P.yaw = 0; P.pitch = -0.05;
 });
 
 HOOK.startBattle = startBattle;
 HOOK.stopBattle = stopBattle;
-HOOK._dbg = { hurtPlayer, drops, crates, units, B, PL, explode, squads, covers, partDamage, hurtHuman, TK, smokes, nests, mortars, squadCmd, grenades, raiseAlarm, smokeBetween, visibleNow, los };
+HOOK._dbg = { hurtPlayer, downHuman, drops, crates, units, B, PL, explode, squads, covers, partDamage, hurtHuman, TK, smokes, nests, mortars, squadCmd, grenades, raiseAlarm, smokeBetween, visibleNow, los };
 HOOK.nextWeapon = function () {
   if (!B.active) { SS.selectRifle(S.rifle + 1); return; }
   if (B.mounted || B.mortarMode) return;
@@ -2871,6 +2948,8 @@ HOOK.update = function (dt, sdt) {
     updateChutes(sdt);
     updateGrenades(sdt);
     updateFires(sdt);
+    updateDrag(sdt);
+    if (B.pts) pointsTick(sdt);
     if (B.campEv && B.campEv.length) campaignTick();
     atmosphere(dt);
     if (B.scen === 'def' && !B.alarm) { for (const u of units) if (u.team === 'r' && u.alive && !u.mortarU && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 1300) { raiseAlarm('Роботы в квадрате ' + grid(u.pos) + ', ' + Math.round(Math.hypot(u.pos.x, u.pos.z - HILL.cz)) + ' м'); break; } }
@@ -2885,7 +2964,8 @@ HOOK.update = function (dt, sdt) {
     const dAlive = units.some((u) => u.team === DT && fighter(u)) || (PL.alive && PL.team === DT);
     const aIn = units.filter((u) => u.team === AT && u.alive && !u.crawl && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 160).length + (PL.alive && PL.team === AT && Math.hypot(PL.pos.x, PL.pos.z - HILL.cz) < 160 ? 1 : 0);
     const dHold = units.filter((u) => u.team === DT && fighter(u) && Math.hypot(u.pos.x, u.pos.z - HILL.cz) < 170).length + (PL.alive && PL.team === DT ? 1 : 0);
-    if (!aAlive) endBattle(B.side === DT, WALL() ? 'Ваша линия разбита' : 'Штурм отбит', true);
+    if (B.pts) { if (B.tk.h <= 0) endBattle(B.side === 'r', 'Билеты закончились', true); else if (B.tk.r <= 0) endBattle(B.side === 'h', 'Билеты закончились', true); }
+    else if (!aAlive) endBattle(B.side === DT, WALL() ? 'Ваша линия разбита' : 'Штурм отбит', true);
     else if (!dAlive || (!WALL() && aIn >= 2 && dHold <= 2)) endBattle(B.side === AT, WALL() ? 'Ваша линия разбита' : 'Высота потеряна', true);
   }
   if (PL.alive && PL.downed) {
@@ -2932,11 +3012,12 @@ HOOK.update = function (dt, sdt) {
     $('hpFill').style.transform = 'scaleX(' + (Math.max(0, PL.hp) / 100).toFixed(3) + ')';
     $('hpFill').style.background = PL.hp < 35 ? '#ff7a5c' : PL.hp < 65 ? '#f2c94c' : '#9fdc7a';
     $('hpTxt').textContent = Math.max(0, Math.round(PL.hp));
-    const nn = nearNest(), nm = nn ? null : nearMortar(), nd = nn || nm ? null : nearDrop(), ncr = !nn && !nm && !nd ? nearCrate() : null;
-    $('bUse').hidden = !(B.mounted || nn || B.mortarMode || nm || nd || ncr);
-    $('useTxt').textContent = B.mounted ? 'СЛЕЗТЬ' : B.mortarMode ? 'ОТОЙТИ' : nn ? 'ЗА ПУЛЕМЁТ' : nm ? 'К МИНОМЁТУ' : nd ? 'ВЗЯТЬ ' + (B.loadout.indexOf(WIDX(nd.id)) >= 0 ? 'ПАТРОНЫ' : RIFLES[WIDX(nd.id)].name.split(' ')[0]) : 'ПАТРОНЫ';
+    const nn = nearNest(), nm = nn ? null : nearMortar(), nw = nn || nm ? null : nearDowned(), nd = nn || nm || nw ? null : nearDrop(), ncr = !nn && !nm && !nd && !nw ? nearCrate() : null;
+    $('bUse').hidden = !(B.mounted || nn || B.mortarMode || nm || nd || ncr || nw || B.drag);
+    $('useTxt').textContent = B.drag ? 'БРОСИТЬ' : nw ? 'ТАЩИТЬ' : B.mounted ? 'СЛЕЗТЬ' : B.mortarMode ? 'ОТОЙТИ' : nn ? 'ЗА ПУЛЕМЁТ' : nm ? 'К МИНОМЁТУ' : nd ? 'ВЗЯТЬ ' + (B.loadout.indexOf(WIDX(nd.id)) >= 0 ? 'ПАТРОНЫ' : RIFLES[WIDX(nd.id)].name.split(' ')[0]) : 'ПАТРОНЫ';
     updateArtBtn();
     B.mmT -= 0.25; if (B.mmT <= 0) { B.mmT = mmBig ? 0.25 : 0.5; drawMinimap(); }
+    if (B.pts) { const pe = $('pts'); if (pe) { const me = B.side, foe = enemyTeam(me); pe.innerHTML = '<span class="tk me">' + Math.max(0, Math.round(B.tk[me])) + '</span>' + B.pts.map((p) => '<span class="pt ' + (p.own ? (p.own === me ? 'me' : 'foe') : 'n') + (p.contested ? ' c' : '') + '">' + p.n + '</span>').join('') + '<span class="tk foe">' + Math.max(0, Math.round(B.tk[foe])) + '</span>'; } }
     const R = roleOf(), v = R.val(), ob = $('obj');
     if (v >= R.need && !B.objDone) { B.objDone = true; cmdSay('Задача «' + R.obj + '» выполнена. Молодец!'); }
     if (ob) ob.innerHTML = (B.objDone ? '✔ ' : '◆ ') + R.obj + ' <b>' + Math.min(v, R.need) + '/' + R.need + '</b>' + (B.obj2 ? '<br>▶ ' + B.obj2.text + ' · ' + Math.round(B.obj2.pos.distanceTo(PL.pos)) + ' м' : '');
@@ -3007,6 +3088,14 @@ HOOK.drawOverlay = function (o, W, H, D) {
       const s = toScreen(_v.set(u.pos.x, u.pos.y + (isBot(u) ? 2.6 : 2.05), u.pos.z), W, H); if (!s) continue;
       o.beginPath(); o.moveTo(s[0], s[1] + 3 * D); o.lineTo(s[0] - 2.6 * D, s[1] - 1.2 * D); o.lineTo(s[0] + 2.6 * D, s[1] - 1.2 * D); o.closePath(); o.fill();
     }
+  }
+  // точки на экране
+  if (B.pts && PL.alive) for (const p of B.pts) {
+    const s = toScreen(_v.set(p.pos.x, p.pos.y + 7.5, p.pos.z), W, H); if (!s) continue;
+    const col = p.own ? (p.own === B.side ? 'rgba(90,162,255,.9)' : 'rgba(255,90,70,.9)') : 'rgba(210,210,210,.85)';
+    o.strokeStyle = col; o.lineWidth = 2 * D; o.beginPath(); o.arc(s[0], s[1], 9 * D, 0, TAU); o.stroke();
+    o.fillStyle = col; o.font = '700 ' + 11 * D + 'px sans-serif'; o.textAlign = 'center'; o.fillText(p.n, s[0], s[1] + 4 * D);
+    const dd = Math.round(p.pos.distanceTo(PL.pos)); if (dd > 30) { o.font = 9 * D + 'px monospace'; o.fillText(dd + ' м', s[0], s[1] + 20 * D); }
   }
   // тяжёлое ранение: отсчёт
   if (PL.downed) { const left = Math.max(0, 15 - (B.t - PL.downT)); o.fillStyle = 'rgba(255,80,60,.95)'; o.font = '700 ' + 16 * D + 'px monospace'; o.textAlign = 'center'; o.fillText('ТЯЖЁЛОЕ РАНЕНИЕ · ' + left.toFixed(0) + ' с · санитар!', W / 2, H * 0.42); }

@@ -273,3 +273,11 @@ body.captain #sqPanel .sqh.cap{display:block}
 
 #mCamp .chip.lock{opacity:.45}
 #mCampNote{max-width:720px}
+
+#pts{position:fixed;left:50%;transform:translateX(-50%);top:calc(100px + var(--st));display:flex;gap:4px;align-items:center;padding:2px 6px;background:rgba(10,14,8,.25);border-color:transparent;pointer-events:none}
+#pts .pt{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 11px var(--f-disp);color:#111;background:#bdbdbd}
+#pts .pt.me{background:#5aa2ff}#pts .pt.foe{background:#ff5a46}#pts .pt.c{outline:2px solid #f2c94c}
+#pts .tk{font:600 12px var(--f-mono);min-width:32px;text-align:center}#pts .tk.me{color:#8fc1ff}#pts .tk.foe{color:#ff8a7a}
+body.aiming #pts{opacity:.35}
+
+#endP .outro{margin-top:10px;font-style:italic;opacity:.85;font-size:13px}
