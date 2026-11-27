@@ -1345,10 +1345,19 @@ function renderWeaponList() {
   weaponChoices().forEach((i, n) => {
     const r = RIFLES[i], st = TUR[r.id], b = document.createElement('button'); b.type = 'button'; b.className = 'wi' + (i === S.rifle ? ' on' : '');
     b.innerHTML = '<span class="k">' + (n + 1) + '</span><span class="n">' + r.name + '</span><span class="s">' + scopeOf(r).name + '</span><span class="a">' + ammoText(r, st) + '</span>';
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); selectRifle(i); el.hidden = true; });
+    b.dataset.i = i;
     el.appendChild(b);
   });
 }
+// прокрутка списка пальцем: потянул — листается, коротко нажал — выбрал
+(function () {
+  const el = $('wList'); let id = null, y0 = 0, st0 = 0, moved = false, item = null;
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); id = e.pointerId; y0 = e.clientY; st0 = el.scrollTop; moved = false; item = e.target.closest('.wi'); try { el.setPointerCapture(id); } catch (err) { /* ignore */ } clearTimeout(wlT); });
+  el.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; const dy = e.clientY - y0; if (Math.abs(dy) > 7) moved = true; if (moved) el.scrollTop = st0 - dy; });
+  const up = (e) => { if (e.pointerId !== id) return; id = null; if (!moved && item && item.dataset.i != null) { selectRifle(+item.dataset.i); el.hidden = true; return; } wlT = setTimeout(() => { el.hidden = true; }, 7000); };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('wheel', (e) => { e.stopPropagation(); el.scrollTop += e.deltaY; clearTimeout(wlT); wlT = setTimeout(() => { el.hidden = true; }, 7000); }, { passive: true });
+})();
 function toggleWeaponList() {
   const el = $('wList'); if (!el.hidden) { el.hidden = true; return; }
   if (HOOK.canSwitch && !HOOK.canSwitch()) return;
