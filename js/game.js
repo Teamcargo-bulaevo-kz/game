@@ -89,7 +89,20 @@ function battleH(x, z) {
   h = lerp(-2.7, h, smooth(8, 42, d));
   return h;
 }
-function terrainH(x, z) { return MAPM === 'battle' ? battleH(x, z) : rangeH(x, z); }
+const TH = { x0: -760, z0: -2350, s: 2, nx: 761, nz: 1476, a: null };
+function battleHc(x, z) {
+  const fx = (x - TH.x0) / TH.s, fz = (z - TH.z0) / TH.s;
+  if (fx < 0 || fz < 0 || fx >= TH.nx - 1 || fz >= TH.nz - 1) return battleH(x, z);
+  if (!TH.a) { TH.a = new Float32Array(TH.nx * TH.nz); TH.a.fill(NaN); }
+  const i = fx | 0, j = fz | 0, tx = fx - i, tz = fz - j, A = TH.a, k = j * TH.nx + i;
+  let h00 = A[k], h10 = A[k + 1], h01 = A[k + TH.nx], h11 = A[k + TH.nx + 1];
+  if (h00 !== h00) h00 = A[k] = battleH(TH.x0 + i * TH.s, TH.z0 + j * TH.s);
+  if (h10 !== h10) h10 = A[k + 1] = battleH(TH.x0 + (i + 1) * TH.s, TH.z0 + j * TH.s);
+  if (h01 !== h01) h01 = A[k + TH.nx] = battleH(TH.x0 + i * TH.s, TH.z0 + (j + 1) * TH.s);
+  if (h11 !== h11) h11 = A[k + TH.nx + 1] = battleH(TH.x0 + (i + 1) * TH.s, TH.z0 + (j + 1) * TH.s);
+  return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
+}
+function terrainH(x, z) { return MAPM === 'battle' ? battleHc(x, z) : rangeH(x, z); }
 function rangeH(x, z) {
   const ax = Math.abs(x);
   const corr = smooth(45, 260, ax);           // 0 — коридор стрельбища, 1 — вне его
@@ -969,25 +982,25 @@ function showRifleModel() {
 
 /* ---------------- эффекты: трассеры, пыль, искры ---------------- */
 const PS_VS = 'attribute vec3 aColor; attribute float aSize; attribute float aAlpha; attribute float aMin;\n' +
-  'uniform float uScale; uniform float uFogD; varying vec3 vC; varying float vA; varying float vF;\n#include <common>\n#include <logdepthbuf_pars_vertex>\n' +
+  'uniform float uScale; uniform float uFogD; uniform float uMaxPx; uniform float uNear; varying vec3 vC; varying float vA; varying float vF;\n#include <common>\n#include <logdepthbuf_pars_vertex>\n' +
   'void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; float d = max(-mv.z, 0.05);\n' +
-  ' float px = aSize * uScale / d; gl_PointSize = aAlpha <= 0.0 ? 0.0 : clamp(max(px, aMin), 0.0, 900.0); vC = aColor; vA = aAlpha; vF = 1.0 - exp(-uFogD * uFogD * d * d);\n#include <logdepthbuf_vertex>\n}';
+  ' float px = aSize * uScale / d; float nf = uNear > 0.0 ? smoothstep(uNear * 0.25, uNear, d) : 1.0; gl_PointSize = aAlpha * nf <= 0.004 ? 0.0 : clamp(max(px, aMin), 0.0, uMaxPx); vC = aColor; vA = aAlpha * nf; vF = 1.0 - exp(-uFogD * uFogD * d * d);\n#include <logdepthbuf_vertex>\n}';
 const PS_FS = 'uniform sampler2D map; uniform vec3 uFogC; uniform float uAdd; varying vec3 vC; varying float vA; varying float vF;\n#include <logdepthbuf_pars_fragment>\n' +
   'void main(){\n#include <logdepthbuf_fragment>\n vec4 t = texture2D(map, gl_PointCoord); float a = t.a * vA; vec3 c = vC * t.rgb;\n' +
   ' if (uAdd > 0.5) a *= 1.0 - vF; else c = mix(c, uFogC, vF); if (a < 0.004) discard; gl_FragColor = vec4(c, a); }';
-function makePS(tex, additive, cap) {
+function makePS(tex, additive, cap, near) {
   const geo = new THREE.BufferGeometry();
   const A = (n, k) => { const a = new THREE.BufferAttribute(new Float32Array(cap * k), k); a.setUsage(THREE.DynamicDrawUsage); geo.setAttribute(n, a); return a.array; };
   const ps = { cap, head: 0, geo, pos: A('position', 3), col: A('aColor', 3), size: A('aSize', 1), alpha: A('aAlpha', 1), mn: A('aMin', 1),
     vx: new Float32Array(cap), vy: new Float32Array(cap), vz: new Float32Array(cap), t: new Float32Array(cap), life: new Float32Array(cap), s0: new Float32Array(cap), s1: new Float32Array(cap),
     a0: new Float32Array(cap), g: new Uint8Array(cap), floor: new Float32Array(cap), on: new Uint8Array(cap), dirty: false };
-  const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, uScale: { value: 500 }, uFogC: { value: new THREE.Color() }, uFogD: { value: 0 }, uAdd: { value: additive ? 1 : 0 } },
+  const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, uScale: { value: 500 }, uMaxPx: { value: 600 }, uNear: { value: near || 0 }, uFogC: { value: new THREE.Color() }, uFogD: { value: 0 }, uAdd: { value: additive ? 1 : 0 } },
     vertexShader: PS_VS, fragmentShader: PS_FS, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
   ps.pts = new THREE.Points(geo, mat); ps.pts.frustumCulled = false; ps.pts.renderOrder = additive ? 4 : 3; scene.add(ps.pts);
   return ps;
 }
 // дым и силуэты дальних бойцов — в своих буферах, чтобы частые частицы не затирали долгий дым
-const PSY = { puff: makePS(puffTex, false, IS_TOUCH ? 1100 : 3000), glow: makePS(glowTex, true, IS_TOUCH ? 1000 : 2200), smoke: makePS(puffTex, false, IS_TOUCH ? 1000 : 1800), dot: makePS(puffTex, false, IS_TOUCH ? 320 : 700) };
+const PSY = { puff: makePS(puffTex, false, IS_TOUCH ? 1100 : 3000, 2.2), glow: makePS(glowTex, true, IS_TOUCH ? 1000 : 2200), smoke: makePS(puffTex, false, IS_TOUCH ? 1000 : 1800, 10), dot: makePS(puffTex, false, IS_TOUCH ? 320 : 700) };
 const _pc = new THREE.Color();
 function emit(ps, x, y, z, vx, vy, vz, s0, s1, life, color, a0, grav, floor, minPx) {
   const i = ps.head; ps.head = (ps.head + 1) % ps.cap;
@@ -1030,7 +1043,8 @@ function updateEffects(dt) {
 }
 function syncPS(cam) {
   const sc = renderer.domElement.height / (2 * Math.tan(cam.fov * DEG / 2));
-  for (const k in PSY) { const u = PSY[k].pts.material.uniforms; u.uScale.value = sc; u.uFogC.value.copy(scene.fog.color); u.uFogD.value = scene.fog.density; }
+  const mx = renderer.domElement.height * (IS_TOUCH ? 0.42 : 0.6);
+  for (const k in PSY) { const u = PSY[k].pts.material.uniforms; u.uScale.value = sc; u.uMaxPx.value = mx; u.uFogC.value.copy(scene.fog.color); u.uFogD.value = scene.fog.density; }
 }
 
 /* ---------------- звук (синтез WebAudio) ---------------- */

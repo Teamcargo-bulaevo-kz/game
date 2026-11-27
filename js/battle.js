@@ -183,6 +183,7 @@ if (BATTLE_MAP) (function buildHill() {
 const covers = [];
 const FOREST = SS.FORESTS || [];
 const forestSpots = [];
+const ROCKSP = { h: [], r: [] };   // места за валунами
 if (BATTLE_MAP) (function buildCovers() {
   let seed = 11;
   const R = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
@@ -196,11 +197,11 @@ if (BATTLE_MAP) (function buildCovers() {
   const hayGeo = merge([CY(0.75, 0.75, 1.3, 0, 0.75, 0, 0xb59a52, 0, 0, Math.PI / 2, 12), CY(0.75, 0.75, 1.3, 1.45, 0.75, 0.3, 0xa88f4a, 0, 0, Math.PI / 2, 12)]);
   const logGeo = merge([CY(0.22, 0.22, 3.6, 0, 0.22, 0, 0x6a4c30, 0, 0, Math.PI / 2), CY(0.22, 0.22, 3.6, 0, 0.22, 0.45, 0x5f442b, 0, 0, Math.PI / 2), CY(0.22, 0.22, 3.6, 0, 0.6, 0.22, 0x6f5034, 0, 0, Math.PI / 2)]);
   let tries = 0;
-  while (covers.length < 58 && tries++ < 2000) {
+  while (covers.length < 100 && tries++ < 3000) {
     const x = (R() - 0.5) * 1200, z = -230 - R() * 1650;
     if (Math.abs(z - SS.riverZ(x)) < 45) continue;
     if (FOREST.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 6)) continue;
-    if (covers.some((c) => Math.hypot(c.c.x - x, c.c.z - z) < 40)) continue;
+    if (covers.some((c) => Math.hypot(c.c.x - x, c.c.z - z) < 30)) continue;
     const t = R(), yaw = (R() - 0.5) * 1.2;
     let mesh, hx, hz, h;
     if (t < 0.35) { const sx = 1.2 + R() * 1.6, sy = 0.9 + R() * 0.8, sz = 1.0 + R() * 1.2; mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), rockM); mesh.scale.set(sx, sy, sz); mesh.rotation.set(R(), R() * 3, R() * 0.4); hx = sx * 0.85; hz = sz * 0.85; h = sy * 0.95; }
@@ -226,7 +227,8 @@ if (BATTLE_MAP) (function buildCovers() {
     const put = (x, z, s) => { if (k >= N) return; const gy = terrainH(x, z); if (gy < -0.6) return; const sx = s * (0.8 + R() * 0.6), sy = s * (0.55 + R() * 0.4), sz = s * (0.8 + R() * 0.6);
       dm.position.set(x, gy + sy * 0.35, z); dm.rotation.set(R() * 0.5, R() * TAU, R() * 0.5); dm.scale.set(sx, sy, sz); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix);
       const v = 0.42 + R() * 0.22; col.setRGB(v * (0.98 + R() * 0.06), v * (0.95 + R() * 0.05), v * (0.88 + R() * 0.06)); im.setColorAt(k++, col);
-      SS.addObst({ x, z, r: Math.min(sx, sz) * 0.85, y0: gy - 0.5, y1: gy + sy * 1.2 }); };
+      SS.addObst({ x, z, r: Math.min(sx, sz) * 0.85, y0: gy - 0.5, y1: gy + sy * 1.2 });
+      if (sy > 0.75 && Math.min(sx, sz) > 0.9) { const o = Math.min(sx, sz) * 0.85 + 0.7; ROCKSP.h.push({ pos: new V3(x, terrainH(x, z + o), z + o), used: null }); ROCKSP.r.push({ pos: new V3(x, terrainH(x, z - o), z - o), used: null }); } };
     for (let c = 0; c < 9; c++) { const cx = (R() - 0.5) * 1200, cz = -260 - R() * 1500; if (Math.abs(cz - SS.riverZ(cx)) < 50 || FOREST.some((f) => Math.hypot(cx - f.x, cz - f.z) < f.r + 8)) continue; for (let i = 0; i < 18; i++) put(cx + (R() - 0.5) * 60, cz + (R() - 0.5) * 40, 0.5 + R() * 1.1); }
     for (let i = 0; i < 90; i++) { const x = (R() - 0.5) * 1300, z = -200 - R() * 1800; if (Math.abs(z - SS.riverZ(x)) < 40 || FOREST.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 4)) continue; put(x, z, 0.6 + R() * 1.2); }
     im.count = k; im.castShadow = SHD; im.receiveShadow = SHD; fieldGroup.add(im); }
@@ -545,68 +547,133 @@ const gC = (r1, r2, h, seg) => new THREE.CylinderGeometry(r1, r2, h, seg || 8);
 const gS = (r, w, hh) => new THREE.SphereGeometry(r, w || 8, hh || 6);
 const gB = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const gHelm = (r) => new THREE.SphereGeometry(r, 12, 6, 0, TAU, 0, Math.PI * 0.56);
+// ===== солдаты: детальные модели (вблизи) — v2 =====
+const CM = { a: 0x4b5534, b: 0x6e7a4c, c: 0x3b4128, d: 0x7d7a55 };   // пятна камуфляжа
+// камуфляжные пятна на цилиндрической поверхности радиуса rx×rz: [угол, высота, ширина, высота пятна, цвет]
+function camo(rx, rz, y0, spots) { return spots.map(([a, y, w, h, c]) => { const g = gB(w, h, 0.012); g.rotateY(-a); g.translate(Math.sin(a) * rx, y0 + y, -Math.cos(a) * rz); return [g, c]; }); }
 defPart('h_pelvis', merge([
-  PR(gC(0.15, 0.14, 0.2, 10), HC.uniD, [0, -0.01, 0], [1.15, 1, 0.82]), PR(gC(0.163, 0.163, 0.05, 10), 0x2b2b25, [0, 0.085, 0], [1.15, 1, 0.84]),
-  PR(gB(0.06, 0.045, 0.02), 0x8a8270, [0, 0.085, -0.14]), PR(gB(0.08, 0.1, 0.06), HC.pouch, [0.15, 0.01, -0.07]), PR(gB(0.08, 0.1, 0.06), HC.pouch, [-0.15, 0.01, -0.07]),
-  PR(gC(0.035, 0.035, 0.12, 8), 0x4a4a3a, [-0.17, 0.0, 0.08]), PR(gB(0.2, 0.1, 0.14), HC.uniD, [0, -0.1, 0]),
+  PR(gC(0.15, 0.14, 0.2, 10), HC.uniD, [0, -0.01, 0], [1.15, 1, 0.82]), PR(gB(0.2, 0.1, 0.14), HC.uniD, [0, -0.1, 0]),
+  PR(gC(0.165, 0.165, 0.05, 12), 0x2b2b25, [0, 0.085, 0], [1.15, 1, 0.84]), PR(gB(0.065, 0.05, 0.02), 0x8a8270, [0, 0.085, -0.142]),   // ремень, пряжка
+  PR(gB(0.08, 0.1, 0.06), HC.pouch, [0.16, 0.01, -0.07]), PR(gB(0.08, 0.1, 0.06), HC.pouch, [-0.16, 0.01, -0.07]),                   // подсумки
+  PR(gB(0.05, 0.14, 0.09), 0x22221e, [0.19, -0.04, 0.03]), PR(gB(0.03, 0.05, 0.05), 0x161614, [0.19, 0.04, 0.0]),                    // кобура
+  PR(gC(0.035, 0.035, 0.12, 8), 0x4a4a3a, [-0.17, 0.0, 0.08]), PR(gB(0.16, 0.12, 0.07), HC.pouch, [0, -0.02, 0.15]),                  // граната, сброс
+  ...camo(0.17, 0.12, -0.06, [[0.4, 0, 0.07, 0.05, CM.a], [-0.9, 0.02, 0.06, 0.04, CM.c], [2.6, -0.01, 0.08, 0.05, CM.b]]),
 ]));
-defPart('h_torso', merge([
-  PR(gC(0.15, 0.16, 0.27, 10), HC.uni, [0, 0.135, 0], [1.12, 1, 0.74]), PR(gC(0.2, 0.155, 0.3, 10), HC.uni, [0, 0.4, 0], [1.08, 1, 0.7]),
-  PR(gS(0.1), HC.uni, [-0.21, 0.51, 0], [1, 0.75, 1]), PR(gS(0.1), HC.uni, [0.21, 0.51, 0], [1, 0.75, 1]),
-  PR(gB(0.34, 0.32, 0.06), HC.vest, [0, 0.35, -0.125]), PR(gB(0.34, 0.32, 0.06), HC.vest, [0, 0.35, 0.125]), PR(gB(0.05, 0.3, 0.26), HC.vest, [-0.17, 0.34, 0]), PR(gB(0.05, 0.3, 0.26), HC.vest, [0.17, 0.34, 0]),
-  PR(gB(0.07, 0.05, 0.28), HC.vest, [-0.11, 0.52, 0]), PR(gB(0.07, 0.05, 0.28), HC.vest, [0.11, 0.52, 0]),
-  PR(gB(0.07, 0.12, 0.05), HC.pouch, [-0.1, 0.25, -0.17]), PR(gB(0.07, 0.12, 0.05), HC.pouch, [0, 0.25, -0.17]), PR(gB(0.07, 0.12, 0.05), HC.pouch, [0.1, 0.25, -0.17]),
-  PR(gB(0.09, 0.07, 0.04), HC.pouch, [-0.09, 0.42, -0.165]), PR(gB(0.05, 0.08, 0.04), 0x2a2a28, [0.1, 0.43, -0.165]),
-  PR(gC(0.055, 0.062, 0.1, 8), HC.skin, [0, 0.6, 0]), PR(gC(0.075, 0.07, 0.04, 8), HC.uni, [0, 0.555, 0]),
-  PR(gB(0.29, 0.33, 0.13), HC.pack, [0, 0.34, 0.225]), PR(gB(0.25, 0.12, 0.06), 0x4a5236, [0, 0.24, 0.3]), PR(gC(0.055, 0.055, 0.3, 8), 0x6a6650, [0, 0.54, 0.22], null, [0, 0, Math.PI / 2]),
+// бронежилет-плитоноска: плиты, камербанд, подсумки с магазинами, рация
+const vestParts = (col, pouch) => [
+  PR(gB(0.33, 0.3, 0.05), col, [0, 0.36, -0.13]), PR(gB(0.3, 0.27, 0.04), col, [0, 0.37, 0.13]),                                     // плиты
+  PR(gB(0.05, 0.17, 0.25), col, [-0.17, 0.28, 0]), PR(gB(0.05, 0.17, 0.25), col, [0.17, 0.28, 0]),                                    // камербанд
+  PR(gB(0.07, 0.05, 0.27), col, [-0.11, 0.53, 0]), PR(gB(0.07, 0.05, 0.27), col, [0.11, 0.53, 0]),                                    // лямки
+  PR(gB(0.09, 0.045, 0.02), col, [-0.11, 0.54, -0.14]), PR(gB(0.09, 0.045, 0.02), col, [0.11, 0.54, -0.14]),
+  ...[-0.1, 0, 0.1].flatMap((x) => [PR(gB(0.075, 0.12, 0.055), pouch, [x, 0.27, -0.18]), PR(gB(0.05, 0.05, 0.03), 0x2a2620, [x, 0.35, -0.18], null, [0.15, 0, 0])]),   // подсумки + магазины
+  PR(gB(0.1, 0.07, 0.035), pouch, [-0.09, 0.44, -0.165]), PR(gB(0.06, 0.09, 0.04), 0x222222, [0.11, 0.45, -0.165]),                 // админка, рация
+  PR(gC(0.004, 0.004, 0.28, 4), 0x111111, [0.13, 0.63, -0.16]),
+  PR(gB(0.08, 0.1, 0.05), pouch, [-0.19, 0.22, -0.06]), PR(gB(0.06, 0.08, 0.05), pouch, [0.19, 0.22, -0.06]),                        // боковые
+];
+const torsoCore = (c) => [
+  PR(gC(0.15, 0.16, 0.27, 10), c, [0, 0.135, 0], [1.12, 1, 0.74]), PR(gC(0.2, 0.155, 0.3, 10), c, [0, 0.4, 0], [1.08, 1, 0.7]),
+  PR(gS(0.1, 10, 8), c, [-0.21, 0.51, 0], [1, 0.78, 1]), PR(gS(0.1, 10, 8), c, [0.21, 0.51, 0], [1, 0.78, 1]),
+  PR(gC(0.055, 0.062, 0.1, 8), HC.skin, [0, 0.6, 0]), PR(gC(0.08, 0.072, 0.05, 10), c, [0, 0.56, 0]),                                 // шея, воротник
+  ...camo(0.2, 0.15, 0.1, [[1.6, 0.05, 0.07, 0.08, CM.a], [-1.6, 0.12, 0.06, 0.07, CM.c], [2.9, 0.08, 0.09, 0.06, CM.b]]),
+];
+defPart('h_torso', merge([...torsoCore(HC.uni), ...vestParts(HC.vest, HC.pouch),
+  PR(gB(0.29, 0.33, 0.13), HC.pack, [0, 0.34, 0.225]), PR(gB(0.25, 0.12, 0.06), 0x4a5236, [0, 0.24, 0.3]),                          // рюкзак
+  PR(gC(0.055, 0.055, 0.3, 8), 0x6a6650, [0, 0.54, 0.22], null, [0, 0, Math.PI / 2]), PR(gB(0.03, 0.3, 0.02), 0x2b2b25, [-0.09, 0.36, 0.295]), PR(gB(0.03, 0.3, 0.02), 0x2b2b25, [0.09, 0.36, 0.295]),
   PR(gC(0.006, 0.006, 0.45, 4), 0x111111, [0.1, 0.65, 0.27]),
 ]));
-const headBase = [PR(gS(0.1, 10, 8), HC.skin, [0, 0.12, -0.005], [0.95, 1.12, 1.02]), PR(gB(0.03, 0.05, 0.04), 0xb8896a, [0, 0.11, -0.105]),
-  PR(gB(0.03, 0.012, 0.01), 0x1a1612, [-0.035, 0.145, -0.095]), PR(gB(0.03, 0.012, 0.01), 0x1a1612, [0.035, 0.145, -0.095]), PR(gB(0.05, 0.012, 0.01), 0x6e4a3a, [0, 0.07, -0.095]),
-  PR(gB(0.02, 0.04, 0.03), HC.skin, [-0.1, 0.12, 0]), PR(gB(0.02, 0.04, 0.03), HC.skin, [0.1, 0.12, 0])];
-defPart('h_head', merge(headBase.map(([g, c]) => [g.clone(), c]).concat([
-  PR(gHelm(0.14), HC.helm, [0, 0.14, 0.005], [1, 0.95, 1.08]), PR(gC(0.142, 0.15, 0.025, 12), HC.helm, [0, 0.14, 0.005], [1, 1, 1.08]),
-  PR(gB(0.17, 0.035, 0.03), 0x222222, [0, 0.22, -0.13]), PR(gB(0.04, 0.05, 0.05), 0x1a1a1a, [0.13, 0.19, -0.05]), PR(gB(0.012, 0.09, 0.012), 0x2a2a22, [-0.08, 0.09, -0.06], null, [0, 0, 0.2]),
+// без рюкзака: гидратор
+defPart('h_torso2', merge([...torsoCore(HC.uni), ...vestParts(0x4b5233, 0x56603d),
+  PR(gB(0.17, 0.26, 0.06), 0x3d4630, [0, 0.36, 0.17]), PR(gC(0.008, 0.008, 0.3, 4), 0x222222, [0.12, 0.45, -0.05], null, [0.3, 0, 0.2]),
+]));
+// «горка»: куртка песочного оттенка, капюшон за спиной
+defPart('h_torso3', merge([...torsoCore(0x6b6a4a), ...vestParts(HC.vest, HC.pouch),
+  PR(gS(0.12, 8, 6), 0x5f5e42, [0, 0.55, 0.11], [1.1, 0.7, 0.8]), PR(gB(0.26, 0.28, 0.12), HC.pack, [0, 0.33, 0.21]),
+]));
+// голова: лицо с бровями, носом, скулами и подбородком
+const headBase = [
+  PR(gS(0.1, 12, 10), HC.skin, [0, 0.12, -0.005], [0.93, 1.12, 1.02]), PR(gB(0.11, 0.05, 0.07), HC.skin, [0, 0.045, -0.045]),            // череп, челюсть
+  PR(gB(0.03, 0.05, 0.035), 0xb8896a, [0, 0.11, -0.105], null, [-0.15, 0, 0]), PR(gB(0.02, 0.012, 0.015), 0x9a6f55, [0, 0.087, -0.118]),   // нос
+  PR(gB(0.034, 0.012, 0.008), 0x1a1612, [-0.035, 0.143, -0.097]), PR(gB(0.034, 0.012, 0.008), 0x1a1612, [0.035, 0.143, -0.097]),      // глаза
+  PR(gB(0.04, 0.01, 0.012), 0x3a2a1c, [-0.035, 0.16, -0.098]), PR(gB(0.04, 0.01, 0.012), 0x3a2a1c, [0.035, 0.16, -0.098]),            // брови
+  PR(gB(0.045, 0.01, 0.008), 0x7a4e3c, [0, 0.067, -0.098]), PR(gB(0.04, 0.04, 0.03), 0xbd9070, [-0.06, 0.1, -0.08]), PR(gB(0.04, 0.04, 0.03), 0xbd9070, [0.06, 0.1, -0.08]),   // рот, скулы
+  PR(gB(0.02, 0.045, 0.035), HC.skin, [-0.098, 0.12, 0]), PR(gB(0.02, 0.045, 0.035), HC.skin, [0.098, 0.12, 0]),                       // уши
+];
+const helmet = (c, cover) => [
+  PR(gHelm(0.142), c, [0, 0.14, 0.005], [1, 0.95, 1.08]), PR(gC(0.145, 0.152, 0.025, 14), c, [0, 0.14, 0.005], [1, 1, 1.08]),
+  PR(gC(0.143, 0.143, 0.022, 14), cover, [0, 0.19, 0.005], [1, 1, 1.06]),                                                              // резинка кавера
+  PR(gB(0.05, 0.045, 0.025), 0x1a1a1a, [0, 0.21, -0.14]), PR(gB(0.018, 0.05, 0.08), 0x262626, [-0.142, 0.17, 0]), PR(gB(0.018, 0.05, 0.08), 0x262626, [0.142, 0.17, 0]),   // крепление ПНВ, рельсы
+  PR(gB(0.012, 0.1, 0.012), 0x2a2a22, [-0.085, 0.085, -0.055], null, [0, 0, 0.25]), PR(gB(0.012, 0.1, 0.012), 0x2a2a22, [0.085, 0.085, -0.055], null, [0, 0, -0.25]),   // ремешок
+];
+defPart('h_head', merge(headBase.map(([g, c]) => [g.clone(), c]).concat(helmet(HC.helm, 0x3a3a2a), [
+  PR(gB(0.17, 0.035, 0.03), 0x222222, [0, 0.215, -0.12]), PR(gB(0.04, 0.05, 0.05), 0x1a1a1a, [0.13, 0.19, -0.05]),                      // очки на шлеме, фонарь
 ])));
-defPart('h_head2', merge(headBase.map(([g, c]) => [g.clone(), c]).concat([
-  PR(gHelm(0.142), 0x6b6a4f, [0, 0.14, 0.005], [1, 0.92, 1.08]), PR(gC(0.146, 0.152, 0.025, 12), 0x6b6a4f, [0, 0.14, 0.005], [1, 1, 1.08]),
-  PR(gB(0.2, 0.04, 0.05), 0x1c1c1c, [0, 0.165, -0.1]), PR(gB(0.07, 0.035, 0.012), 0x5a7a8a, [-0.04, 0.165, -0.127]), PR(gB(0.07, 0.035, 0.012), 0x5a7a8a, [0.04, 0.165, -0.127]),
+defPart('h_head2', merge(headBase.map(([g, c]) => [g.clone(), c]).concat(helmet(0x6b6a4f, 0x4d4c38), [
+  PR(gB(0.2, 0.04, 0.05), 0x1c1c1c, [0, 0.165, -0.1]), PR(gB(0.07, 0.035, 0.012), 0x5a7a8a, [-0.04, 0.165, -0.127]), PR(gB(0.07, 0.035, 0.012), 0x5a7a8a, [0.04, 0.165, -0.127]),   // очки на глазах
 ])));
-defPart('h_head3', merge([PR(gS(0.104, 10, 8), 0x2a2b26, [0, 0.12, -0.005], [0.97, 1.14, 1.04]), PR(gB(0.09, 0.025, 0.012), HC.skin, [0, 0.145, -0.1]),
-  PR(gB(0.03, 0.012, 0.01), 0x1a1612, [-0.03, 0.146, -0.107]), PR(gB(0.03, 0.012, 0.01), 0x1a1612, [0.03, 0.146, -0.107]),
-  PR(new THREE.SphereGeometry(0.115, 10, 5, 0, TAU, 0, Math.PI * 0.5), 0x3e4a2c, [0, 0.165, 0], [1, 0.7, 1.05]), PR(gB(0.16, 0.015, 0.1), 0x3e4a2c, [0, 0.17, -0.12]),
+defPart('h_head3', merge([PR(gS(0.104, 12, 10), 0x2a2b26, [0, 0.12, -0.005], [0.95, 1.14, 1.04]), PR(gB(0.1, 0.03, 0.012), HC.skin, [0, 0.145, -0.1]),   // балаклава
+  PR(gB(0.034, 0.012, 0.01), 0x1a1612, [-0.033, 0.146, -0.107]), PR(gB(0.034, 0.012, 0.01), 0x1a1612, [0.033, 0.146, -0.107]),
+  PR(new THREE.SphereGeometry(0.117, 12, 6, 0, TAU, 0, Math.PI * 0.5), 0x3e4a2c, [0, 0.165, 0], [1, 0.7, 1.05]), PR(gB(0.17, 0.015, 0.11), 0x3e4a2c, [0, 0.17, -0.12]),   // кепи
+  PR(gB(0.05, 0.03, 0.01), 0x8a8a70, [0, 0.2, -0.118]),
 ]));
-// разгрузка без рюкзака
-defPart('h_torso2', merge([
-  PR(gC(0.15, 0.16, 0.27, 10), HC.uni, [0, 0.135, 0], [1.12, 1, 0.74]), PR(gC(0.2, 0.155, 0.3, 10), HC.uni, [0, 0.4, 0], [1.08, 1, 0.7]),
-  PR(gS(0.1), HC.uni, [-0.21, 0.51, 0], [1, 0.75, 1]), PR(gS(0.1), HC.uni, [0.21, 0.51, 0], [1, 0.75, 1]),
-  PR(gB(0.36, 0.2, 0.07), 0x4b5233, [0, 0.27, -0.13]), ...[-0.12, -0.04, 0.04, 0.12].map((x) => PR(gB(0.07, 0.13, 0.06), 0x56603d, [x, 0.28, -0.18])),
-  PR(gB(0.05, 0.36, 0.03), 0x3d4630, [-0.11, 0.42, -0.12], null, [0, 0, 0.15]), PR(gB(0.05, 0.36, 0.03), 0x3d4630, [0.11, 0.42, -0.12], null, [0, 0, -0.15]),
-  PR(gB(0.05, 0.36, 0.03), 0x3d4630, [-0.11, 0.4, 0.12]), PR(gB(0.05, 0.36, 0.03), 0x3d4630, [0.11, 0.4, 0.12]), PR(gB(0.1, 0.12, 0.06), 0x2a2a28, [0.12, 0.45, -0.16]),
-  PR(gC(0.055, 0.062, 0.1, 8), HC.skin, [0, 0.6, 0]), PR(gC(0.075, 0.07, 0.04, 8), HC.uni, [0, 0.555, 0]), PR(gB(0.14, 0.18, 0.08), 0x4a5236, [0, 0.36, 0.17]),
+// руки: рукав с карманом и шевроном, налокотник; перчатка
+defPart('h_uarm', merge([PR(gS(0.072, 10, 8), HC.uni, [0, -0.01, 0]), PR(gC(0.06, 0.05, 0.3, 10), HC.uni, [0, -0.15, 0]),
+  PR(gB(0.03, 0.08, 0.06), 0x55603b, [-0.058, -0.09, 0]), PR(gB(0.012, 0.035, 0.045), 0x8a2a20, [-0.062, -0.05, 0]),               // карман, шеврон
+  PR(gS(0.05, 8, 6), 0x2b2b25, [0, -0.3, 0.01], [1, 0.8, 1]), PR(gB(0.065, 0.06, 0.03), 0x2b2b25, [0, -0.29, 0.045]),                // налокотник
+  ...camo(0.058, 0.058, -0.1, [[1.2, 0, 0.04, 0.06, CM.a], [-2, -0.06, 0.035, 0.05, CM.c]]),
+]), 2);
+defPart('h_farm', merge([PR(gC(0.05, 0.042, 0.26, 10), HC.uni, [0, -0.13, 0]), PR(gC(0.047, 0.047, 0.05, 10), HC.uniD, [0, -0.235, 0]),
+  PR(gB(0.065, 0.075, 0.085), HC.glove, [0, -0.295, -0.005]), PR(gB(0.06, 0.03, 0.07), HC.glove, [0, -0.345, -0.02], null, [0.5, 0, 0]),   // ладонь, пальцы
+  PR(gB(0.02, 0.05, 0.03), HC.glove, [-0.04, -0.29, -0.035]), PR(gB(0.066, 0.015, 0.06), 0x1a1a18, [0, -0.27, -0.01]),
+  ...camo(0.048, 0.048, -0.12, [[0.6, 0, 0.035, 0.05, CM.b]]),
+]), 2);
+// ноги: карман, наколенник, камуфляж; ботинок со шнуровкой и каблуком
+defPart('h_thigh', merge([PR(gC(0.09, 0.067, 0.46, 10), HC.uniD, [0, -0.23, 0], [1, 1, 1.05]), PR(gB(0.04, 0.13, 0.11), HC.pouch, [0.088, -0.24, 0]),
+  PR(gB(0.035, 0.02, 0.1), 0x3d4630, [0.09, -0.17, 0]),
+  PR(gS(0.07, 8, 6), 0x2b2b25, [0, -0.45, -0.045], [1.05, 1, 0.65]), PR(gB(0.1, 0.09, 0.035), 0x22221e, [0, -0.45, -0.07]),          // наколенник
+  ...camo(0.085, 0.09, -0.25, [[0.5, 0.05, 0.05, 0.09, CM.a], [-0.7, -0.05, 0.05, 0.07, CM.c], [2.8, 0, 0.06, 0.08, CM.b]]),
+]), 2);
+defPart('h_shin', merge([PR(gC(0.067, 0.05, 0.36, 10), HC.uniD, [0, -0.18, 0]), PR(gC(0.064, 0.07, 0.1, 10), HC.boot, [0, -0.37, 0]),
+  PR(gB(0.11, 0.1, 0.25), HC.boot, [0, -0.44, -0.05]), PR(gB(0.12, 0.03, 0.28), 0x161412, [0, -0.495, -0.05]), PR(gB(0.11, 0.035, 0.07), 0x161412, [0, -0.49, 0.06]),   // подошва, каблук
+  PR(gB(0.1, 0.03, 0.06), HC.boot, [0, -0.42, -0.17], null, [0.4, 0, 0]), ...[0, 1, 2].map((i) => PR(gB(0.07, 0.008, 0.012), 0x5a5040, [0, -0.33 - i * 0.03, -0.072])),   // носок, шнуровка
+  ...camo(0.065, 0.065, -0.15, [[0.3, 0, 0.04, 0.07, CM.a], [3.0, 0.03, 0.04, 0.06, CM.c]]),
+]), 2);
+// ===== оружие =====
+const AKM = 0x1c1d1c, AKW = 0x5a3424;
+defPart('h_ak', merge([
+  PR(gB(0.05, 0.075, 0.36), AKM, [0, 0, -0.2]), PR(gB(0.044, 0.02, 0.3), 0x252625, [0, 0.045, -0.18]),                               // ствольная коробка, крышка
+  PR(gB(0.045, 0.07, 0.22), AKW, [0, -0.02, 0.1], null, [0.08, 0, 0]), PR(gB(0.04, 0.11, 0.05), AKW, [0, -0.05, 0.2]),               // приклад
+  PR(gB(0.055, 0.055, 0.17), AKW, [0, -0.008, -0.45]), PR(gB(0.045, 0.03, 0.14), AKW, [0, 0.04, -0.43]),                              // цевьё, накладка
+  PR(gC(0.009, 0.009, 0.12, 6), 0x2a2a2a, [0, 0.03, -0.38], null, [Math.PI / 2, 0, 0]),                                               // газовая трубка
+  PR(gC(0.011, 0.011, 0.3, 8), AKM, [0, 0.01, -0.66], null, [Math.PI / 2, 0, 0]), PR(gC(0.016, 0.016, 0.07, 8), AKM, [0, 0.01, -0.83], null, [Math.PI / 2, 0, 0]),   // ствол, ДТК
+  PR(gB(0.012, 0.045, 0.012), AKM, [0, 0.04, -0.6]), PR(gB(0.02, 0.022, 0.03), AKM, [0, 0.055, -0.3]),                               // мушка, целик
+  PR(gB(0.038, 0.1, 0.045), 0x2b2522, [0, -0.08, -0.06], null, [0.35, 0, 0]),                                                          // пистолетная рукоять
+  PR(gB(0.035, 0.09, 0.06), 0x3a2a20, [0, -0.08, -0.24], null, [0.18, 0, 0]), PR(gB(0.035, 0.08, 0.058), 0x3a2a20, [0, -0.16, -0.21], null, [0.45, 0, 0]),   // изогнутый магазин
+  PR(gB(0.01, 0.03, 0.05), AKM, [0, -0.035, -0.13]),                                                                                    // спуск
 ]));
-// «горка»: куртка с капюшоном за спиной, рация
-defPart('h_torso3', merge([
-  PR(gC(0.16, 0.17, 0.28, 10), 0x6b6a4a, [0, 0.135, 0], [1.12, 1, 0.76]), PR(gC(0.215, 0.165, 0.31, 10), 0x6b6a4a, [0, 0.4, 0], [1.08, 1, 0.74]),
-  PR(gS(0.105), 0x6b6a4a, [-0.21, 0.51, 0], [1, 0.75, 1]), PR(gS(0.105), 0x6b6a4a, [0.21, 0.51, 0], [1, 0.75, 1]),
-  PR(gS(0.12, 8, 6), 0x5f5e42, [0, 0.55, 0.11], [1.1, 0.7, 0.8]), PR(gB(0.34, 0.28, 0.06), HC.vest, [0, 0.36, -0.14]),
-  ...[-0.1, 0, 0.1].map((x) => PR(gB(0.07, 0.11, 0.05), HC.pouch, [x, 0.27, -0.185])), PR(gB(0.09, 0.15, 0.06), 0x2a2a28, [-0.17, 0.4, 0.06]), PR(gC(0.005, 0.005, 0.4, 4), 0x111111, [-0.18, 0.62, 0.06]),
-  PR(gC(0.055, 0.062, 0.1, 8), HC.skin, [0, 0.6, 0]), PR(gB(0.26, 0.28, 0.12), HC.pack, [0, 0.33, 0.21]),
+defPart('h_pkm', merge([
+  PR(gB(0.06, 0.09, 0.42), AKM, [0, 0, -0.22]), PR(gB(0.05, 0.09, 0.28), 0x2a2a28, [0, -0.02, 0.1]), PR(gB(0.03, 0.06, 0.1), 0x2a2a28, [0, -0.06, 0.2]),   // коробка, рамочный приклад
+  PR(gC(0.015, 0.015, 0.46, 8), AKM, [0, 0.01, -0.66], null, [Math.PI / 2, 0, 0]), PR(gC(0.02, 0.017, 0.07, 8), AKM, [0, 0.01, -0.9], null, [Math.PI / 2, 0, 0]),   // ствол, пламегаситель
+  PR(gB(0.06, 0.03, 0.06), AKM, [0, 0.06, -0.42]), PR(gC(0.008, 0.008, 0.12, 6), 0x222222, [0, 0.09, -0.42], null, [0, 0, Math.PI / 2]),   // ручка переноски
+  PR(gB(0.1, 0.11, 0.12), 0x3d4a2c, [0.03, -0.12, -0.2]), PR(gB(0.02, 0.03, 0.1), 0xb08a40, [-0.04, -0.04, -0.2], null, [0, 0, 0.4]),   // короб, лента
+  PR(gB(0.04, 0.1, 0.045), 0x2b2522, [0, -0.08, -0.05], null, [0.3, 0, 0]),
+  PR(gB(0.012, 0.22, 0.012), AKM, [-0.03, -0.06, -0.74], null, [-1.3, 0, 0]), PR(gB(0.012, 0.22, 0.012), AKM, [0.03, -0.06, -0.74], null, [-1.3, 0, 0]),   // сошки сложены
 ]));
-defPart('h_uarm', merge([PR(gS(0.07), HC.uni, [0, -0.01, 0]), PR(gC(0.058, 0.05, 0.3, 8), HC.uni, [0, -0.15, 0]), PR(gB(0.03, 0.08, 0.05), 0x55603b, [-0.055, -0.1, 0]), PR(gS(0.05), 0x2b2b25, [0, -0.3, 0.01], [1, 0.8, 1])]), 2);
-defPart('h_farm', merge([PR(gC(0.05, 0.042, 0.26, 8), HC.uni, [0, -0.13, 0]), PR(gC(0.045, 0.045, 0.04, 8), HC.uniD, [0, -0.24, 0]),
-  PR(gB(0.065, 0.08, 0.085), HC.glove, [0, -0.3, -0.005]), PR(gB(0.02, 0.05, 0.03), HC.glove, [-0.04, -0.29, -0.03])]), 2);
-defPart('h_thigh', merge([PR(gC(0.088, 0.066, 0.46, 8), HC.uniD, [0, -0.23, 0], [1, 1, 1.05]), PR(gB(0.04, 0.13, 0.11), HC.pouch, [0.085, -0.24, 0]),
-  PR(gS(0.066, 8, 6), 0x2b2b25, [0, -0.45, -0.045], [1.05, 1, 0.65])]), 2);
-defPart('h_shin', merge([PR(gC(0.066, 0.05, 0.38, 8), HC.uniD, [0, -0.19, 0]), PR(gC(0.064, 0.07, 0.1, 8), HC.boot, [0, -0.37, 0]),
-  PR(gB(0.11, 0.1, 0.24), HC.boot, [0, -0.44, -0.05]), PR(gB(0.12, 0.03, 0.27), 0x161412, [0, -0.495, -0.05]), PR(gB(0.1, 0.03, 0.06), HC.boot, [0, -0.42, -0.17], null, [0.4, 0, 0])]), 2);
-defPart('h_ak', merge([BX(0.05, 0.075, 0.36, 0, 0, -0.2, HC.metal), BX(0.045, 0.08, 0.26, 0, -0.025, 0.08, HC.wood), BX(0.055, 0.06, 0.18, 0, 0, -0.46, HC.wood), CY(0.011, 0.011, 0.32, 0, 0.01, -0.7, HC.metal, Math.PI / 2),
-  BX(0.04, 0.16, 0.07, 0, -0.1, -0.26, 0x5a3424, 0.3), BX(0.035, 0.1, 0.045, 0, -0.07, -0.06, 0x2b2522, 0.3)]));
-defPart('h_pkm', merge([BX(0.06, 0.09, 0.42, 0, 0, -0.22, HC.metal), BX(0.05, 0.09, 0.28, 0, -0.02, 0.1, 0x2a2a28), CY(0.014, 0.014, 0.5, 0, 0.01, -0.68, HC.metal, Math.PI / 2), BX(0.1, 0.11, 0.12, 0.03, -0.12, -0.2, 0x3d4a2c),
-  BX(0.012, 0.2, 0.012, -0.03, -0.1, -0.78, HC.metal, -0.4), BX(0.012, 0.2, 0.012, 0.03, -0.1, -0.78, HC.metal, -0.4)]));
-defPart('h_svd', merge([BX(0.045, 0.07, 0.4, 0, 0, -0.2, HC.metal), BX(0.04, 0.1, 0.3, 0, -0.02, 0.1, HC.wood), BX(0.05, 0.05, 0.22, 0, 0, -0.5, HC.wood), CY(0.01, 0.01, 0.45, 0, 0.01, -0.82, HC.metal, Math.PI / 2),
-  CY(0.022, 0.022, 0.3, -0.03, 0.08, -0.15, 0x141414, Math.PI / 2), BX(0.035, 0.14, 0.06, 0, -0.1, -0.22, 0x2a2a2a, 0.2)]));
-defPart('h_rpg', merge([CY(0.04, 0.04, 1.0, 0, 0, -0.1, 0x4b5636, Math.PI / 2), CY(0.045, 0.085, 0.2, 0, 0, -0.7, 0x55633b, Math.PI / 2), CY(0.01, 0.045, 0.18, 0, 0, -0.89, 0x55633b, Math.PI / 2), BX(0.03, 0.1, 0.04, 0, -0.07, -0.05, 0x1a1a1a)]));
+defPart('h_svd', merge([
+  PR(gB(0.045, 0.07, 0.4), AKM, [0, 0, -0.2]), PR(gB(0.04, 0.035, 0.32), AKW, [0, 0.03, 0.1]), PR(gB(0.04, 0.035, 0.3), AKW, [0, -0.06, 0.11], null, [-0.12, 0, 0]),   // рамочный приклад
+  PR(gB(0.035, 0.12, 0.03), AKW, [0, -0.01, 0.24]), PR(gB(0.05, 0.05, 0.24), AKW, [0, 0, -0.5]),
+  PR(gC(0.01, 0.01, 0.46, 8), AKM, [0, 0.01, -0.84], null, [Math.PI / 2, 0, 0]), PR(gC(0.014, 0.014, 0.06, 8), AKM, [0, 0.01, -1.08], null, [Math.PI / 2, 0, 0]),
+  PR(gC(0.019, 0.019, 0.22, 10), 0x141414, [-0.03, 0.085, -0.17], null, [Math.PI / 2, 0, 0]), PR(gC(0.026, 0.02, 0.05, 10), 0x141414, [-0.03, 0.085, -0.3], null, [Math.PI / 2, 0, 0]),   // ПСО
+  PR(gC(0.024, 0.019, 0.05, 10), 0x141414, [-0.03, 0.085, -0.04], null, [Math.PI / 2, 0, 0]), PR(gB(0.03, 0.04, 0.1), 0x1c1c1c, [-0.02, 0.05, -0.17]),
+  PR(gB(0.035, 0.1, 0.06), 0x2a2a2a, [0, -0.08, -0.22], null, [0.15, 0, 0]), PR(gB(0.034, 0.09, 0.04), 0x2b2522, [0, -0.07, -0.04], null, [0.3, 0, 0]),
+]));
+defPart('h_rpg', merge([
+  PR(gC(0.04, 0.04, 1.0, 10), 0x4b5636, [0, 0, -0.1], null, [Math.PI / 2, 0, 0]), PR(gC(0.05, 0.045, 0.06, 10), 0x2f3524, [0, 0, 0.38], null, [Math.PI / 2, 0, 0]),   // труба, раструб
+  PR(gC(0.022, 0.03, 0.18, 10), 0x55633b, [0, 0, -0.66], null, [Math.PI / 2, 0, 0]), PR(gC(0.045, 0.085, 0.2, 12), 0x55633b, [0, 0, -0.84], null, [Math.PI / 2, 0, 0]),   // выстрел
+  PR(gC(0.01, 0.045, 0.16, 12), 0x55633b, [0, 0, -1.02], null, [Math.PI / 2, 0, 0]), PR(gC(0.005, 0.005, 0.04, 6), 0x222222, [0, 0, -1.12], null, [Math.PI / 2, 0, 0]),
+  PR(gB(0.03, 0.1, 0.04), 0x1a1a1a, [0, -0.07, -0.05], null, [0.3, 0, 0]), PR(gB(0.03, 0.09, 0.04), 0x1a1a1a, [0, -0.07, -0.3], null, [0.2, 0, 0]),   // рукояти
+  PR(gB(0.03, 0.05, 0.12), 0x1c1c1c, [-0.06, 0.04, -0.15]), PR(gC(0.014, 0.014, 0.04, 8), 0x111111, [-0.06, 0.05, -0.08], null, [Math.PI / 2, 0, 0]),   // ПГО-7
+  PR(gB(0.11, 0.025, 0.03), 0x6b4a30, [0, 0.045, 0.1]),                                                                                 // теплозащитная накладка
+]));
 defPart('h_medbag', merge([BX(0.22, 0.2, 0.12, 0, 0, 0, 0xd8d4c8), BX(0.06, 0.14, 0.01, 0, 0, -0.065, 0xb3261e), BX(0.14, 0.05, 0.01, 0, 0, -0.066, 0xb3261e)]));
 const RC = { ar: 0x7d858e, dk: 0x474d55, lt: 0xa6adb4, jt: 0x24272c, ac: 0xb03020 };
 defPart('r_pelvis', merge([BX(0.48, 0.24, 0.32, 0, 0, 0, RC.dk), BX(0.18, 0.24, 0.06, -0.14, -0.09, -0.18, RC.ar), BX(0.18, 0.24, 0.06, 0.14, -0.09, -0.18, RC.ar), BX(0.4, 0.08, 0.28, 0, 0.14, 0, RC.jt)]));
@@ -805,7 +872,7 @@ function aimPointOf(t, zone, out) {
 }
 function eyeOf(u, out) {
   if (u.isPlayer) return out.copy(camera.position);
-  return out.set(u.pos.x, u.pos.y + (isBot(u) ? (u.crawl ? 0.6 : 2.1 - u.crouch * 0.6) : 1.6 - u.crouch * 0.55), u.pos.z);
+  return out.set(u.pos.x, u.pos.y + (isBot(u) ? (u.crawl ? 0.6 : 2.1 - u.crouch * 0.6) : lerp(1.6 - u.crouch * 0.55, 0.38, u.proneK || 0)), u.pos.z);
 }
 const enemyTeam = (t) => (t === 'h' ? 'r' : 'h');
 const isFriend = (team) => team === B.side;
@@ -966,7 +1033,7 @@ function blendPV(u, keys, rate) { const k = Math.min(1, rate); for (const key of
 
 function downHuman(u, by, dir, blast) {
   if (!u.alive) return;
-  u.alive = false; u.down = true; u.state = 'down'; u.downT = B.t; B.humansDown++;
+  u.alive = false; u.down = true; u.state = 'down'; u.downT = B.t; B.humansDown++; u.prone = false; u.proneK = 0;
   if (u.spot) { u.spot.used = null; u.spot = null; }
   if (u.nest) { u.nest.crew = u.nest.crew.filter((c) => c !== u); u.nest = null; }
   if (u.mortar) { u.mortar.crew = u.mortar.crew.filter((c) => c !== u); u.mortar = null; }
@@ -1561,7 +1628,7 @@ function updateLaser(u) {
 }
 
 /* ================= сетка для попаданий ================= */
-const GRID = new Map(), GC = 8, _cand = [];
+const GRID = new Map(), GC = 8, _cand = [], _sep = [], _sep2 = [], _lodD = [];
 function gridBuild() {
   GRID.clear();
   for (const u of units) { if (!u.alive && !(u.down && !u.dead && !u.evac)) continue; const k = Math.floor(u.pos.x / GC) * 100003 + Math.floor(u.pos.z / GC); let a = GRID.get(k); if (!a) GRID.set(k, a = []); a.push(u); }
@@ -1959,7 +2026,7 @@ function npcFireAt(u, tp, vel, spreadMrad, tracer, org) {
   const dir = shootDir(org, p, wp, D, u.rangeErr, spreadMrad);
   const bb = SS.spawnBullet({ team: u.team, rf: wp, origin: org, dir, mv: wp.mv + gauss() * 3, tracer, owner: u, dt: 0.003 }); if (bb && B.finishing) bb.aimDown = true;
   flashFX(org, wp.g > 10);
-  if (Math.random() < 0.45 && Math.abs(org.x - camera.position.x) + Math.abs(org.z - camera.position.z) < 80) SS.fxPuff(org, 0xd8d4cc, 0.1, 0.7, 1.0, dir.clone().multiplyScalar(1.5), 0.3);
+  if (Math.random() < 0.22 && Math.abs(org.x - camera.position.x) + Math.abs(org.z - camera.position.z) < 60) SS.fxPuff(org, 0xd8d4cc, 0.1, 0.55, 0.8, dir.clone().multiplyScalar(1.5), 0.25);
   u.kick = 1; u.mag--; u.firedT = B.t;
   SS.sndShotFar(org.distanceTo(camera.position), wp.g > 10 || u.cls === 'mg', isBot(u));
 }
@@ -1976,6 +2043,7 @@ function launchAt(u, tgtPoint, D, spread) {
 function sendTo(u, spot, delay, pos, force) {
   if (!force && u.orderT && B.t < u.orderT) return;
   if (u.carry) return;
+  u.prone = false;
   if (u.spot && u.spot !== spot) u.spot.used = null;
   u.spot = spot || null; if (spot) spot.used = u;
   u.slot = spot && spot.pp ? spot : null;
@@ -1991,14 +2059,15 @@ function moveUnit(u, dt, speed) {
   const d = _v.set(u.dest.x - u.pos.x, 0, u.dest.z - u.pos.z);
   const L = d.length();
   u.moveT = (u.moveT || 0) + dt;
-  if (L < 0.7 || u.moveT > 45) { if (u.after) { u.dest = u.after; u.after = null; u.moveT = 0; return false; } u.state = 'pos'; u.vel.set(0, 0, 0); u.moveT = 0; return true; }
+  if (L < 0.7 || u.moveT > 45 || (L < 3.5 && u.moveT > 6)) { if (u.after) { u.dest = u.after; u.after = null; u.moveT = 0; return false; } u.state = 'pos'; u.vel.set(0, 0, 0); u.moveT = 0; return true; }
   d.divideScalar(L);
-  for (const o of units) if (o !== u && o.alive && o.team === u.team && Math.abs(o.pos.x - u.pos.x) < 3 && Math.abs(o.pos.z - u.pos.z) < 3) { const ex = u.pos.x - o.pos.x, ez = u.pos.z - o.pos.z, d2 = ex * ex + ez * ez; if (d2 < 4 && d2 > 1e-4) { d.x += ex / d2 * 0.6; d.z += ez / d2 * 0.6; } }
+  gridQuery(u.pos, u.pos, 3, _sep);
+  for (const o of _sep) if (o !== u && o.alive && o.team === u.team && Math.abs(o.pos.x - u.pos.x) < 3 && Math.abs(o.pos.z - u.pos.z) < 3) { const ex = u.pos.x - o.pos.x, ez = u.pos.z - o.pos.z, d2 = ex * ex + ez * ez; if (d2 < 4 && d2 > 1e-4) { d.x += ex / d2 * 0.6; d.z += ez / d2 * 0.6; } }
   const ax = u.pos.x + d.x * 1.8, az = u.pos.z + d.z * 1.8;
   for (const cv of covers) {
     if (cv.ns || Math.abs(cv.c.x - ax) > 9 || Math.abs(cv.c.z - az) > 9) continue;
     const lx = (ax - cv.c.x) * cv.u.x + (az - cv.c.z) * cv.u.z, lz = (ax - cv.c.x) * cv.n.x + (az - cv.c.z) * cv.n.z;
-    if (Math.abs(lx) < cv.mx[0] + 0.5 && Math.abs(lz) < cv.mx[2] + 0.5 && L > 2.5) { const s = lx >= 0 ? 1 : -1; d.x += cv.u.x * s * 1.5; d.z += cv.u.z * s * 1.5; }
+    if (Math.abs(lx) < cv.mx[0] + 0.5 && Math.abs(lz) < cv.mx[2] + 0.5 && L > 2.5) { if (u.stCv !== cv) { u.stCv = cv; u.stS = lx >= 0 ? 1 : -1; } const s = u.stS; d.x += cv.u.x * s * 1.5; d.z += cv.u.z * s * 1.5; }
   }
   d.normalize();
   const gy = terrainH(u.pos.x, u.pos.z);
@@ -2027,6 +2096,7 @@ function spotNear(team, from, toward, minD, maxD, lane) {
   };
   for (const cv of covers) { if (Math.abs(cv.c.x - from.x) > maxD + 80 || Math.abs(cv.c.z - from.z) > maxD + 80) continue; for (const p of cv.pts[side]) test(p); }
   if (att) for (const p of forestSpots) test(p);
+  for (const p of ROCKSP[side]) if (Math.abs(p.pos.x - from.x) < maxD + 80 && Math.abs(p.pos.z - from.z) < maxD + 80) test(p);
   else if (!wall) { for (const p of slots.front) test(p); for (const p of slots.rear) test(p); }
   return best;
 }
@@ -2528,7 +2598,8 @@ function assaultWall(g, al, team, manT) {
     if (m.state === 'move' || (manT && i % 2 !== g.turn && al.length > 1)) return;
     let t = null, bd = 1e9; for (const f of foes) { const p = f.isPlayer ? PL.pos : f.pos; const d = p.distanceTo(m.pos); if (d < bd) { bd = d; t = p; } }
     if (bd < 22) return;
-    const sp = spotNear(team, m.pos, t, 15, 50, lerp(m.pos.x, t.x, 0.5));
+    const ahead = m.pos.clone().lerp(t, Math.min(0.85, 30 / bd));
+    const sp = nearCover({ pos: ahead, team, alive: true }, 22, t) || spotNear(team, m.pos, t, 15, 50, lerp(m.pos.x, t.x, 0.5) + (i - al.length / 2) * 5);
     if (sp) sendTo(m, sp, Math.random() * 0.4); else sendTo(m, null, Math.random() * 0.4, m.pos.clone().lerp(t, Math.min(0.9, 36 / bd)).add(_v.set(gauss() * 3, 0, gauss() * 3)));
     if (manT) m.run = true;
   });
@@ -2869,9 +2940,10 @@ function sheltered(p) {
 function nearCover(u, r, from) {
   const th = from || threatNear(u, 400);
   let best = null, bs = 1e9;
-  const test = (s) => { if (s.used && s.used !== u) return; const d = s.pos.distanceTo(u.pos); if (d > r) return; let sc = d; if (th) { const tdx = th.x - s.pos.x, tdz = th.z - s.pos.z; const back = ((u.pos.x - th.x) * tdx + (u.pos.z - th.z) * tdz) < 0 ? 0 : 6; sc += back - Math.min(10, Math.hypot(tdx, tdz) / 50); } if (sc < bs) { bs = sc; best = s; } };
+  const test = (s) => { if (s.used && s.used !== u) return; const d = s.pos.distanceTo(u.pos); if (d > r) return; let sc = d; gridQuery(s.pos, s.pos, 4, _sep2); for (const o of _sep2) if (o !== u && o.alive && o.team === u.team && Math.abs(o.pos.x - s.pos.x) < 4 && Math.abs(o.pos.z - s.pos.z) < 4) sc += 7; if (th) { const tdx = th.x - s.pos.x, tdz = th.z - s.pos.z; const back = ((u.pos.x - th.x) * tdx + (u.pos.z - th.z) * tdz) < 0 ? 0 : 6; sc += back - Math.min(10, Math.hypot(tdx, tdz) / 50); } if (sc < bs) { bs = sc; best = s; } };
   const side = WALL() ? (u.team === 'h' ? 'h' : 'r') : (u.team === attTeam() ? 'r' : 'h');
   for (const cv of covers) { if (Math.abs(cv.c.x - u.pos.x) > r + 6 || Math.abs(cv.c.z - u.pos.z) > r + 6) continue; for (const s of cv.pts[side]) test(s); if (th && cv.pts[side === 'h' ? 'r' : 'h']) { /* укрытие с тыла тоже годится, если угроза с той стороны */ const tz = th.z - cv.c.z; for (const s of cv.pts[side === 'h' ? 'r' : 'h']) if (Math.sign(s.pos.z - cv.c.z) !== Math.sign(tz)) test(s); } }
+  for (const s of ROCKSP[side]) if (Math.abs(s.pos.x - u.pos.x) < r && Math.abs(s.pos.z - u.pos.z) < r) test(s);
   for (const s of forestSpots) if (Math.abs(s.pos.x - u.pos.x) < r && Math.abs(s.pos.z - u.pos.z) < r) test(s);
   if (!WALL()) { for (const s of slots.front) test(s); for (const s of slots.rear) test(s); }
   for (const k in POI) for (const s of POI[k].spots) if (!s.mill) test(s);
@@ -2887,9 +2959,22 @@ function fearStep(u, dt) {
     u.hideT = B.t + rnd(5, 8);
     const sp = nearCover(u, ordered ? 15 : 35, th);
     if (sp) { sendTo(u, sp, 0, null, true); u.run = true; if (isFriend(u.team) && (u.squad === PL.squad || Math.random() < 0.12)) feed((u.squad === PL.squad ? 'Тройка: ' : '') + clsName(u.cls) + ': ' + pickR(['прижали! В укрытие!', 'меня кроют — меняю позицию!', 'плотный огонь, ухожу!'])); return true; }
-    // укрытия нет — залечь и отползти от угрозы
-    if (th) { const away = u.pos.clone().sub(th).setY(0).normalize(); sendTo(u, null, 0, u.pos.clone().addScaledVector(away, 8).add(_v.set(gauss() * 3, 0, gauss() * 3)), true); u.run = false; u.crouchT = 1; return true; }
+    // укрытия нет — лечь и вести огонь лёжа
+    u.prone = true; u.proneT = B.t + rnd(7, 12); u.state = 'pos'; u.dest = null; if (isFriend(u.team) && u.squad === PL.squad && Math.random() < 0.4) feed('Тройка: ' + clsName(u.cls) + ' — залёг!'); return false;
   }
+  // 1б) противник близко (< 70 м), а ты на открытом месте или в толпе — в укрытие, рассредоточиться
+  if (B.t > (u.hideT || 0) && B.t > (u.spreadT || 0) && !ordered) {
+    const tg = u.target && u.target.alive ? (u.target.isPlayer ? PL.pos : u.target.pos) : th;
+    const close = tg && tg.distanceTo(u.pos) < 70;
+    let crowd = 0; gridQuery(u.pos, u.pos, 4, _sep2); for (const o of _sep2) if (o !== u && o.alive && o.team === u.team && Math.abs(o.pos.x - u.pos.x) < 3.5 && Math.abs(o.pos.z - u.pos.z) < 3.5) crowd++;
+    if ((close && !u.spot && !sheltered(u.pos)) || (crowd >= 2 && !inTrench(u.pos))) {
+      u.spreadT = B.t + rnd(6, 10);
+      const sp = nearCover(u, close ? 30 : 22, tg);
+      if (sp && sp !== u.spot) { sendTo(u, sp, rnd(0, 0.5), null, true); u.run = true; return true; }
+      if (crowd >= 2) { const a = Math.random() * TAU; sendTo(u, null, rnd(0, 0.5), u.pos.clone().add(_v.set(Math.cos(a) * 7, 0, Math.sin(a) * 7)), true); return true; }
+    }
+  }
+  if (u.prone && B.t > (u.proneT || 0) && u.supp < 1.2) u.prone = false;
   // 2) в укрытии под шквалом — пережидать, не высовываться
   if (u.supp > 4.2) { u.st = Math.max(u.st || 0, rnd(1.2, 2.5)); }
   // 3) тяжело ранен в бою — отойти назад в укрытие, к санитару
@@ -3195,6 +3280,7 @@ function poseHuman(u, dt) {
     if (u.healing) { T.hipsY = 0.5; T.thL = 1.5; T.snL = -1.6; T.thR = 0.2; T.snR = -1.7; T.torX = -0.7; T.shLx = 1.1; T.shRx = 1.0; T.faL = 0.6 + Math.sin(B.t * 6) * 0.3; T.faR = 0.8; T.gunX = -0.9; }
     if (u.chute) { T.hipsY = 0.95; T.thL = 0.15; T.thR = 0.05; T.snL = -0.35; T.snR = -0.2; T.torX = 0; T.shLx = 2.9; T.shLz = -0.35; T.shRx = 2.9; T.shRz = 0.35; T.faL = 0.4; T.faR = 0.4; T.gunX = -1.3; T.headX = 0.3; }
     if (u.mortar) { T.shLx = 0.9 + u.kick * 0.8; T.shRx = 0.9 + u.kick * 0.8; T.faL = 0.8; T.faR = 0.8; T.gunX = -0.9; }
+    if (u.proneK > 0.05) { const k = u.proneK; T.hipsY = lerp(T.hipsY, 0.95, k); T.thL *= 1 - k; T.thR = lerp(T.thR, 0.12, k); T.snL = lerp(T.snL, -0.15, k); T.snR = lerp(T.snR, -0.5, k); T.torX *= 1 - k; T.torY *= 1 - k; T.headX = lerp(T.headX, 1.3, k); }
     u.hold = u.chute || u.mortar || u.healing ? null : u.carry ? 'low' : u.reloadT > 0 ? 'reload' : run > 0.3 ? 'low' : 'aim';
     if (u.hold === 'aim') { const bl = u.cls === 'rpg' ? 0.3 : 0.5; T.torY -= bl; T.headY += bl * 0.9; }   // корпус развёрнут, голова — на цель
     else if (u.hold === 'low') { T.torY -= 0.2; T.headY += 0.2; }
@@ -3208,9 +3294,10 @@ function poseHuman(u, dt) {
   r.shL.rotation.set(v.shLx, 0, v.shLz); r.shR.rotation.set(v.shRx, 0, v.shRz);
   r.faL.rotation.set(v.faL, 0, 0); r.faR.rotation.set(v.faR, 0, 0);
   if (u.fall) updateFall(u, dt);
+  u.proneK = lerp(u.proneK || 0, u.prone && u.alive && !u.down ? 1 : 0, Math.min(1, dt * 3.5));
   r.root.rotation.set(0, u.yaw, 0); r.root.position.copy(u.pos);
-  if (u.fall) r.tilt.quaternion.setFromAxisAngle(u.fall.ax, u.fall.th); else r.tilt.quaternion.identity();
-  if (!u.down && !u.fall && u.hold) holdGun(u, false, u.hold, dt);
+  if (u.fall) r.tilt.quaternion.setFromAxisAngle(u.fall.ax, u.fall.th); else if (u.proneK > 0.02) { r.tilt.quaternion.setFromAxisAngle(_v.set(1, 0, 0), -1.45 * u.proneK); r.root.position.y += 0.14 * u.proneK; } else r.tilt.quaternion.identity();
+  if (!u.down && !u.fall && u.hold) { if (!u.gq || AIM.mode !== 'hip' || Math.abs(u.pos.x - camera.position.x) + Math.abs(u.pos.z - camera.position.z) < 200 || ((u.id + B.rf) & 3) === 0) holdGun(u, false, u.hold, dt * (u.gq && Math.abs(u.pos.x - camera.position.x) + Math.abs(u.pos.z - camera.position.z) >= 200 ? 4 : 1)); }
   else { const p0 = r.gun.userData.p0; u.gq = null; r.gun.position.copy(p0); r.gun.rotation.set(v.gunX, 0, 0); }
 }
 const PV_R = ['hipsY', 'thL', 'thR', 'snL', 'snR', 'torX', 'torY', 'torZ', 'headX', 'headY', 'shLx', 'shLz', 'shRx', 'shRz', 'faL', 'faR'];
@@ -3268,6 +3355,9 @@ function renderUnits(dt) {
   const flick = (SS.getSimT() * 17) % 1 > 0.5;
   B.rf = (B.rf || 0) + 1;
   const cx = camera.position.x, cz = camera.position.z, zoomed = AIM.mode !== 'hip';
+  // детальная модель — только у 16 ближайших (в толпе остальные — упрощённые)
+  const tf = Math.tan(camera.fov * Math.PI / 360); let lodD = 52;
+  { const ds = _lodD; ds.length = 0; for (const u of units) { const d = (Math.abs(u.pos.x - cx) + Math.abs(u.pos.z - cz)) * tf; if (d < 52) ds.push(d); } if (ds.length > 16) { ds.sort((a, b) => a - b); lodD = ds[15]; } }
   for (const u of units) {
     const far = !zoomed && !u.chute && Math.abs(u.pos.x - cx) + Math.abs(u.pos.z - cz) > 260;
     if (!far || ((u.id + B.rf) & 1) || !u.pv) {
@@ -3277,7 +3367,7 @@ function renderUnits(dt) {
     }
     if (isBot(u)) updateLaser(u);
     u.rig.hips.getWorldPosition(u.bc);
-    const lodK = Math.hypot(u.pos.x - cx, u.pos.z - cz) * Math.tan(camera.fov * Math.PI / 360) > 52;
+    const lodK = (Math.abs(u.pos.x - cx) + Math.abs(u.pos.z - cz)) * tf > lodD;
     for (const p of u.rig.parts) {
       if (u.gone.has(p.zone)) continue;
       if (lodK && p.key === 'r_joint') continue;
@@ -3328,7 +3418,7 @@ function clearBattle() {
   for (const k in PT) PT[k].mesh.count = 0;
   slots.front.concat(slots.rear).forEach((s) => { s.used = null; }); Object.values(POI).forEach((q) => q.spots.forEach((s) => { s.used = null; }));
   covers.forEach((cv) => cv.pts.h.concat(cv.pts.r).forEach((p) => { p.used = null; }));
-  forestSpots.forEach((p) => { p.used = null; });
+  forestSpots.forEach((p) => { p.used = null; }); ROCKSP.h.concat(ROCKSP.r).forEach((p) => { p.used = null; });
   nests.forEach((n) => { n.crew = []; n.piv.visible = true; });
   for (let i = mortars.length - 1; i >= 0; i--) { const m = mortars[i]; if (m.dyn) { scene.remove(m.mesh); mortars.splice(i, 1); continue; } Object.assign(m, { crew: [], cool: rnd(8, 14), spread: 45, shots: 0, tgt: null, team: 'h', player: false, range: 0 }); }
   FL.on = false;
@@ -3612,7 +3702,7 @@ $('endWatch').addEventListener('click', () => {
 
 HOOK.startBattle = startBattle;
 HOOK.stopBattle = stopBattle;
-HOOK._dbg = { SOLID, ELEV, hurtPlayer, downHuman, retreatTo, orderTo, POI, CCP, elevY, takeOver, killDowned, playerDie, drops, crates, units, B, PL, explode, squads, covers, partDamage, hurtHuman, TK, smokes, nests, mortars, squadCmd, grenades, raiseAlarm, smokeBetween, visibleNow, los };
+HOOK._dbg = { PT, smokeAt: (x, z) => makeSmoke(new V3(x, terrainH(x, z), z), rnd(12, 15), 80), SOLID, ELEV, hurtPlayer, downHuman, retreatTo, orderTo, POI, CCP, elevY, takeOver, killDowned, playerDie, drops, crates, units, B, PL, explode, squads, covers, partDamage, hurtHuman, TK, smokes, nests, mortars, squadCmd, grenades, raiseAlarm, smokeBetween, visibleNow, los };
 HOOK.nextWeapon = function () {
   if (!B.active) { SS.selectRifle(S.rifle + 1); return; }
   if (B.mounted || B.mortarMode) return;
