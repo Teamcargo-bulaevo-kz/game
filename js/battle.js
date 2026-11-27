@@ -3904,6 +3904,17 @@ HOOK.drawOverlay = function (o, W, H, D) {
     o.fillStyle = col; o.font = '700 ' + 11 * D + 'px sans-serif'; o.textAlign = 'center'; o.fillText(p.n, s[0], s[1] + 4 * D);
     const dd = Math.round(p.pos.distanceTo(PL.pos)); if (dd > 30) { o.font = 9 * D + 'px monospace'; o.fillText(dd + ' м', s[0], s[1] + 20 * D); }
   }
+  // ИК-маячки своих: мигают в ПНВ и тепловизоре (свои — по вашей стороне)
+  if (SS.VIS && SS.VIS.mode !== 'off' && PL.alive) {
+    const col = SS.VIS.mode === 'nvg' ? 'rgba(215,255,205,' : 'rgba(255,255,255,';
+    for (const u of units) {
+      if (u.team !== PL.team || (!u.alive && !u.down) || u.dead || u.evac) continue;
+      const d = Math.abs(u.pos.x - camera.position.x) + Math.abs(u.pos.z - camera.position.z); if (d > 900) continue;
+      const s = toScreen(_v.set(u.pos.x, u.pos.y + (u.alive ? (u.prone ? 0.5 : 1.95 - u.crouch * 0.5) : 0.4), u.pos.z), W, H); if (!s) continue;
+      if ((B.t * 1.6 + (u.id % 5) * 0.17) % 1 >= 0.22) { o.fillStyle = col + '.3)'; o.fillRect(s[0] - 1 * D, s[1] - 1 * D, 2 * D, 2 * D); continue; }   // вспышка раз в ~0,6 с, вразнобой
+      const r = (d < 150 ? 4 : 3) * D; o.fillStyle = col + '.97)'; o.beginPath(); o.arc(s[0], s[1], r, 0, TAU); o.fill(); o.fillStyle = col + '.3)'; o.beginPath(); o.arc(s[0], s[1], r * 3, 0, TAU); o.fill();
+    }
+  }
   // медпункты (когда тащите раненого) и точка указки
   if (PL.alive && (B.drag || (B.mark && B.mark.pos))) {
     const list = B.drag ? (!WALL() && PL.team === defTeam() ? CCP : [ccpFor(PL.team, PL.pos)]) : [];

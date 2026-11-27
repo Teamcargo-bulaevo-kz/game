@@ -86,7 +86,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 #bFireL{left:calc(34px + var(--sl));bottom:calc(210px + var(--sb));width:56px;height:56px;background:rgba(150,30,20,.22)}
 
 #joy{position:fixed;left:calc(40px + var(--sl));bottom:calc(30px + var(--sb));width:130px;height:130px;border-radius:50%;border:1.5px solid rgba(230,240,210,.28);background:rgba(18,22,14,.22);pointer-events:none}
-#knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(236,240,220,.32);border:1.5px solid rgba(236,240,220,.5)}
+#knob{position:absolute;left:30%;top:30%;width:40%;height:40%;border-radius:50%;background:rgba(236,240,220,.32);border:1.5px solid rgba(236,240,220,.5)}
 
 #zoom{position:fixed;right:calc(198px + var(--sr));bottom:calc(96px + var(--sb));width:34px;height:170px;border-radius:17px;background:rgba(18,22,14,.5);border:1px solid var(--edge)}
 #zoomFill{position:absolute;left:15px;width:4px;bottom:12px;top:12px;background:rgba(236,240,220,.25);border-radius:2px}
@@ -246,7 +246,8 @@ body.battle #feed{bottom:calc(100px + var(--sb))}
 body.aiming #minimap:not(.big),body.aiming #obj,body.aiming #feed,body.aiming #wx,body.aiming #stats,body.aiming #bbar,body.aiming #tr{opacity:0;pointer-events:none;transition:opacity .15s}
 body.aiming #compass{opacity:.3}
 body.aiming #morePanel,body.aiming #bMore{display:none}
-body.aiming #tur{opacity:.3;transform:scale(.72);transform-origin:left bottom;left:calc(10px + var(--sl));bottom:calc(52px + var(--sb));transition:opacity .15s}
+body.aiming #tur{opacity:.35;transform:scale(.72);transform-origin:left top;left:calc(10px + var(--sl));top:calc(14px + var(--st));bottom:auto;transition:opacity .15s;pointer-events:none}
+body.aiming #tur button{pointer-events:auto}
 body.aiming #tur:active{opacity:.95}
 body.aiming #hp{opacity:.6}
 #obj{max-width:46vw}
@@ -288,3 +289,7 @@ body.aiming #pts{opacity:.35}
 
 #wList{overscroll-behavior:contain;max-height:min(62vh,calc(100vh - 90px))}
 #wList .wi{touch-action:none;flex:0 0 auto}
+
+#morePanel .rb{width:46px;height:46px}
+#morePanel .rb span{font-size:8px}
+.rb span{font-size:8px}

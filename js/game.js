@@ -816,6 +816,8 @@ function setVision(m) {
   const w = WEATHER[S.weather] || {};
   const f = m === 'nvg' ? (w.dark ? 'brightness(6) contrast(1.2) grayscale(1) sepia(1) hue-rotate(58deg) saturate(3.2)' : 'brightness(3.4) contrast(1.15) grayscale(1) sepia(1) hue-rotate(58deg) saturate(3.2)') : m === 'thermal' ? 'grayscale(1) brightness(1.5) contrast(1.9)' : w.night ? '' : 'contrast(1.07) saturate(1.15)';
   $('gl').style.filter = f;
+  if (m === 'thermal') { if (VIS.hemi0 == null) VIS.hemi0 = hemi.intensity; hemi.intensity = Math.max(VIS.hemi0, 0.7); }
+  else if (VIS.hemi0 != null) { hemi.intensity = VIS.hemi0; VIS.hemi0 = null; }
   const b = $('bVision'); if (b) { b.classList.toggle('on', m !== 'off'); b.querySelector('span').textContent = m === 'nvg' ? 'ПНВ' : m === 'thermal' ? 'ТЕПЛО' : 'ОПТИКА'; }
   if (HOOK.onVision) HOOK.onVision(m);
 }
@@ -1185,7 +1187,14 @@ function initLaser() {
   LASER.dot = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff3020, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
   LASER.dot.visible = false; scene.add(LASER.dot);
 }
-function toggleLaser() { LASER.on = !LASER.on; $('bLaser').classList.toggle('on', LASER.on); if (HOOK.toast) HOOK.toast('Лазер ' + (LASER.on ? 'включён' : 'выключен')); }
+const IRL = new THREE.SpotLight(0xffffff, 0, 260, 0.42, 0.9, 1);
+IRL.position.set(0.05, -0.06, -1.0); IRL.target.position.set(0, -0.6, -24); camera.add(IRL); camera.add(IRL.target);
+function updateIR() {
+  const rf = curRifle();
+  const on = LASER.on && VIS.mode === 'nvg' && !HOOK.dead && started && !rf.mounted && rf.type !== 'mortar';
+  IRL.intensity = lerp(IRL.intensity, on ? ((WEATHER[S.weather] || {}).dark ? 1.7 : 1.2) : 0, 0.25);
+}
+function toggleLaser() { LASER.on = !LASER.on; $('bLaser').classList.toggle('on', LASER.on); if (HOOK.toast) HOOK.toast(LASER.on ? 'Лазер и ИК-фонарь включены (фонарь виден в ПНВ)' : 'Лазер и ИК-фонарь выключены'); }
 HOOK.laserOn = () => LASER.on && !HOOK.dead;
 const _ld = new V3(), _lo = new V3(), _lr = new V3(), _lu = new V3();
 function updateLaserBeam() {
@@ -1273,7 +1282,6 @@ function updateAimUI() {
   $('stamina').hidden = m !== 'scope';
   const zoomable = (m === 'scope' && sc.max > sc.min) || m === 'bino';
   $('zoom').hidden = !zoomable;
-  if (IS_TOUCH) $('joy').hidden = m !== 'hip';
   $('weapon').hidden = m === 'scope';
   $('bFire').querySelector('span').textContent = m === 'bino' ? 'ЛАЗЕР' : 'ОГОНЬ';
   updateZoomUI(); updateTurUI();
@@ -1708,8 +1716,10 @@ function lookDelta(dx, dy, kind) {
 }
 function joyStart(e) {
   JOY.id = e.pointerId; JOY.ox = e.clientX; JOY.oy = e.clientY;
-  const js = joyEl.offsetWidth || 130;
-  joyEl.style.left = (e.clientX - js / 2) + 'px'; joyEl.style.top = (e.clientY - js / 2) + 'px'; joyEl.style.bottom = 'auto';
+  const js = joyEl.offsetWidth || 96, r = js / 2;
+  const cx = clamp(e.clientX, r + 4, innerWidth * 0.46 - r), cy = clamp(e.clientY, innerHeight * 0.58 + r * 0.6, innerHeight - r - 4);
+  JOY.ox = cx; JOY.oy = cy;
+  joyEl.style.left = (cx - r) + 'px'; joyEl.style.top = (cy - r) + 'px'; joyEl.style.bottom = 'auto';
 }
 function joyMove(e) {
   let dx = e.clientX - JOY.ox, dy = e.clientY - JOY.oy; const l = Math.hypot(dx, dy), m = (joyEl.offsetWidth || 130) * 0.4;
@@ -1727,7 +1737,7 @@ touch.addEventListener('pointerdown', (e) => {
     MDRAG.id = e.pointerId; MDRAG.x = e.clientX; MDRAG.y = e.clientY;
     return;
   }
-  if (JOY.id === null && e.clientX < innerWidth * 0.42) { joyStart(e); joyMove(e); }
+  if (JOY.id === null && e.clientX < innerWidth * 0.46 && e.clientY > innerHeight * 0.58) { joyStart(e); joyMove(e); }
   else if (LOOK.id === null) { LOOK.id = e.pointerId; LOOK.x = e.clientX; LOOK.y = e.clientY; }
   try { touch.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
 });
@@ -2468,7 +2478,7 @@ function loop(now) {
   updateSway(dt);
   applyCamera(dt);
   updateLaserBeam();
-  updateSuppression(dt); updateCasings(dt); updateBarrelSmoke(dt);
+  updateSuppression(dt); updateCasings(dt); updateBarrelSmoke(dt); updateIR();
   updateBullets(sdt);
   updateEffects(sdt);
   updateEnv(dt);

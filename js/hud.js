@@ -5,30 +5,28 @@ const $ = (id) => document.getElementById(id);
 const IDS = ['bFire', 'bFireL', 'bScope', 'bScopeL', 'bBino', 'bBreath', 'bCrouch', 'bProne', 'bReload', 'bArt', 'bJump', 'bMore', 'bMed', 'bUse', 'bGren', 'bLeanL', 'bLeanR', 'joy'];
 const NAMES = { bFire: 'Огонь', bFireL: 'Огонь (левый)', bScope: 'Прицел', bScopeL: 'Прицел (левый)', bBino: 'Бинокль', bBreath: 'Дыхание', bCrouch: 'Сидя', bProne: 'Лёжа', bReload: 'Перезарядка', bArt: 'Артиллерия', bJump: 'Прыжок', bMore: 'Ещё (ПНВ, лазер, наклоны, команды)', bMed: 'Аптечка', bUse: 'За пулемёт/миномёт/ящик', bGren: 'Граната (удерживать)', bLeanL: 'Наклон влево', bLeanR: 'Наклон вправо', joy: 'Джойстик' };
 // центр кнопки — доля ширины/высоты экрана, s — диаметр в px, v — видимость
+// эталонный экран 851×393: справа — огонь и стойки, слева по краю — огонь (левый) с наклонами,
+// левая нижняя четверть — плавающий джойстик, верхние углы свободны под обзор
+const BASE = {
+  bFire: { x: 0.889, y: 0.72, s: 76, v: 1 }, bBreath: { x: 0.803, y: 0.735, s: 46, v: 1 }, bUse: { x: 0.731, y: 0.636, s: 46, v: 1 },
+  bScope: { x: 0.958, y: 0.5, s: 50, v: 1 }, bGren: { x: 0.875, y: 0.52, s: 40, v: 1 }, bMed: { x: 0.815, y: 0.56, s: 38, v: 1 },
+  bArt: { x: 0.958, y: 0.37, s: 38, v: 1 }, bMore: { x: 0.961, y: 0.235, s: 36, v: 1 }, bBino: { x: 0.961, y: 0.636, s: 40, v: 1 },
+  bJump: { x: 0.77, y: 0.935, s: 38, v: 1 }, bReload: { x: 0.823, y: 0.935, s: 38, v: 1 }, bCrouch: { x: 0.876, y: 0.935, s: 38, v: 1 }, bProne: { x: 0.929, y: 0.935, s: 38, v: 1 },
+  bFireL: { x: 0.092, y: 0.522, s: 50, v: 1 }, bLeanL: { x: 0.031, y: 0.522, s: 34, v: 1 }, bLeanR: { x: 0.153, y: 0.522, s: 34, v: 1 }, bScopeL: { x: 0.209, y: 0.522, s: 40, v: 1 },
+  joy: { x: 0.141, y: 0.81, s: 96, v: 1 },
+};
 const PRESETS = {
-  two: {
-    bFire: { x: 0.9, y: 0.68, s: 90, v: 1 }, bScope: { x: 0.8, y: 0.62, s: 62, v: 1 }, bBino: { x: 0.955, y: 0.36, s: 52, v: 1 },
-    bBreath: { x: 0.775, y: 0.4, s: 58, v: 1 }, bCrouch: { x: 0.865, y: 0.92, s: 52, v: 1 }, bProne: { x: 0.94, y: 0.92, s: 52, v: 1 },
-    bReload: { x: 0.79, y: 0.92, s: 52, v: 1 }, bArt: { x: 0.86, y: 0.2, s: 50, v: 1 }, bFireL: { x: 0.11, y: 0.5, s: 60, v: 1 }, bScopeL: { x: 0.215, y: 0.3, s: 56, v: 0 }, bLeanL: { x: 0.035, y: 0.5, s: 44, v: 1 }, bLeanR: { x: 0.188, y: 0.5, s: 44, v: 1 },
-    bJump: { x: 0.715, y: 0.92, s: 50, v: 1 }, bMore: { x: 0.955, y: 0.27, s: 46, v: 1 }, bMed: { x: 0.865, y: 0.44, s: 46, v: 1 }, bUse: { x: 0.67, y: 0.62, s: 56, v: 1 }, bGren: { x: 0.785, y: 0.42, s: 46, v: 1 },
-    joy: { x: 0.14, y: 0.72, s: 140, v: 1 },
-  },
-  four: {
-    bFire: { x: 0.885, y: 0.7, s: 94, v: 1 }, bScope: { x: 0.955, y: 0.43, s: 62, v: 1 }, bBino: { x: 0.955, y: 0.66, s: 50, v: 1 },
-    bBreath: { x: 0.775, y: 0.69, s: 56, v: 1 }, bCrouch: { x: 0.865, y: 0.92, s: 52, v: 1 }, bProne: { x: 0.94, y: 0.92, s: 52, v: 1 },
-    bReload: { x: 0.79, y: 0.92, s: 52, v: 1 }, bArt: { x: 0.86, y: 0.2, s: 50, v: 1 }, bFireL: { x: 0.11, y: 0.5, s: 66, v: 1 }, bScopeL: { x: 0.215, y: 0.3, s: 58, v: 1 }, bLeanL: { x: 0.035, y: 0.5, s: 44, v: 1 }, bLeanR: { x: 0.188, y: 0.5, s: 44, v: 1 },
-    bJump: { x: 0.715, y: 0.92, s: 50, v: 1 }, bMore: { x: 0.955, y: 0.27, s: 46, v: 1 }, bMed: { x: 0.865, y: 0.44, s: 46, v: 1 }, bUse: { x: 0.67, y: 0.62, s: 56, v: 1 }, bGren: { x: 0.785, y: 0.42, s: 46, v: 1 },
-    joy: { x: 0.15, y: 0.75, s: 140, v: 1 },
-  },
+  two: Object.assign(JSON.parse(JSON.stringify(BASE)), { bFireL: { x: 0.092, y: 0.522, s: 50, v: 0 }, bScopeL: { x: 0.209, y: 0.522, s: 40, v: 0 } }),
+  four: JSON.parse(JSON.stringify(BASE)),
 };
 const touch = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window);
 let L = null, alpha = 0.7;
 function load() {
-  try { const r = JSON.parse(localStorage.getItem('stepSniperHud') || 'null'); if (r && r.layout && r.v === 10) { L = r.layout; alpha = r.alpha || 0.7; } } catch (e) { /* нет хранилища */ }
+  try { const r = JSON.parse(localStorage.getItem('stepSniperHud') || 'null'); if (r && r.layout && r.v === 11) { L = r.layout; alpha = r.alpha || 0.7; } } catch (e) { /* нет хранилища */ }
   if (!L) L = JSON.parse(JSON.stringify(touch ? PRESETS.four : PRESETS.two));
   IDS.forEach((id) => { if (!L[id]) L[id] = JSON.parse(JSON.stringify(PRESETS.four[id])); });
 }
-function save() { try { localStorage.setItem('stepSniperHud', JSON.stringify({ layout: L, alpha, v: 10 })); } catch (e) { /* ignore */ } }
+function save() { try { localStorage.setItem('stepSniperHud', JSON.stringify({ layout: L, alpha, v: 11 })); } catch (e) { /* ignore */ } }
 function apply() {
   const W = innerWidth, H = innerHeight;
   IDS.forEach((id) => {
