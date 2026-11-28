@@ -1840,6 +1840,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'KeyG' && HOOK.callArt) HOOK.callArt();
   else if (k === 'KeyL') toggleLaser();
   else if (k === 'KeyV' && HOOK.point) HOOK.point();
+  else if (k === 'KeyY' && HOOK.designate) HOOK.designate();
 });
 window.addEventListener('keyup', (e) => { input.keys[e.code] = false; if (e.code === 'Space') fireHeld = false; if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') BR.hold = false; });
 
